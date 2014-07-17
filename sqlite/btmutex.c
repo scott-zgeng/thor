@@ -25,13 +25,13 @@
 ** p->locked boolean to true.
 */
 static void lockBtreeMutex(Btree *p){
-  assert( p->locked==0 );
-  assert( sqlite3_mutex_notheld(p->pBt->mutex) );
-  assert( sqlite3_mutex_held(p->db->mutex) );
+    assert(p->locked == 0);
+    assert(sqlite3_mutex_notheld(p->pBt->mutex));
+    assert(sqlite3_mutex_held(p->db->mutex));
 
-  sqlite3_mutex_enter(p->pBt->mutex);
-  p->pBt->db = p->db;
-  p->locked = 1;
+    sqlite3_mutex_enter(p->pBt->mutex);
+    p->pBt->db = p->db;
+    p->locked = 1;
 }
 
 /*
@@ -39,14 +39,14 @@ static void lockBtreeMutex(Btree *p){
 ** clear the p->locked boolean.
 */
 static void unlockBtreeMutex(Btree *p){
-  BtShared *pBt = p->pBt;
-  assert( p->locked==1 );
-  assert( sqlite3_mutex_held(pBt->mutex) );
-  assert( sqlite3_mutex_held(p->db->mutex) );
-  assert( p->db==pBt->db );
+    BtShared *pBt = p->pBt;
+    assert(p->locked == 1);
+    assert(sqlite3_mutex_held(pBt->mutex));
+    assert(sqlite3_mutex_held(p->db->mutex));
+    assert(p->db == pBt->db);
 
-  sqlite3_mutex_leave(pBt->mutex);
-  p->locked = 0;
+    sqlite3_mutex_leave(pBt->mutex);
+    p->locked = 0;
 }
 
 /*
@@ -66,75 +66,75 @@ static void unlockBtreeMutex(Btree *p){
 ** subsequent Btrees that desire a lock.
 */
 void sqlite3BtreeEnter(Btree *p){
-  Btree *pLater;
+    Btree *pLater;
 
-  /* Some basic sanity checking on the Btree.  The list of Btrees
-  ** connected by pNext and pPrev should be in sorted order by
-  ** Btree.pBt value. All elements of the list should belong to
-  ** the same connection. Only shared Btrees are on the list. */
-  assert( p->pNext==0 || p->pNext->pBt>p->pBt );
-  assert( p->pPrev==0 || p->pPrev->pBt<p->pBt );
-  assert( p->pNext==0 || p->pNext->db==p->db );
-  assert( p->pPrev==0 || p->pPrev->db==p->db );
-  assert( p->sharable || (p->pNext==0 && p->pPrev==0) );
+    /* Some basic sanity checking on the Btree.  The list of Btrees
+    ** connected by pNext and pPrev should be in sorted order by
+    ** Btree.pBt value. All elements of the list should belong to
+    ** the same connection. Only shared Btrees are on the list. */
+    assert(p->pNext == 0 || p->pNext->pBt > p->pBt);
+    assert(p->pPrev == 0 || p->pPrev->pBt<p->pBt);
+    assert(p->pNext == 0 || p->pNext->db == p->db);
+    assert(p->pPrev == 0 || p->pPrev->db == p->db);
+    assert(p->sharable || (p->pNext == 0 && p->pPrev == 0));
 
-  /* Check for locking consistency */
-  assert( !p->locked || p->wantToLock>0 );
-  assert( p->sharable || p->wantToLock==0 );
+    /* Check for locking consistency */
+    assert(!p->locked || p->wantToLock>0);
+    assert(p->sharable || p->wantToLock == 0);
 
-  /* We should already hold a lock on the database connection */
-  assert( sqlite3_mutex_held(p->db->mutex) );
+    /* We should already hold a lock on the database connection */
+    assert(sqlite3_mutex_held(p->db->mutex));
 
-  /* Unless the database is sharable and unlocked, then BtShared.db
-  ** should already be set correctly. */
-  assert( (p->locked==0 && p->sharable) || p->pBt->db==p->db );
+    /* Unless the database is sharable and unlocked, then BtShared.db
+    ** should already be set correctly. */
+    assert((p->locked == 0 && p->sharable) || p->pBt->db == p->db);
 
-  if( !p->sharable ) return;
-  p->wantToLock++;
-  if( p->locked ) return;
+    if (!p->sharable) return;
+    p->wantToLock++;
+    if (p->locked) return;
 
-  /* In most cases, we should be able to acquire the lock we
-  ** want without having to go throught the ascending lock
-  ** procedure that follows.  Just be sure not to block.
-  */
-  if( sqlite3_mutex_try(p->pBt->mutex)==SQLITE_OK ){
-    p->pBt->db = p->db;
-    p->locked = 1;
-    return;
-  }
-
-  /* To avoid deadlock, first release all locks with a larger
-  ** BtShared address.  Then acquire our lock.  Then reacquire
-  ** the other BtShared locks that we used to hold in ascending
-  ** order.
-  */
-  for(pLater=p->pNext; pLater; pLater=pLater->pNext){
-    assert( pLater->sharable );
-    assert( pLater->pNext==0 || pLater->pNext->pBt>pLater->pBt );
-    assert( !pLater->locked || pLater->wantToLock>0 );
-    if( pLater->locked ){
-      unlockBtreeMutex(pLater);
+    /* In most cases, we should be able to acquire the lock we
+    ** want without having to go throught the ascending lock
+    ** procedure that follows.  Just be sure not to block.
+    */
+    if (sqlite3_mutex_try(p->pBt->mutex) == SQLITE_OK){
+        p->pBt->db = p->db;
+        p->locked = 1;
+        return;
     }
-  }
-  lockBtreeMutex(p);
-  for(pLater=p->pNext; pLater; pLater=pLater->pNext){
-    if( pLater->wantToLock ){
-      lockBtreeMutex(pLater);
+
+    /* To avoid deadlock, first release all locks with a larger
+    ** BtShared address.  Then acquire our lock.  Then reacquire
+    ** the other BtShared locks that we used to hold in ascending
+    ** order.
+    */
+    for (pLater = p->pNext; pLater; pLater = pLater->pNext){
+        assert(pLater->sharable);
+        assert(pLater->pNext == 0 || pLater->pNext->pBt > pLater->pBt);
+        assert(!pLater->locked || pLater->wantToLock > 0);
+        if (pLater->locked){
+            unlockBtreeMutex(pLater);
+        }
     }
-  }
+    lockBtreeMutex(p);
+    for (pLater = p->pNext; pLater; pLater = pLater->pNext){
+        if (pLater->wantToLock){
+            lockBtreeMutex(pLater);
+        }
+    }
 }
 
 /*
 ** Exit the recursive mutex on a Btree.
 */
 void sqlite3BtreeLeave(Btree *p){
-  if( p->sharable ){
-    assert( p->wantToLock>0 );
-    p->wantToLock--;
-    if( p->wantToLock==0 ){
-      unlockBtreeMutex(p);
+    if (p->sharable){
+        assert(p->wantToLock > 0);
+        p->wantToLock--;
+        if (p->wantToLock == 0){
+            unlockBtreeMutex(p);
+        }
     }
-  }
 }
 
 #ifndef NDEBUG
@@ -145,12 +145,12 @@ void sqlite3BtreeLeave(Btree *p){
 ** This routine is used only from within assert() statements.
 */
 int sqlite3BtreeHoldsMutex(Btree *p){
-  assert( p->sharable==0 || p->locked==0 || p->wantToLock>0 );
-  assert( p->sharable==0 || p->locked==0 || p->db==p->pBt->db );
-  assert( p->sharable==0 || p->locked==0 || sqlite3_mutex_held(p->pBt->mutex) );
-  assert( p->sharable==0 || p->locked==0 || sqlite3_mutex_held(p->db->mutex) );
+    assert( p->sharable==0 || p->locked==0 || p->wantToLock>0 );
+    assert( p->sharable==0 || p->locked==0 || p->db==p->pBt->db );
+    assert( p->sharable==0 || p->locked==0 || sqlite3_mutex_held(p->pBt->mutex) );
+    assert( p->sharable==0 || p->locked==0 || sqlite3_mutex_held(p->db->mutex) );
 
-  return (p->sharable==0 || p->locked);
+    return (p->sharable==0 || p->locked);
 }
 #endif
 
@@ -162,10 +162,10 @@ int sqlite3BtreeHoldsMutex(Btree *p){
 ** omitted if that module is not used.
 */
 void sqlite3BtreeEnterCursor(BtCursor *pCur){
-  sqlite3BtreeEnter(pCur->pBtree);
+    sqlite3BtreeEnter(pCur->pBtree);
 }
 void sqlite3BtreeLeaveCursor(BtCursor *pCur){
-  sqlite3BtreeLeave(pCur->pBtree);
+    sqlite3BtreeLeave(pCur->pBtree);
 }
 #endif /* SQLITE_OMIT_INCRBLOB */
 
@@ -185,22 +185,22 @@ void sqlite3BtreeLeaveCursor(BtCursor *pCur){
 ** at the same instant.
 */
 void sqlite3BtreeEnterAll(sqlite3 *db){
-  int i;
-  Btree *p;
-  assert( sqlite3_mutex_held(db->mutex) );
-  for(i=0; i<db->nDb; i++){
-    p = db->aDb[i].pBt;
-    if( p ) sqlite3BtreeEnter(p);
-  }
+    int i;
+    Btree *p;
+    assert(sqlite3_mutex_held(db->mutex));
+    for (i = 0; i < db->nDb; i++){
+        p = db->aDb[i].pBt;
+        if (p) sqlite3BtreeEnter(p);
+    }
 }
 void sqlite3BtreeLeaveAll(sqlite3 *db){
-  int i;
-  Btree *p;
-  assert( sqlite3_mutex_held(db->mutex) );
-  for(i=0; i<db->nDb; i++){
-    p = db->aDb[i].pBt;
-    if( p ) sqlite3BtreeLeave(p);
-  }
+    int i;
+    Btree *p;
+    assert(sqlite3_mutex_held(db->mutex));
+    for (i = 0; i < db->nDb; i++){
+        p = db->aDb[i].pBt;
+        if (p) sqlite3BtreeLeave(p);
+    }
 }
 
 /*
@@ -208,7 +208,7 @@ void sqlite3BtreeLeaveAll(sqlite3 *db){
 ** no lock is ever required since it is not sharable.
 */
 int sqlite3BtreeSharable(Btree *p){
-  return p->sharable;
+    return p->sharable;
 }
 
 #ifndef NDEBUG
@@ -219,19 +219,19 @@ int sqlite3BtreeSharable(Btree *p){
 ** This routine is used inside assert() statements only.
 */
 int sqlite3BtreeHoldsAllMutexes(sqlite3 *db){
-  int i;
-  if( !sqlite3_mutex_held(db->mutex) ){
-    return 0;
-  }
-  for(i=0; i<db->nDb; i++){
-    Btree *p;
-    p = db->aDb[i].pBt;
-    if( p && p->sharable &&
-         (p->wantToLock==0 || !sqlite3_mutex_held(p->pBt->mutex)) ){
-      return 0;
+    int i;
+    if( !sqlite3_mutex_held(db->mutex) ){
+        return 0;
     }
-  }
-  return 1;
+    for(i=0; i<db->nDb; i++){
+        Btree *p;
+        p = db->aDb[i].pBt;
+        if( p && p->sharable &&
+            (p->wantToLock==0 || !sqlite3_mutex_held(p->pBt->mutex)) ){
+            return 0;
+        }
+    }
+    return 1;
 }
 #endif /* NDEBUG */
 
@@ -248,15 +248,15 @@ int sqlite3BtreeHoldsAllMutexes(sqlite3 *db){
 ** db using sqlite3SchemaToIndex().
 */
 int sqlite3SchemaMutexHeld(sqlite3 *db, int iDb, Schema *pSchema){
-  Btree *p;
-  assert( db!=0 );
-  if( pSchema ) iDb = sqlite3SchemaToIndex(db, pSchema);
-  assert( iDb>=0 && iDb<db->nDb );
-  if( !sqlite3_mutex_held(db->mutex) ) return 0;
-  if( iDb==1 ) return 1;
-  p = db->aDb[iDb].pBt;
-  assert( p!=0 );
-  return p->sharable==0 || p->locked==1;
+    Btree *p;
+    assert( db!=0 );
+    if( pSchema ) iDb = sqlite3SchemaToIndex(db, pSchema);
+    assert( iDb>=0 && iDb<db->nDb );
+    if( !sqlite3_mutex_held(db->mutex) ) return 0;
+    if( iDb==1 ) return 1;
+    p = db->aDb[iDb].pBt;
+    assert( p!=0 );
+    return p->sharable==0 || p->locked==1;
 }
 #endif /* NDEBUG */
 
@@ -272,16 +272,16 @@ int sqlite3SchemaMutexHeld(sqlite3 *db, int iDb, Schema *pSchema){
 */
 
 void sqlite3BtreeEnter(Btree *p){
-  p->pBt->db = p->db;
+    p->pBt->db = p->db;
 }
 void sqlite3BtreeEnterAll(sqlite3 *db){
-  int i;
-  for(i=0; i<db->nDb; i++){
-    Btree *p = db->aDb[i].pBt;
-    if( p ){
-      p->pBt->db = p->db;
+    int i;
+    for(i=0; i<db->nDb; i++){
+        Btree *p = db->aDb[i].pBt;
+        if( p ){
+            p->pBt->db = p->db;
+        }
     }
-  }
 }
 #endif /* if SQLITE_THREADSAFE */
 #endif /* ifndef SQLITE_OMIT_SHARED_CACHE */

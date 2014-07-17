@@ -60,31 +60,31 @@ typedef struct WhereOrSet WhereOrSet;
 ** WhereInfo.a[WhereInfo.nLevel-1] being the inner loop.
 */
 struct WhereLevel {
-  int iLeftJoin;        /* Memory cell used to implement LEFT OUTER JOIN */
-  int iTabCur;          /* The VDBE cursor used to access the table */
-  int iIdxCur;          /* The VDBE cursor used to access pIdx */
-  int addrBrk;          /* Jump here to break out of the loop */
-  int addrNxt;          /* Jump here to start the next IN combination */
-  int addrSkip;         /* Jump here for next iteration of skip-scan */
-  int addrCont;         /* Jump here to continue with the next loop cycle */
-  int addrFirst;        /* First instruction of interior of the loop */
-  int addrBody;         /* Beginning of the body of this loop */
-  u8 iFrom;             /* Which entry in the FROM clause */
-  u8 op, p3, p5;        /* Opcode, P3 & P5 of the opcode that ends the loop */
-  int p1, p2;           /* Operands of the opcode used to ends the loop */
-  union {               /* Information that depends on pWLoop->wsFlags */
-    struct {
-      int nIn;              /* Number of entries in aInLoop[] */
-      struct InLoop {
-        int iCur;              /* The VDBE cursor used by this IN operator */
-        int addrInTop;         /* Top of the IN loop */
-        u8 eEndLoopOp;         /* IN Loop terminator. OP_Next or OP_Prev */
-      } *aInLoop;           /* Information about each nested IN operator */
-    } in;                 /* Used when pWLoop->wsFlags&WHERE_IN_ABLE */
-    Index *pCovidx;       /* Possible covering index for WHERE_MULTI_OR */
-  } u;
-  struct WhereLoop *pWLoop;  /* The selected WhereLoop object */
-  Bitmask notReady;          /* FROM entries not usable at this level */
+    int iLeftJoin;        /* Memory cell used to implement LEFT OUTER JOIN */
+    int iTabCur;          /* The VDBE cursor used to access the table */
+    int iIdxCur;          /* The VDBE cursor used to access pIdx */
+    int addrBrk;          /* Jump here to break out of the loop */
+    int addrNxt;          /* Jump here to start the next IN combination */
+    int addrSkip;         /* Jump here for next iteration of skip-scan */
+    int addrCont;         /* Jump here to continue with the next loop cycle */
+    int addrFirst;        /* First instruction of interior of the loop */
+    int addrBody;         /* Beginning of the body of this loop */
+    u8 iFrom;             /* Which entry in the FROM clause */
+    u8 op, p3, p5;        /* Opcode, P3 & P5 of the opcode that ends the loop */
+    int p1, p2;           /* Operands of the opcode used to ends the loop */
+    union {               /* Information that depends on pWLoop->wsFlags */
+        struct {
+            int nIn;              /* Number of entries in aInLoop[] */
+            struct InLoop {
+                int iCur;              /* The VDBE cursor used by this IN operator */
+                int addrInTop;         /* Top of the IN loop */
+                u8 eEndLoopOp;         /* IN Loop terminator. OP_Next or OP_Prev */
+            } *aInLoop;           /* Information about each nested IN operator */
+        } in;                 /* Used when pWLoop->wsFlags&WHERE_IN_ABLE */
+        Index *pCovidx;       /* Possible covering index for WHERE_MULTI_OR */
+    } u;
+    struct WhereLoop *pWLoop;  /* The selected WhereLoop object */
+    Bitmask notReady;          /* FROM entries not usable at this level */
 };
 
 /*
@@ -102,48 +102,48 @@ struct WhereLevel {
 ** and that minimize the overall cost.
 */
 struct WhereLoop {
-  Bitmask prereq;       /* Bitmask of other loops that must run first */
-  Bitmask maskSelf;     /* Bitmask identifying table iTab */
+    Bitmask prereq;       /* Bitmask of other loops that must run first */
+    Bitmask maskSelf;     /* Bitmask identifying table iTab */
 #ifdef SQLITE_DEBUG
-  char cId;             /* Symbolic ID of this loop for debugging use */
+    char cId;             /* Symbolic ID of this loop for debugging use */
 #endif
-  u8 iTab;              /* Position in FROM clause of table for this loop */
-  u8 iSortIdx;          /* Sorting index number.  0==None */
-  LogEst rSetup;        /* One-time setup cost (ex: create transient index) */
-  LogEst rRun;          /* Cost of running each loop */
-  LogEst nOut;          /* Estimated number of output rows */
-  union {
-    struct {               /* Information for internal btree tables */
-      u16 nEq;               /* Number of equality constraints */
-      u16 nSkip;             /* Number of initial index columns to skip */
-      Index *pIndex;         /* Index used, or NULL */
-    } btree;
-    struct {               /* Information for virtual tables */
-      int idxNum;            /* Index number */
-      u8 needFree;           /* True if sqlite3_free(idxStr) is needed */
-      i8 isOrdered;          /* True if satisfies ORDER BY */
-      u16 omitMask;          /* Terms that may be omitted */
-      char *idxStr;          /* Index identifier string */
-    } vtab;
-  } u;
-  u32 wsFlags;          /* WHERE_* flags describing the plan */
-  u16 nLTerm;           /* Number of entries in aLTerm[] */
-  /**** whereLoopXfer() copies fields above ***********************/
+    u8 iTab;              /* Position in FROM clause of table for this loop */
+    u8 iSortIdx;          /* Sorting index number.  0==None */
+    LogEst rSetup;        /* One-time setup cost (ex: create transient index) */
+    LogEst rRun;          /* Cost of running each loop */
+    LogEst nOut;          /* Estimated number of output rows */
+    union {
+        struct {               /* Information for internal btree tables */
+            u16 nEq;               /* Number of equality constraints */
+            u16 nSkip;             /* Number of initial index columns to skip */
+            Index *pIndex;         /* Index used, or NULL */
+        } btree;
+        struct {               /* Information for virtual tables */
+            int idxNum;            /* Index number */
+            u8 needFree;           /* True if sqlite3_free(idxStr) is needed */
+            i8 isOrdered;          /* True if satisfies ORDER BY */
+            u16 omitMask;          /* Terms that may be omitted */
+            char *idxStr;          /* Index identifier string */
+        } vtab;
+    } u;
+    u32 wsFlags;          /* WHERE_* flags describing the plan */
+    u16 nLTerm;           /* Number of entries in aLTerm[] */
+    /**** whereLoopXfer() copies fields above ***********************/
 # define WHERE_LOOP_XFER_SZ offsetof(WhereLoop,nLSlot)
-  u16 nLSlot;           /* Number of slots allocated for aLTerm[] */
-  WhereTerm **aLTerm;   /* WhereTerms used */
-  WhereLoop *pNextLoop; /* Next WhereLoop object in the WhereClause */
-  WhereTerm *aLTermSpace[4];  /* Initial aLTerm[] space */
+    u16 nLSlot;           /* Number of slots allocated for aLTerm[] */
+    WhereTerm **aLTerm;   /* WhereTerms used */
+    WhereLoop *pNextLoop; /* Next WhereLoop object in the WhereClause */
+    WhereTerm *aLTermSpace[4];  /* Initial aLTerm[] space */
 };
 
 /* This object holds the prerequisites and the cost of running a
 ** subquery on one operand of an OR operator in the WHERE clause.
-** See WhereOrSet for additional information 
+** See WhereOrSet for additional information
 */
 struct WhereOrCost {
-  Bitmask prereq;     /* Prerequisites */
-  LogEst rRun;        /* Cost of running this subquery */
-  LogEst nOut;        /* Number of outputs for this subquery */
+    Bitmask prereq;     /* Prerequisites */
+    LogEst rRun;        /* Cost of running this subquery */
+    LogEst nOut;        /* Number of outputs for this subquery */
 };
 
 /* The WhereOrSet object holds a set of possible WhereOrCosts that
@@ -152,8 +152,8 @@ struct WhereOrCost {
 */
 #define N_OR_COST 3
 struct WhereOrSet {
-  u16 n;                      /* Number of valid a[] entries */
-  WhereOrCost a[N_OR_COST];   /* Set of best costs */
+    u16 n;                      /* Number of valid a[] entries */
+    WhereOrCost a[N_OR_COST];   /* Set of best costs */
 };
 
 
@@ -179,12 +179,12 @@ static int whereLoopResize(sqlite3*, WhereLoop*, int);
 ** at the end is the choosen query plan.
 */
 struct WherePath {
-  Bitmask maskLoop;     /* Bitmask of all WhereLoop objects in this path */
-  Bitmask revLoop;      /* aLoop[]s that should be reversed for ORDER BY */
-  LogEst nRow;          /* Estimated number of rows generated by this path */
-  LogEst rCost;         /* Total cost of this path */
-  i8 isOrdered;         /* No. of ORDER BY terms satisfied. -1 for unknown */
-  WhereLoop **aLoop;    /* Array of WhereLoop objects implementing this path */
+    Bitmask maskLoop;     /* Bitmask of all WhereLoop objects in this path */
+    Bitmask revLoop;      /* aLoop[]s that should be reversed for ORDER BY */
+    LogEst nRow;          /* Estimated number of rows generated by this path */
+    LogEst rCost;         /* Total cost of this path */
+    i8 isOrdered;         /* No. of ORDER BY terms satisfied. -1 for unknown */
+    WhereLoop **aLoop;    /* Array of WhereLoop objects implementing this path */
 };
 
 /*
@@ -193,7 +193,7 @@ struct WherePath {
 ** clause subexpression is separated from the others by AND operators,
 ** usually, or sometimes subexpressions separated by OR.
 **
-** All WhereTerms are collected into a single WhereClause structure.  
+** All WhereTerms are collected into a single WhereClause structure.
 ** The following identity holds:
 **
 **        WhereTerm.pWC->a[WhereTerm.idx] == WhereTerm
@@ -239,21 +239,21 @@ struct WherePath {
 ** is only able to process joins with 64 or fewer tables.
 */
 struct WhereTerm {
-  Expr *pExpr;            /* Pointer to the subexpression that is this term */
-  int iParent;            /* Disable pWC->a[iParent] when this term disabled */
-  int leftCursor;         /* Cursor number of X in "X <op> <expr>" */
-  union {
-    int leftColumn;         /* Column number of X in "X <op> <expr>" */
-    WhereOrInfo *pOrInfo;   /* Extra information if (eOperator & WO_OR)!=0 */
-    WhereAndInfo *pAndInfo; /* Extra information if (eOperator& WO_AND)!=0 */
-  } u;
-  LogEst truthProb;       /* Probability of truth for this expression */
-  u16 eOperator;          /* A WO_xx value describing <op> */
-  u8 wtFlags;             /* TERM_xxx bit flags.  See below */
-  u8 nChild;              /* Number of children that must disable us */
-  WhereClause *pWC;       /* The clause this term is part of */
-  Bitmask prereqRight;    /* Bitmask of tables used by pExpr->pRight */
-  Bitmask prereqAll;      /* Bitmask of tables referenced by pExpr */
+    Expr *pExpr;            /* Pointer to the subexpression that is this term */
+    int iParent;            /* Disable pWC->a[iParent] when this term disabled */
+    int leftCursor;         /* Cursor number of X in "X <op> <expr>" */
+    union {
+        int leftColumn;         /* Column number of X in "X <op> <expr>" */
+        WhereOrInfo *pOrInfo;   /* Extra information if (eOperator & WO_OR)!=0 */
+        WhereAndInfo *pAndInfo; /* Extra information if (eOperator& WO_AND)!=0 */
+    } u;
+    LogEst truthProb;       /* Probability of truth for this expression */
+    u16 eOperator;          /* A WO_xx value describing <op> */
+    u8 wtFlags;             /* TERM_xxx bit flags.  See below */
+    u8 nChild;              /* Number of children that must disable us */
+    WhereClause *pWC;       /* The clause this term is part of */
+    Bitmask prereqRight;    /* Bitmask of tables used by pExpr->pRight */
+    Bitmask prereqAll;      /* Bitmask of tables referenced by pExpr */
 };
 
 /*
@@ -277,15 +277,15 @@ struct WhereTerm {
 ** terms in the WHERE clause that are useful to the query planner.
 */
 struct WhereScan {
-  WhereClause *pOrigWC;      /* Original, innermost WhereClause */
-  WhereClause *pWC;          /* WhereClause currently being scanned */
-  char *zCollName;           /* Required collating sequence, if not NULL */
-  char idxaff;               /* Must match this affinity, if zCollName!=NULL */
-  unsigned char nEquiv;      /* Number of entries in aEquiv[] */
-  unsigned char iEquiv;      /* Next unused slot in aEquiv[] */
-  u32 opMask;                /* Acceptable operators */
-  int k;                     /* Resume scanning at this->pWC->a[this->k] */
-  int aEquiv[22];            /* Cursor,Column pairs for equivalence classes */
+    WhereClause *pOrigWC;      /* Original, innermost WhereClause */
+    WhereClause *pWC;          /* WhereClause currently being scanned */
+    char *zCollName;           /* Required collating sequence, if not NULL */
+    char idxaff;               /* Must match this affinity, if zCollName!=NULL */
+    unsigned char nEquiv;      /* Number of entries in aEquiv[] */
+    unsigned char iEquiv;      /* Next unused slot in aEquiv[] */
+    u32 opMask;                /* Acceptable operators */
+    int k;                     /* Resume scanning at this->pWC->a[this->k] */
+    int aEquiv[22];            /* Cursor,Column pairs for equivalence classes */
 };
 
 /*
@@ -301,16 +301,16 @@ struct WhereScan {
 ** subclauses points to the WhereClause object for the whole clause.
 */
 struct WhereClause {
-  WhereInfo *pWInfo;       /* WHERE clause processing context */
-  WhereClause *pOuter;     /* Outer conjunction */
-  u8 op;                   /* Split operator.  TK_AND or TK_OR */
-  int nTerm;               /* Number of terms */
-  int nSlot;               /* Number of entries in a[] */
-  WhereTerm *a;            /* Each a[] describes a term of the WHERE cluase */
+    WhereInfo *pWInfo;       /* WHERE clause processing context */
+    WhereClause *pOuter;     /* Outer conjunction */
+    u8 op;                   /* Split operator.  TK_AND or TK_OR */
+    int nTerm;               /* Number of terms */
+    int nSlot;               /* Number of entries in a[] */
+    WhereTerm *a;            /* Each a[] describes a term of the WHERE cluase */
 #if defined(SQLITE_SMALL_STACK)
-  WhereTerm aStatic[1];    /* Initial static space for a[] */
+    WhereTerm aStatic[1];    /* Initial static space for a[] */
 #else
-  WhereTerm aStatic[8];    /* Initial static space for a[] */
+    WhereTerm aStatic[8];    /* Initial static space for a[] */
 #endif
 };
 
@@ -319,8 +319,8 @@ struct WhereClause {
 ** a dynamically allocated instance of the following structure.
 */
 struct WhereOrInfo {
-  WhereClause wc;          /* Decomposition into subterms */
-  Bitmask indexable;       /* Bitmask of all indexable tables in the clause */
+    WhereClause wc;          /* Decomposition into subterms */
+    Bitmask indexable;       /* Bitmask of all indexable tables in the clause */
 };
 
 /*
@@ -328,15 +328,15 @@ struct WhereOrInfo {
 ** a dynamically allocated instance of the following structure.
 */
 struct WhereAndInfo {
-  WhereClause wc;          /* The subexpression broken out */
+    WhereClause wc;          /* The subexpression broken out */
 };
 
 /*
 ** An instance of the following structure keeps track of a mapping
 ** between VDBE cursor numbers and bits of the bitmasks in WhereTerm.
 **
-** The VDBE cursor numbers are small integers contained in 
-** SrcList_item.iCursor and Expr.iTable fields.  For any given WHERE 
+** The VDBE cursor numbers are small integers contained in
+** SrcList_item.iCursor and Expr.iTable fields.  For any given WHERE
 ** clause, the cursor numbers might not begin with 0 and they might
 ** contain gaps in the numbering sequence.  But we want to make maximum
 ** use of the bits in our bitmasks.  This structure provides a mapping
@@ -358,8 +358,8 @@ struct WhereAndInfo {
 ** no gaps.
 */
 struct WhereMaskSet {
-  int n;                        /* Number of assigned cursor values */
-  int ix[BMS];                  /* Cursor assigned to each bit */
+    int n;                        /* Number of assigned cursor values */
+    int ix[BMS];                  /* Cursor assigned to each bit */
 };
 
 /*
@@ -367,14 +367,14 @@ struct WhereMaskSet {
 ** to construct WhereLoop objects for a particular query.
 */
 struct WhereLoopBuilder {
-  WhereInfo *pWInfo;        /* Information about this WHERE */
-  WhereClause *pWC;         /* WHERE clause terms */
-  ExprList *pOrderBy;       /* ORDER BY clause */
-  WhereLoop *pNew;          /* Template WhereLoop */
-  WhereOrSet *pOrSet;       /* Record best loops here, if not NULL */
+    WhereInfo *pWInfo;        /* Information about this WHERE */
+    WhereClause *pWC;         /* WHERE clause terms */
+    ExprList *pOrderBy;       /* ORDER BY clause */
+    WhereLoop *pNew;          /* Template WhereLoop */
+    WhereOrSet *pOrSet;       /* Record best loops here, if not NULL */
 #ifdef SQLITE_ENABLE_STAT3_OR_STAT4
-  UnpackedRecord *pRec;     /* Probe for stat4 (if required) */
-  int nRecValid;            /* Number of valid fields currently in pRec */
+    UnpackedRecord *pRec;     /* Probe for stat4 (if required) */
+    int nRecValid;            /* Number of valid fields currently in pRec */
 #endif
 };
 
@@ -389,28 +389,28 @@ struct WhereLoopBuilder {
 ** planner.
 */
 struct WhereInfo {
-  Parse *pParse;            /* Parsing and code generating context */
-  SrcList *pTabList;        /* List of tables in the join */
-  ExprList *pOrderBy;       /* The ORDER BY clause or NULL */
-  ExprList *pResultSet;     /* Result set. DISTINCT operates on these */
-  WhereLoop *pLoops;        /* List of all WhereLoop objects */
-  Bitmask revMask;          /* Mask of ORDER BY terms that need reversing */
-  LogEst nRowOut;           /* Estimated number of output rows */
-  u16 wctrlFlags;           /* Flags originally passed to sqlite3WhereBegin() */
-  i8 nOBSat;                /* Number of ORDER BY terms satisfied by indices */
-  u8 sorted;                /* True if really sorted (not just grouped) */
-  u8 okOnePass;             /* Ok to use one-pass algorithm for UPDATE/DELETE */
-  u8 untestedTerms;         /* Not all WHERE terms resolved by outer loop */
-  u8 eDistinct;             /* One of the WHERE_DISTINCT_* values below */
-  u8 nLevel;                /* Number of nested loop */
-  int iTop;                 /* The very beginning of the WHERE loop */
-  int iContinue;            /* Jump here to continue with next record */
-  int iBreak;               /* Jump here to break out of the loop */
-  int savedNQueryLoop;      /* pParse->nQueryLoop outside the WHERE loop */
-  int aiCurOnePass[2];      /* OP_OpenWrite cursors for the ONEPASS opt */
-  WhereMaskSet sMaskSet;    /* Map cursor numbers to bitmasks */
-  WhereClause sWC;          /* Decomposition of the WHERE clause */
-  WhereLevel a[1];          /* Information about each nest loop in WHERE */
+    Parse *pParse;            /* Parsing and code generating context */
+    SrcList *pTabList;        /* List of tables in the join */
+    ExprList *pOrderBy;       /* The ORDER BY clause or NULL */
+    ExprList *pResultSet;     /* Result set. DISTINCT operates on these */
+    WhereLoop *pLoops;        /* List of all WhereLoop objects */
+    Bitmask revMask;          /* Mask of ORDER BY terms that need reversing */
+    LogEst nRowOut;           /* Estimated number of output rows */
+    u16 wctrlFlags;           /* Flags originally passed to sqlite3WhereBegin() */
+    i8 nOBSat;                /* Number of ORDER BY terms satisfied by indices */
+    u8 sorted;                /* True if really sorted (not just grouped) */
+    u8 okOnePass;             /* Ok to use one-pass algorithm for UPDATE/DELETE */
+    u8 untestedTerms;         /* Not all WHERE terms resolved by outer loop */
+    u8 eDistinct;             /* One of the WHERE_DISTINCT_* values below */
+    u8 nLevel;                /* Number of nested loop */
+    int iTop;                 /* The very beginning of the WHERE loop */
+    int iContinue;            /* Jump here to continue with next record */
+    int iBreak;               /* Jump here to break out of the loop */
+    int savedNQueryLoop;      /* pParse->nQueryLoop outside the WHERE loop */
+    int aiCurOnePass[2];      /* OP_OpenWrite cursors for the ONEPASS opt */
+    WhereMaskSet sMaskSet;    /* Map cursor numbers to bitmasks */
+    WhereClause sWC;          /* Decomposition of the WHERE clause */
+    WhereLevel a[1];          /* Information about each nest loop in WHERE */
 };
 
 /*

@@ -10,7 +10,7 @@
 **
 *************************************************************************
 ** This header file defines the interface that the sqlite page cache
-** subsystem. 
+** subsystem.
 */
 
 #ifndef _PCACHE_H_
@@ -23,26 +23,26 @@ typedef struct PCache PCache;
 ** structure.
 */
 struct PgHdr {
-  sqlite3_pcache_page *pPage;    /* Pcache object page handle */
-  void *pData;                   /* Page data */
-  void *pExtra;                  /* Extra content */
-  PgHdr *pDirty;                 /* Transient list of dirty pages */
-  Pager *pPager;                 /* The pager this page is part of */
-  Pgno pgno;                     /* Page number for this page */
+    sqlite3_pcache_page *pPage;    /* Pcache object page handle */
+    void *pData;                   /* Page data */
+    void *pExtra;                  /* Extra content */
+    PgHdr *pDirty;                 /* Transient list of dirty pages */
+    Pager *pPager;                 /* The pager this page is part of */
+    Pgno pgno;                     /* Page number for this page */
 #ifdef SQLITE_CHECK_PAGES
-  u32 pageHash;                  /* Hash of page content */
+    u32 pageHash;                  /* Hash of page content */
 #endif
-  u16 flags;                     /* PGHDR flags defined below */
+    u16 flags;                     /* PGHDR flags defined below */
 
-  /**********************************************************************
-  ** Elements above are public.  All that follows is private to pcache.c
-  ** and should not be accessed by other modules.
-  */
-  i16 nRef;                      /* Number of users of this page */
-  PCache *pCache;                /* Cache that owns this page */
+    /**********************************************************************
+    ** Elements above are public.  All that follows is private to pcache.c
+    ** and should not be accessed by other modules.
+    */
+    i16 nRef;                      /* Number of users of this page */
+    PCache *pCache;                /* Cache that owns this page */
 
-  PgHdr *pDirtyNext;             /* Next element in list of dirty pages */
-  PgHdr *pDirtyPrev;             /* Previous element in list of dirty pages */
+    PgHdr *pDirtyNext;             /* Next element in list of dirty pages */
+    PgHdr *pDirtyPrev;             /* Previous element in list of dirty pages */
 };
 
 /* Bit values for PgHdr.flags */
@@ -69,13 +69,13 @@ void sqlite3PCacheBufferSetup(void *, int sz, int n);
 ** Only clean and unpinned pages can be reclaimed.
 */
 void sqlite3PcacheOpen(
-  int szPage,                    /* Size of every page */
-  int szExtra,                   /* Extra space associated with each page */
-  int bPurgeable,                /* True if pages are on backing store */
-  int (*xStress)(void*, PgHdr*), /* Call to try to make pages clean */
-  void *pStress,                 /* Argument to xStress */
-  PCache *pToInit                /* Preallocated space for the PCache */
-);
+    int szPage,                    /* Size of every page */
+    int szExtra,                   /* Extra space associated with each page */
+    int bPurgeable,                /* True if pages are on backing store */
+    int(*xStress)(void*, PgHdr*), /* Call to try to make pages clean */
+    void *pStress,                 /* Argument to xStress */
+    PCache *pToInit                /* Preallocated space for the PCache */
+    );
 
 /* Modify the page-size after the cache has been created. */
 void sqlite3PcacheSetPageSize(PCache *, int);
@@ -86,7 +86,7 @@ void sqlite3PcacheSetPageSize(PCache *, int);
 int sqlite3PcacheSize(void);
 
 /* One release per successful fetch.  Page is pinned until released.
-** Reference counted. 
+** Reference counted.
 */
 int sqlite3PcacheFetch(PCache*, Pgno, int createFlag, PgHdr**);
 void sqlite3PcacheRelease(PgHdr*);

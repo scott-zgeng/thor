@@ -38,7 +38,7 @@
 #  define SQLITE_OS_OTHER 0
 #  ifndef SQLITE_OS_WIN
 #    if defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || \
-        defined(__MINGW32__) || defined(__BORLANDC__)
+    defined(__MINGW32__) || defined(__BORLANDC__)
 #      define SQLITE_OS_WIN 1
 #      define SQLITE_OS_UNIX 0
 #    else

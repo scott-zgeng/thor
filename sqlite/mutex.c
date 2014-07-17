@@ -29,34 +29,35 @@ static SQLITE_WSD int mutexIsInit = 0;
 /*
 ** Initialize the mutex system.
 */
-int sqlite3MutexInit(void){ 
-  int rc = SQLITE_OK;
-  if( !sqlite3GlobalConfig.mutex.xMutexAlloc ){
-    /* If the xMutexAlloc method has not been set, then the user did not
-    ** install a mutex implementation via sqlite3_config() prior to 
-    ** sqlite3_initialize() being called. This block copies pointers to
-    ** the default implementation into the sqlite3GlobalConfig structure.
-    */
-    sqlite3_mutex_methods const *pFrom;
-    sqlite3_mutex_methods *pTo = &sqlite3GlobalConfig.mutex;
+int sqlite3MutexInit(void){
+    int rc = SQLITE_OK;
+    if (!sqlite3GlobalConfig.mutex.xMutexAlloc){
+        /* If the xMutexAlloc method has not been set, then the user did not
+        ** install a mutex implementation via sqlite3_config() prior to
+        ** sqlite3_initialize() being called. This block copies pointers to
+        ** the default implementation into the sqlite3GlobalConfig structure.
+        */
+        sqlite3_mutex_methods const *pFrom;
+        sqlite3_mutex_methods *pTo = &sqlite3GlobalConfig.mutex;
 
-    if( sqlite3GlobalConfig.bCoreMutex ){
-      pFrom = sqlite3DefaultMutex();
-    }else{
-      pFrom = sqlite3NoopMutex();
+        if (sqlite3GlobalConfig.bCoreMutex){
+            pFrom = sqlite3DefaultMutex();
+        }
+        else{
+            pFrom = sqlite3NoopMutex();
+        }
+        memcpy(pTo, pFrom, offsetof(sqlite3_mutex_methods, xMutexAlloc));
+        memcpy(&pTo->xMutexFree, &pFrom->xMutexFree,
+            sizeof(*pTo) - offsetof(sqlite3_mutex_methods, xMutexFree));
+        pTo->xMutexAlloc = pFrom->xMutexAlloc;
     }
-    memcpy(pTo, pFrom, offsetof(sqlite3_mutex_methods, xMutexAlloc));
-    memcpy(&pTo->xMutexFree, &pFrom->xMutexFree,
-           sizeof(*pTo) - offsetof(sqlite3_mutex_methods, xMutexFree));
-    pTo->xMutexAlloc = pFrom->xMutexAlloc;
-  }
-  rc = sqlite3GlobalConfig.mutex.xMutexInit();
+    rc = sqlite3GlobalConfig.mutex.xMutexInit();
 
 #ifdef SQLITE_DEBUG
-  GLOBAL(int, mutexIsInit) = 1;
+    GLOBAL(int, mutexIsInit) = 1;
 #endif
 
-  return rc;
+    return rc;
 }
 
 /*
@@ -64,16 +65,16 @@ int sqlite3MutexInit(void){
 ** sqlite3MutexInit().
 */
 int sqlite3MutexEnd(void){
-  int rc = SQLITE_OK;
-  if( sqlite3GlobalConfig.mutex.xMutexEnd ){
-    rc = sqlite3GlobalConfig.mutex.xMutexEnd();
-  }
+    int rc = SQLITE_OK;
+    if (sqlite3GlobalConfig.mutex.xMutexEnd){
+        rc = sqlite3GlobalConfig.mutex.xMutexEnd();
+    }
 
 #ifdef SQLITE_DEBUG
-  GLOBAL(int, mutexIsInit) = 0;
+    GLOBAL(int, mutexIsInit) = 0;
 #endif
 
-  return rc;
+    return rc;
 }
 
 /*
@@ -81,26 +82,26 @@ int sqlite3MutexEnd(void){
 */
 sqlite3_mutex *sqlite3_mutex_alloc(int id){
 #ifndef SQLITE_OMIT_AUTOINIT
-  if( sqlite3_initialize() ) return 0;
+    if (sqlite3_initialize()) return 0;
 #endif
-  return sqlite3GlobalConfig.mutex.xMutexAlloc(id);
+    return sqlite3GlobalConfig.mutex.xMutexAlloc(id);
 }
 
 sqlite3_mutex *sqlite3MutexAlloc(int id){
-  if( !sqlite3GlobalConfig.bCoreMutex ){
-    return 0;
-  }
-  assert( GLOBAL(int, mutexIsInit) );
-  return sqlite3GlobalConfig.mutex.xMutexAlloc(id);
+    if (!sqlite3GlobalConfig.bCoreMutex){
+        return 0;
+    }
+    assert(GLOBAL(int, mutexIsInit));
+    return sqlite3GlobalConfig.mutex.xMutexAlloc(id);
 }
 
 /*
 ** Free a dynamic mutex.
 */
 void sqlite3_mutex_free(sqlite3_mutex *p){
-  if( p ){
-    sqlite3GlobalConfig.mutex.xMutexFree(p);
-  }
+    if (p){
+        sqlite3GlobalConfig.mutex.xMutexFree(p);
+    }
 }
 
 /*
@@ -108,9 +109,9 @@ void sqlite3_mutex_free(sqlite3_mutex *p){
 ** until it can be obtained.
 */
 void sqlite3_mutex_enter(sqlite3_mutex *p){
-  if( p ){
-    sqlite3GlobalConfig.mutex.xMutexEnter(p);
-  }
+    if (p){
+        sqlite3GlobalConfig.mutex.xMutexEnter(p);
+    }
 }
 
 /*
@@ -118,23 +119,23 @@ void sqlite3_mutex_enter(sqlite3_mutex *p){
 ** thread holds the mutex and it cannot be obtained, return SQLITE_BUSY.
 */
 int sqlite3_mutex_try(sqlite3_mutex *p){
-  int rc = SQLITE_OK;
-  if( p ){
-    return sqlite3GlobalConfig.mutex.xMutexTry(p);
-  }
-  return rc;
+    int rc = SQLITE_OK;
+    if (p){
+        return sqlite3GlobalConfig.mutex.xMutexTry(p);
+    }
+    return rc;
 }
 
 /*
 ** The sqlite3_mutex_leave() routine exits a mutex that was previously
-** entered by the same thread.  The behavior is undefined if the mutex 
+** entered by the same thread.  The behavior is undefined if the mutex
 ** is not currently entered. If a NULL pointer is passed as an argument
 ** this function is a no-op.
 */
 void sqlite3_mutex_leave(sqlite3_mutex *p){
-  if( p ){
-    sqlite3GlobalConfig.mutex.xMutexLeave(p);
-  }
+    if (p){
+        sqlite3GlobalConfig.mutex.xMutexLeave(p);
+    }
 }
 
 #ifndef NDEBUG
@@ -143,10 +144,10 @@ void sqlite3_mutex_leave(sqlite3_mutex *p){
 ** intended for use inside assert() statements.
 */
 int sqlite3_mutex_held(sqlite3_mutex *p){
-  return p==0 || sqlite3GlobalConfig.mutex.xMutexHeld(p);
+    return p==0 || sqlite3GlobalConfig.mutex.xMutexHeld(p);
 }
 int sqlite3_mutex_notheld(sqlite3_mutex *p){
-  return p==0 || sqlite3GlobalConfig.mutex.xMutexNotheld(p);
+    return p==0 || sqlite3GlobalConfig.mutex.xMutexNotheld(p);
 }
 #endif
 

@@ -56,50 +56,50 @@ typedef struct AuxData AuxData;
 **
 ** Cursors can also point to virtual tables, sorters, or "pseudo-tables".
 ** A pseudo-table is a single-row table implemented by registers.
-** 
+**
 ** Every cursor that the virtual machine has open is represented by an
 ** instance of the following structure.
 */
 struct VdbeCursor {
-  BtCursor *pCursor;    /* The cursor structure of the backend */
-  Btree *pBt;           /* Separate file holding temporary table */
-  KeyInfo *pKeyInfo;    /* Info about index keys needed by index cursors */
-  int seekResult;       /* Result of previous sqlite3BtreeMoveto() */
-  int pseudoTableReg;   /* Register holding pseudotable content. */
-  i16 nField;           /* Number of fields in the header */
-  u16 nHdrParsed;       /* Number of header fields parsed so far */
-  i8 iDb;               /* Index of cursor database in db->aDb[] (or -1) */
-  u8 nullRow;           /* True if pointing to a row with no data */
-  u8 rowidIsValid;      /* True if lastRowid is valid */
-  u8 deferredMoveto;    /* A call to sqlite3BtreeMoveto() is needed */
-  Bool isEphemeral:1;   /* True for an ephemeral table */
-  Bool useRandomRowid:1;/* Generate new record numbers semi-randomly */
-  Bool isTable:1;       /* True if a table requiring integer keys */
-  Bool isOrdered:1;     /* True if the underlying table is BTREE_UNORDERED */
-  sqlite3_vtab_cursor *pVtabCursor;  /* The cursor for a virtual table */
-  i64 seqCount;         /* Sequence counter */
-  i64 movetoTarget;     /* Argument to the deferred sqlite3BtreeMoveto() */
-  i64 lastRowid;        /* Rowid being deleted by OP_Delete */
-  VdbeSorter *pSorter;  /* Sorter object for OP_SorterOpen cursors */
+    BtCursor *pCursor;    /* The cursor structure of the backend */
+    Btree *pBt;           /* Separate file holding temporary table */
+    KeyInfo *pKeyInfo;    /* Info about index keys needed by index cursors */
+    int seekResult;       /* Result of previous sqlite3BtreeMoveto() */
+    int pseudoTableReg;   /* Register holding pseudotable content. */
+    i16 nField;           /* Number of fields in the header */
+    u16 nHdrParsed;       /* Number of header fields parsed so far */
+    i8 iDb;               /* Index of cursor database in db->aDb[] (or -1) */
+    u8 nullRow;           /* True if pointing to a row with no data */
+    u8 rowidIsValid;      /* True if lastRowid is valid */
+    u8 deferredMoveto;    /* A call to sqlite3BtreeMoveto() is needed */
+    Bool isEphemeral : 1;   /* True for an ephemeral table */
+    Bool useRandomRowid : 1;/* Generate new record numbers semi-randomly */
+    Bool isTable : 1;       /* True if a table requiring integer keys */
+    Bool isOrdered : 1;     /* True if the underlying table is BTREE_UNORDERED */
+    sqlite3_vtab_cursor *pVtabCursor;  /* The cursor for a virtual table */
+    i64 seqCount;         /* Sequence counter */
+    i64 movetoTarget;     /* Argument to the deferred sqlite3BtreeMoveto() */
+    i64 lastRowid;        /* Rowid being deleted by OP_Delete */
+    VdbeSorter *pSorter;  /* Sorter object for OP_SorterOpen cursors */
 
-  /* Cached information about the header for the data record that the
-  ** cursor is currently pointing to.  Only valid if cacheStatus matches
-  ** Vdbe.cacheCtr.  Vdbe.cacheCtr will never take on the value of
-  ** CACHE_STALE and so setting cacheStatus=CACHE_STALE guarantees that
-  ** the cache is out of date.
-  **
-  ** aRow might point to (ephemeral) data for the current row, or it might
-  ** be NULL.
-  */
-  u32 cacheStatus;      /* Cache is valid if this matches Vdbe.cacheCtr */
-  u32 payloadSize;      /* Total number of bytes in the record */
-  u32 szRow;            /* Byte available in aRow */
-  u32 iHdrOffset;       /* Offset to next unparsed byte of the header */
-  const u8 *aRow;       /* Data for the current row, if all on one page */
-  u32 aType[1];         /* Type values for all entries in the record */
-  /* 2*nField extra array elements allocated for aType[], beyond the one
-  ** static element declared in the structure.  nField total array slots for
-  ** aType[] and nField+1 array slots for aOffset[] */
+    /* Cached information about the header for the data record that the
+    ** cursor is currently pointing to.  Only valid if cacheStatus matches
+    ** Vdbe.cacheCtr.  Vdbe.cacheCtr will never take on the value of
+    ** CACHE_STALE and so setting cacheStatus=CACHE_STALE guarantees that
+    ** the cache is out of date.
+    **
+    ** aRow might point to (ephemeral) data for the current row, or it might
+    ** be NULL.
+    */
+    u32 cacheStatus;      /* Cache is valid if this matches Vdbe.cacheCtr */
+    u32 payloadSize;      /* Total number of bytes in the record */
+    u32 szRow;            /* Byte available in aRow */
+    u32 iHdrOffset;       /* Offset to next unparsed byte of the header */
+    const u8 *aRow;       /* Data for the current row, if all on one page */
+    u32 aType[1];         /* Type values for all entries in the record */
+    /* 2*nField extra array elements allocated for aType[], beyond the one
+    ** static element declared in the structure.  nField total array slots for
+    ** aType[] and nField+1 array slots for aOffset[] */
 };
 typedef struct VdbeCursor VdbeCursor;
 
@@ -107,7 +107,7 @@ typedef struct VdbeCursor VdbeCursor;
 ** When a sub-program is executed (OP_Program), a structure of this type
 ** is allocated to store the current value of the program counter, as
 ** well as the current memory cell array and various other frame specific
-** values stored in the Vdbe struct. When the sub-program is finished, 
+** values stored in the Vdbe struct. When the sub-program is finished,
 ** these values are copied back to the Vdbe from the VdbeFrame structure,
 ** restoring the state of the VM to as it was before the sub-program
 ** began executing.
@@ -126,22 +126,22 @@ typedef struct VdbeCursor VdbeCursor;
 */
 typedef struct VdbeFrame VdbeFrame;
 struct VdbeFrame {
-  Vdbe *v;                /* VM this frame belongs to */
-  VdbeFrame *pParent;     /* Parent of this frame, or NULL if parent is main */
-  Op *aOp;                /* Program instructions for parent frame */
-  Mem *aMem;              /* Array of memory cells for parent frame */
-  u8 *aOnceFlag;          /* Array of OP_Once flags for parent frame */
-  VdbeCursor **apCsr;     /* Array of Vdbe cursors for parent frame */
-  void *token;            /* Copy of SubProgram.token */
-  i64 lastRowid;          /* Last insert rowid (sqlite3.lastRowid) */
-  int nCursor;            /* Number of entries in apCsr */
-  int pc;                 /* Program Counter in parent (calling) frame */
-  int nOp;                /* Size of aOp array */
-  int nMem;               /* Number of entries in aMem */
-  int nOnceFlag;          /* Number of entries in aOnceFlag */
-  int nChildMem;          /* Number of memory cells for child frame */
-  int nChildCsr;          /* Number of cursors for child frame */
-  int nChange;            /* Statement changes (Vdbe.nChanges)     */
+    Vdbe *v;                /* VM this frame belongs to */
+    VdbeFrame *pParent;     /* Parent of this frame, or NULL if parent is main */
+    Op *aOp;                /* Program instructions for parent frame */
+    Mem *aMem;              /* Array of memory cells for parent frame */
+    u8 *aOnceFlag;          /* Array of OP_Once flags for parent frame */
+    VdbeCursor **apCsr;     /* Array of Vdbe cursors for parent frame */
+    void *token;            /* Copy of SubProgram.token */
+    i64 lastRowid;          /* Last insert rowid (sqlite3.lastRowid) */
+    int nCursor;            /* Number of entries in apCsr */
+    int pc;                 /* Program Counter in parent (calling) frame */
+    int nOp;                /* Size of aOp array */
+    int nMem;               /* Number of entries in aMem */
+    int nOnceFlag;          /* Number of entries in aOnceFlag */
+    int nChildMem;          /* Number of memory cells for child frame */
+    int nChildCsr;          /* Number of cursors for child frame */
+    int nChange;            /* Statement changes (Vdbe.nChanges)     */
 };
 
 #define VdbeFrameMem(p) ((Mem *)&((u8 *)p)[ROUND8(sizeof(VdbeFrame))])
@@ -157,25 +157,25 @@ struct VdbeFrame {
 ** integer etc.) of the same value.
 */
 struct Mem {
-  sqlite3 *db;        /* The associated database connection */
-  char *z;            /* String or BLOB value */
-  double r;           /* Real value */
-  union {
-    i64 i;              /* Integer value used when MEM_Int is set in flags */
-    int nZero;          /* Used when bit MEM_Zero is set in flags */
-    FuncDef *pDef;      /* Used only when flags==MEM_Agg */
-    RowSet *pRowSet;    /* Used only when flags==MEM_RowSet */
-    VdbeFrame *pFrame;  /* Used when flags==MEM_Frame */
-  } u;
-  int n;              /* Number of characters in string value, excluding '\0' */
-  u16 flags;          /* Some combination of MEM_Null, MEM_Str, MEM_Dyn, etc. */
-  u8  enc;            /* SQLITE_UTF8, SQLITE_UTF16BE, SQLITE_UTF16LE */
+    sqlite3 *db;        /* The associated database connection */
+    char *z;            /* String or BLOB value */
+    double r;           /* Real value */
+    union {
+        i64 i;              /* Integer value used when MEM_Int is set in flags */
+        int nZero;          /* Used when bit MEM_Zero is set in flags */
+        FuncDef *pDef;      /* Used only when flags==MEM_Agg */
+        RowSet *pRowSet;    /* Used only when flags==MEM_RowSet */
+        VdbeFrame *pFrame;  /* Used when flags==MEM_Frame */
+    } u;
+    int n;              /* Number of characters in string value, excluding '\0' */
+    u16 flags;          /* Some combination of MEM_Null, MEM_Str, MEM_Dyn, etc. */
+    u8  enc;            /* SQLITE_UTF8, SQLITE_UTF16BE, SQLITE_UTF16LE */
 #ifdef SQLITE_DEBUG
-  Mem *pScopyFrom;    /* This Mem is a shallow copy of pScopyFrom */
-  void *pFiller;      /* So that sizeof(Mem) is a multiple of 8 */
+    Mem *pScopyFrom;    /* This Mem is a shallow copy of pScopyFrom */
+    void *pFiller;      /* So that sizeof(Mem) is a multiple of 8 */
 #endif
-  void (*xDel)(void *);  /* If not null, call this function to delete Mem.z */
-  char *zMalloc;      /* Dynamic buffer allocated by sqlite3_malloc() */
+    void(*xDel)(void *);  /* If not null, call this function to delete Mem.z */
+    char *zMalloc;      /* Dynamic buffer allocated by sqlite3_malloc() */
 };
 
 /* One or more of the following flags are set to indicate the validOK
@@ -187,7 +187,7 @@ struct Mem {
 ** If the MEM_Str flag is set then Mem.z points at a string representation.
 ** Usually this is encoded in the same unicode encoding as the main
 ** database (see below for exceptions). If the MEM_Term flag is also
-** set, then the string is nul terminated. The MEM_Int and MEM_Real 
+** set, then the string is nul terminated. The MEM_Int and MEM_Real
 ** flags may coexist with the MEM_Str flag.
 */
 #define MEM_Null      0x0001   /* Value is NULL */
@@ -215,15 +215,15 @@ struct Mem {
 #define MEM_Agg       0x2000   /* Mem.z points to an agg function context */
 #define MEM_Zero      0x4000   /* Mem.i contains count of 0s appended to blob */
 #ifdef SQLITE_OMIT_INCRBLOB
-  #undef MEM_Zero
-  #define MEM_Zero 0x0000
+#undef MEM_Zero
+#define MEM_Zero 0x0000
 #endif
 
 /*
 ** Clear any existing type flags from a Mem and replace them with f
 */
 #define MemSetTypeFlag(p, f) \
-   ((p)->flags = ((p)->flags&~(MEM_TypeMask|MEM_Zero))|f)
+    ((p)->flags = ((p)->flags&~(MEM_TypeMask | MEM_Zero)) | f)
 
 /*
 ** Return true if a memory cell is not marked as invalid.  This macro
@@ -234,18 +234,18 @@ struct Mem {
 #endif
 
 /*
-** Each auxilliary data pointer stored by a user defined function 
+** Each auxilliary data pointer stored by a user defined function
 ** implementation calling sqlite3_set_auxdata() is stored in an instance
 ** of this structure. All such structures associated with a single VM
 ** are stored in a linked list headed at Vdbe.pAuxData. All are destroyed
 ** when the VM is halted (if not before).
 */
 struct AuxData {
-  int iOp;                        /* Instruction number of OP_Function opcode */
-  int iArg;                       /* Index of function argument. */
-  void *pAux;                     /* Aux data pointer */
-  void (*xDelete)(void *);        /* Destructor for the aux data */
-  AuxData *pNext;                 /* Next element in list */
+    int iOp;                        /* Instruction number of OP_Function opcode */
+    int iArg;                       /* Index of function argument. */
+    void *pAux;                     /* Aux data pointer */
+    void(*xDelete)(void *);        /* Destructor for the aux data */
+    AuxData *pNext;                 /* Next element in list */
 };
 
 /*
@@ -262,15 +262,15 @@ struct AuxData {
 ** (Mem) which are only defined there.
 */
 struct sqlite3_context {
-  FuncDef *pFunc;       /* Pointer to function information.  MUST BE FIRST */
-  Mem s;                /* The return value is stored here */
-  Mem *pMem;            /* Memory cell used to store aggregate context */
-  CollSeq *pColl;       /* Collating sequence */
-  Vdbe *pVdbe;          /* The VM that owns this context */
-  int iOp;              /* Instruction number of OP_Function */
-  int isError;          /* Error code returned by the function. */
-  u8 skipFlag;          /* Skip skip accumulator loading if true */
-  u8 fErrorOrAux;       /* isError!=0 or pVdbe->pAuxData modified */
+    FuncDef *pFunc;       /* Pointer to function information.  MUST BE FIRST */
+    Mem s;                /* The return value is stored here */
+    Mem *pMem;            /* Memory cell used to store aggregate context */
+    CollSeq *pColl;       /* Collating sequence */
+    Vdbe *pVdbe;          /* The VM that owns this context */
+    int iOp;              /* Instruction number of OP_Function */
+    int isError;          /* Error code returned by the function. */
+    u8 skipFlag;          /* Skip skip accumulator loading if true */
+    u8 fErrorOrAux;       /* isError!=0 or pVdbe->pAuxData modified */
 };
 
 /*
@@ -278,11 +278,11 @@ struct sqlite3_context {
 ** in describing recursive data structures.
 */
 struct Explain {
-  Vdbe *pVdbe;       /* Attach the explanation to this Vdbe */
-  StrAccum str;      /* The string being accumulated */
-  int nIndent;       /* Number of elements in aIndent */
-  u16 aIndent[100];  /* Levels of indentation */
-  char zBase[100];   /* Initial space */
+    Vdbe *pVdbe;       /* Attach the explanation to this Vdbe */
+    StrAccum str;      /* The string being accumulated */
+    int nIndent;       /* Number of elements in aIndent */
+    u16 aIndent[100];  /* Levels of indentation */
+    char zBase[100];   /* Initial space */
 };
 
 /* A bitfield type for use inside of structures.  Always follow with :N where
@@ -302,70 +302,70 @@ typedef unsigned bft;  /* Bit Field Type */
 ** set to 2 for xDestroy method calls and 1 for all other methods. This
 ** variable is used for two purposes: to allow xDestroy methods to execute
 ** "DROP TABLE" statements and to prevent some nasty side effects of
-** malloc failure when SQLite is invoked recursively by a virtual table 
+** malloc failure when SQLite is invoked recursively by a virtual table
 ** method function.
 */
 struct Vdbe {
-  sqlite3 *db;            /* The database connection that owns this statement */
-  Op *aOp;                /* Space to hold the virtual machine's program */
-  Mem *aMem;              /* The memory locations */
-  Mem **apArg;            /* Arguments to currently executing user function */
-  Mem *aColName;          /* Column names to return */
-  Mem *pResultSet;        /* Pointer to an array of results */
-  Parse *pParse;          /* Parsing context used to create this Vdbe */
-  int nMem;               /* Number of memory locations currently allocated */
-  int nOp;                /* Number of instructions in the program */
-  int nCursor;            /* Number of slots in apCsr[] */
-  u32 magic;              /* Magic number for sanity checking */
-  char *zErrMsg;          /* Error message written here */
-  Vdbe *pPrev,*pNext;     /* Linked list of VDBEs with the same Vdbe.db */
-  VdbeCursor **apCsr;     /* One element of this array for each open cursor */
-  Mem *aVar;              /* Values for the OP_Variable opcode. */
-  char **azVar;           /* Name of variables */
-  ynVar nVar;             /* Number of entries in aVar[] */
-  ynVar nzVar;            /* Number of entries in azVar[] */
-  u32 cacheCtr;           /* VdbeCursor row cache generation counter */
-  int pc;                 /* The program counter */
-  int rc;                 /* Value to return */
-  u16 nResColumn;         /* Number of columns in one row of the result set */
-  u8 errorAction;         /* Recovery action to do in case of an error */
-  u8 minWriteFileFormat;  /* Minimum file format for writable database files */
-  bft explain:2;          /* True if EXPLAIN present on SQL command */
-  bft inVtabMethod:2;     /* See comments above */
-  bft changeCntOn:1;      /* True to update the change-counter */
-  bft expired:1;          /* True if the VM needs to be recompiled */
-  bft runOnlyOnce:1;      /* Automatically expire on reset */
-  bft usesStmtJournal:1;  /* True if uses a statement journal */
-  bft readOnly:1;         /* True for statements that do not write */
-  bft bIsReader:1;        /* True for statements that read */
-  bft isPrepareV2:1;      /* True if prepared with prepare_v2() */
-  bft doingRerun:1;       /* True if rerunning after an auto-reprepare */
-  int nChange;            /* Number of db changes made since last reset */
-  yDbMask btreeMask;      /* Bitmask of db->aDb[] entries referenced */
-  yDbMask lockMask;       /* Subset of btreeMask that requires a lock */
-  int iStatement;         /* Statement number (or 0 if has not opened stmt) */
-  u32 aCounter[5];        /* Counters used by sqlite3_stmt_status() */
+    sqlite3 *db;            /* The database connection that owns this statement */
+    Op *aOp;                /* Space to hold the virtual machine's program */
+    Mem *aMem;              /* The memory locations */
+    Mem **apArg;            /* Arguments to currently executing user function */
+    Mem *aColName;          /* Column names to return */
+    Mem *pResultSet;        /* Pointer to an array of results */
+    Parse *pParse;          /* Parsing context used to create this Vdbe */
+    int nMem;               /* Number of memory locations currently allocated */
+    int nOp;                /* Number of instructions in the program */
+    int nCursor;            /* Number of slots in apCsr[] */
+    u32 magic;              /* Magic number for sanity checking */
+    char *zErrMsg;          /* Error message written here */
+    Vdbe *pPrev, *pNext;     /* Linked list of VDBEs with the same Vdbe.db */
+    VdbeCursor **apCsr;     /* One element of this array for each open cursor */
+    Mem *aVar;              /* Values for the OP_Variable opcode. */
+    char **azVar;           /* Name of variables */
+    ynVar nVar;             /* Number of entries in aVar[] */
+    ynVar nzVar;            /* Number of entries in azVar[] */
+    u32 cacheCtr;           /* VdbeCursor row cache generation counter */
+    int pc;                 /* The program counter */
+    int rc;                 /* Value to return */
+    u16 nResColumn;         /* Number of columns in one row of the result set */
+    u8 errorAction;         /* Recovery action to do in case of an error */
+    u8 minWriteFileFormat;  /* Minimum file format for writable database files */
+    bft explain : 2;          /* True if EXPLAIN present on SQL command */
+    bft inVtabMethod : 2;     /* See comments above */
+    bft changeCntOn : 1;      /* True to update the change-counter */
+    bft expired : 1;          /* True if the VM needs to be recompiled */
+    bft runOnlyOnce : 1;      /* Automatically expire on reset */
+    bft usesStmtJournal : 1;  /* True if uses a statement journal */
+    bft readOnly : 1;         /* True for statements that do not write */
+    bft bIsReader : 1;        /* True for statements that read */
+    bft isPrepareV2 : 1;      /* True if prepared with prepare_v2() */
+    bft doingRerun : 1;       /* True if rerunning after an auto-reprepare */
+    int nChange;            /* Number of db changes made since last reset */
+    yDbMask btreeMask;      /* Bitmask of db->aDb[] entries referenced */
+    yDbMask lockMask;       /* Subset of btreeMask that requires a lock */
+    int iStatement;         /* Statement number (or 0 if has not opened stmt) */
+    u32 aCounter[5];        /* Counters used by sqlite3_stmt_status() */
 #ifndef SQLITE_OMIT_TRACE
-  i64 startTime;          /* Time when query started - used for profiling */
+    i64 startTime;          /* Time when query started - used for profiling */
 #endif
-  i64 iCurrentTime;       /* Value of julianday('now') for this statement */
-  i64 nFkConstraint;      /* Number of imm. FK constraints this VM */
-  i64 nStmtDefCons;       /* Number of def. constraints when stmt started */
-  i64 nStmtDefImmCons;    /* Number of def. imm constraints when stmt started */
-  char *zSql;             /* Text of the SQL statement that generated this */
-  void *pFree;            /* Free this when deleting the vdbe */
+    i64 iCurrentTime;       /* Value of julianday('now') for this statement */
+    i64 nFkConstraint;      /* Number of imm. FK constraints this VM */
+    i64 nStmtDefCons;       /* Number of def. constraints when stmt started */
+    i64 nStmtDefImmCons;    /* Number of def. imm constraints when stmt started */
+    char *zSql;             /* Text of the SQL statement that generated this */
+    void *pFree;            /* Free this when deleting the vdbe */
 #ifdef SQLITE_ENABLE_TREE_EXPLAIN
-  Explain *pExplain;      /* The explainer */
-  char *zExplain;         /* Explanation of data structures */
+    Explain *pExplain;      /* The explainer */
+    char *zExplain;         /* Explanation of data structures */
 #endif
-  VdbeFrame *pFrame;      /* Parent frame */
-  VdbeFrame *pDelFrame;   /* List of frame objects to free on VM reset */
-  int nFrame;             /* Number of frames in pFrame list */
-  u32 expmask;            /* Binding to these vars invalidates VM */
-  SubProgram *pProgram;   /* Linked list of all sub-programs used by VM */
-  int nOnceFlag;          /* Size of array aOnceFlag[] */
-  u8 *aOnceFlag;          /* Flags for OP_Once */
-  AuxData *pAuxData;      /* Linked list of auxdata allocations */
+    VdbeFrame *pFrame;      /* Parent frame */
+    VdbeFrame *pDelFrame;   /* List of frame objects to free on VM reset */
+    int nFrame;             /* Number of frames in pFrame list */
+    u32 expmask;            /* Binding to these vars invalidates VM */
+    SubProgram *pProgram;   /* Linked list of all sub-programs used by VM */
+    int nOnceFlag;          /* Size of array aOnceFlag[] */
+    u8 *aOnceFlag;          /* Flags for OP_Once */
+    AuxData *pAuxData;      /* Linked list of auxdata allocations */
 };
 
 /*
@@ -380,7 +380,7 @@ struct Vdbe {
 ** Function prototypes
 */
 void sqlite3VdbeFreeCursor(Vdbe *, VdbeCursor*);
-void sqliteVdbePopStack(Vdbe*,int);
+void sqliteVdbePopStack(Vdbe*, int);
 int sqlite3VdbeCursorMoveto(VdbeCursor*);
 #if defined(SQLITE_DEBUG) || defined(VDBE_PROFILE)
 void sqlite3VdbePrintOp(FILE*, int, Op*);
@@ -392,7 +392,7 @@ u32 sqlite3VdbeSerialGet(const unsigned char*, u32, Mem*);
 void sqlite3VdbeDeleteAuxData(Vdbe*, int, int);
 
 int sqlite2BtreeKeyCompare(BtCursor *, const void *, int, int, int *);
-int sqlite3VdbeIdxKeyCompare(VdbeCursor*,UnpackedRecord*,int*);
+int sqlite3VdbeIdxKeyCompare(VdbeCursor*, UnpackedRecord*, int*);
 int sqlite3VdbeIdxRowid(sqlite3*, BtCursor *, i64 *);
 int sqlite3MemCompare(const Mem*, const Mem*, const CollSeq*);
 int sqlite3VdbeExec(Vdbe*);
@@ -409,10 +409,10 @@ void sqlite3VdbeMemSetInt64(Mem*, i64);
 #ifdef SQLITE_OMIT_FLOATING_POINT
 # define sqlite3VdbeMemSetDouble sqlite3VdbeMemSetInt64
 #else
-  void sqlite3VdbeMemSetDouble(Mem*, double);
+void sqlite3VdbeMemSetDouble(Mem*, double);
 #endif
 void sqlite3VdbeMemSetNull(Mem*);
-void sqlite3VdbeMemSetZeroBlob(Mem*,int);
+void sqlite3VdbeMemSetZeroBlob(Mem*, int);
 void sqlite3VdbeMemSetRowSet(Mem*);
 int sqlite3VdbeMemMakeWriteable(Mem*);
 int sqlite3VdbeMemStringify(Mem*, int);
@@ -422,13 +422,13 @@ double sqlite3VdbeRealValue(Mem*);
 void sqlite3VdbeIntegerAffinity(Mem*);
 int sqlite3VdbeMemRealify(Mem*);
 int sqlite3VdbeMemNumerify(Mem*);
-int sqlite3VdbeMemFromBtree(BtCursor*,u32,u32,int,Mem*);
+int sqlite3VdbeMemFromBtree(BtCursor*, u32, u32, int, Mem*);
 void sqlite3VdbeMemRelease(Mem *p);
 void sqlite3VdbeMemReleaseExternal(Mem *p);
 #define VdbeMemDynamic(X)  \
-  (((X)->flags&(MEM_Agg|MEM_Dyn|MEM_RowSet|MEM_Frame))!=0)
+    (((X)->flags&(MEM_Agg | MEM_Dyn | MEM_RowSet | MEM_Frame)) != 0)
 #define VdbeMemRelease(X)  \
-  if( VdbeMemDynamic(X) ) sqlite3VdbeMemReleaseExternal(X);
+if (VdbeMemDynamic(X)) sqlite3VdbeMemReleaseExternal(X);
 int sqlite3VdbeMemFinalize(Mem*, FuncDef*);
 const char *sqlite3OpcodeName(int);
 int sqlite3VdbeMemGrow(Mem *pMem, int n, int preserve);
@@ -447,8 +447,8 @@ int sqlite3VdbeSorterWrite(sqlite3 *, const VdbeCursor *, Mem *);
 int sqlite3VdbeSorterCompare(const VdbeCursor *, Mem *, int, int *);
 
 #if !defined(SQLITE_OMIT_SHARED_CACHE) && SQLITE_THREADSAFE>0
-  void sqlite3VdbeEnter(Vdbe*);
-  void sqlite3VdbeLeave(Vdbe*);
+void sqlite3VdbeEnter(Vdbe*);
+void sqlite3VdbeLeave(Vdbe*);
 #else
 # define sqlite3VdbeEnter(X)
 # define sqlite3VdbeLeave(X)
@@ -467,17 +467,17 @@ int sqlite3VdbeCheckFk(Vdbe *, int);
 
 int sqlite3VdbeMemTranslate(Mem*, u8);
 #ifdef SQLITE_DEBUG
-  void sqlite3VdbePrintSql(Vdbe*);
-  void sqlite3VdbeMemPrettyPrint(Mem *pMem, char *zBuf);
+void sqlite3VdbePrintSql(Vdbe*);
+void sqlite3VdbeMemPrettyPrint(Mem *pMem, char *zBuf);
 #endif
 int sqlite3VdbeMemHandleBom(Mem *pMem);
 
 #ifndef SQLITE_OMIT_INCRBLOB
-  int sqlite3VdbeMemExpandBlob(Mem *);
-  #define ExpandBlob(P) (((P)->flags&MEM_Zero)?sqlite3VdbeMemExpandBlob(P):0)
+int sqlite3VdbeMemExpandBlob(Mem *);
+#define ExpandBlob(P) (((P)->flags&MEM_Zero)?sqlite3VdbeMemExpandBlob(P):0)
 #else
-  #define sqlite3VdbeMemExpandBlob(x) SQLITE_OK
-  #define ExpandBlob(P) SQLITE_OK
+#define sqlite3VdbeMemExpandBlob(x) SQLITE_OK
+#define ExpandBlob(P) SQLITE_OK
 #endif
 
 #endif /* !defined(_VDBEINT_H_) */

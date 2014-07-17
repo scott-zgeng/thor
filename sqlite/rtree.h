@@ -19,7 +19,7 @@
 extern "C" {
 #endif  /* __cplusplus */
 
-int sqlite3RtreeInit(sqlite3 *db);
+    int sqlite3RtreeInit(sqlite3 *db);
 
 #ifdef __cplusplus
 }  /* extern "C" */

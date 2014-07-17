@@ -43,17 +43,17 @@ static void sqlite3MemShutdown(void *NotUsed){ return; }
 ** sqlite3GlobalConfig.m with pointers to the routines in this file.
 */
 void sqlite3MemSetDefault(void){
-  static const sqlite3_mem_methods defaultMethods = {
-     sqlite3MemMalloc,
-     sqlite3MemFree,
-     sqlite3MemRealloc,
-     sqlite3MemSize,
-     sqlite3MemRoundup,
-     sqlite3MemInit,
-     sqlite3MemShutdown,
-     0
-  };
-  sqlite3_config(SQLITE_CONFIG_MALLOC, &defaultMethods);
+    static const sqlite3_mem_methods defaultMethods = {
+        sqlite3MemMalloc,
+        sqlite3MemFree,
+        sqlite3MemRealloc,
+        sqlite3MemSize,
+        sqlite3MemRoundup,
+        sqlite3MemInit,
+        sqlite3MemShutdown,
+        0
+    };
+    sqlite3_config(SQLITE_CONFIG_MALLOC, &defaultMethods);
 }
 
 #endif /* SQLITE_ZERO_MALLOC */

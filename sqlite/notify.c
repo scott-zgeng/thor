@@ -29,7 +29,7 @@
 */
 
 #define assertMutexHeld() \
-  assert( sqlite3_mutex_held(sqlite3MutexAlloc(SQLITE_MUTEX_STATIC_MASTER)) )
+    assert( sqlite3_mutex_held(sqlite3MutexAlloc(SQLITE_MUTEX_STATIC_MASTER)) )
 
 /*
 ** Head of a linked list of all sqlite3 objects created by this process
@@ -55,22 +55,22 @@ static sqlite3 *SQLITE_WSD sqlite3BlockedList = 0;
 **      set to db. This is used when closing connection db.
 */
 static void checkListProperties(sqlite3 *db){
-  sqlite3 *p;
-  for(p=sqlite3BlockedList; p; p=p->pNextBlocked){
-    int seen = 0;
-    sqlite3 *p2;
+    sqlite3 *p;
+    for(p=sqlite3BlockedList; p; p=p->pNextBlocked){
+        int seen = 0;
+        sqlite3 *p2;
 
-    /* Verify property (1) */
-    assert( p->pUnlockConnection || p->pBlockingConnection );
+        /* Verify property (1) */
+        assert( p->pUnlockConnection || p->pBlockingConnection );
 
-    /* Verify property (2) */
-    for(p2=sqlite3BlockedList; p2!=p; p2=p2->pNextBlocked){
-      if( p2->xUnlockNotify==p->xUnlockNotify ) seen = 1;
-      assert( p2->xUnlockNotify==p->xUnlockNotify || !seen );
-      assert( db==0 || p->pUnlockConnection!=db );
-      assert( db==0 || p->pBlockingConnection!=db );
+        /* Verify property (2) */
+        for(p2=sqlite3BlockedList; p2!=p; p2=p2->pNextBlocked){
+            if( p2->xUnlockNotify==p->xUnlockNotify ) seen = 1;
+            assert( p2->xUnlockNotify==p->xUnlockNotify || !seen );
+            assert( db==0 || p->pUnlockConnection!=db );
+            assert( db==0 || p->pBlockingConnection!=db );
+        }
     }
-  }
 }
 #else
 # define checkListProperties(x)
@@ -81,14 +81,14 @@ static void checkListProperties(sqlite3 *db){
 ** db is not currently a part of the list, this function is a no-op.
 */
 static void removeFromBlockedList(sqlite3 *db){
-  sqlite3 **pp;
-  assertMutexHeld();
-  for(pp=&sqlite3BlockedList; *pp; pp = &(*pp)->pNextBlocked){
-    if( *pp==db ){
-      *pp = (*pp)->pNextBlocked;
-      break;
+    sqlite3 **pp;
+    assertMutexHeld();
+    for(pp=&sqlite3BlockedList; *pp; pp = &(*pp)->pNextBlocked){
+        if( *pp==db ){
+            *pp = (*pp)->pNextBlocked;
+            break;
+        }
     }
-  }
 }
 
 /*
@@ -96,32 +96,32 @@ static void removeFromBlockedList(sqlite3 *db){
 ** that it is not already a part of the list.
 */
 static void addToBlockedList(sqlite3 *db){
-  sqlite3 **pp;
-  assertMutexHeld();
-  for(
-    pp=&sqlite3BlockedList; 
-    *pp && (*pp)->xUnlockNotify!=db->xUnlockNotify; 
+    sqlite3 **pp;
+    assertMutexHeld();
+    for(
+        pp=&sqlite3BlockedList; 
+        *pp && (*pp)->xUnlockNotify!=db->xUnlockNotify; 
     pp=&(*pp)->pNextBlocked
-  );
-  db->pNextBlocked = *pp;
-  *pp = db;
+        );
+    db->pNextBlocked = *pp;
+    *pp = db;
 }
 
 /*
 ** Obtain the STATIC_MASTER mutex.
 */
 static void enterMutex(void){
-  sqlite3_mutex_enter(sqlite3MutexAlloc(SQLITE_MUTEX_STATIC_MASTER));
-  checkListProperties(0);
+    sqlite3_mutex_enter(sqlite3MutexAlloc(SQLITE_MUTEX_STATIC_MASTER));
+    checkListProperties(0);
 }
 
 /*
 ** Release the STATIC_MASTER mutex.
 */
 static void leaveMutex(void){
-  assertMutexHeld();
-  checkListProperties(0);
-  sqlite3_mutex_leave(sqlite3MutexAlloc(SQLITE_MUTEX_STATIC_MASTER));
+    assertMutexHeld();
+    checkListProperties(0);
+    sqlite3_mutex_leave(sqlite3MutexAlloc(SQLITE_MUTEX_STATIC_MASTER));
 }
 
 /*
@@ -146,47 +146,47 @@ static void leaveMutex(void){
 ** cancelled.
 */
 int sqlite3_unlock_notify(
-  sqlite3 *db,
-  void (*xNotify)(void **, int),
-  void *pArg
-){
-  int rc = SQLITE_OK;
+    sqlite3 *db,
+    void (*xNotify)(void **, int),
+    void *pArg
+    ){
+    int rc = SQLITE_OK;
 
-  sqlite3_mutex_enter(db->mutex);
-  enterMutex();
+    sqlite3_mutex_enter(db->mutex);
+    enterMutex();
 
-  if( xNotify==0 ){
-    removeFromBlockedList(db);
-    db->pBlockingConnection = 0;
-    db->pUnlockConnection = 0;
-    db->xUnlockNotify = 0;
-    db->pUnlockArg = 0;
-  }else if( 0==db->pBlockingConnection ){
-    /* The blocking transaction has been concluded. Or there never was a 
-    ** blocking transaction. In either case, invoke the notify callback
-    ** immediately. 
-    */
-    xNotify(&pArg, 1);
-  }else{
-    sqlite3 *p;
-
-    for(p=db->pBlockingConnection; p && p!=db; p=p->pUnlockConnection){}
-    if( p ){
-      rc = SQLITE_LOCKED;              /* Deadlock detected. */
+    if( xNotify==0 ){
+        removeFromBlockedList(db);
+        db->pBlockingConnection = 0;
+        db->pUnlockConnection = 0;
+        db->xUnlockNotify = 0;
+        db->pUnlockArg = 0;
+    }else if( 0==db->pBlockingConnection ){
+        /* The blocking transaction has been concluded. Or there never was a 
+        ** blocking transaction. In either case, invoke the notify callback
+        ** immediately. 
+        */
+        xNotify(&pArg, 1);
     }else{
-      db->pUnlockConnection = db->pBlockingConnection;
-      db->xUnlockNotify = xNotify;
-      db->pUnlockArg = pArg;
-      removeFromBlockedList(db);
-      addToBlockedList(db);
-    }
-  }
+        sqlite3 *p;
 
-  leaveMutex();
-  assert( !db->mallocFailed );
-  sqlite3Error(db, rc, (rc?"database is deadlocked":0));
-  sqlite3_mutex_leave(db->mutex);
-  return rc;
+        for(p=db->pBlockingConnection; p && p!=db; p=p->pUnlockConnection){}
+        if( p ){
+            rc = SQLITE_LOCKED;              /* Deadlock detected. */
+        }else{
+            db->pUnlockConnection = db->pBlockingConnection;
+            db->xUnlockNotify = xNotify;
+            db->pUnlockArg = pArg;
+            removeFromBlockedList(db);
+            addToBlockedList(db);
+        }
+    }
+
+    leaveMutex();
+    assert( !db->mallocFailed );
+    sqlite3Error(db, rc, (rc?"database is deadlocked":0));
+    sqlite3_mutex_leave(db->mutex);
+    return rc;
 }
 
 /*
@@ -196,12 +196,12 @@ int sqlite3_unlock_notify(
 ** until connection pBlocker concludes its current transaction.
 */
 void sqlite3ConnectionBlocked(sqlite3 *db, sqlite3 *pBlocker){
-  enterMutex();
-  if( db->pBlockingConnection==0 && db->pUnlockConnection==0 ){
-    addToBlockedList(db);
-  }
-  db->pBlockingConnection = pBlocker;
-  leaveMutex();
+    enterMutex();
+    if( db->pBlockingConnection==0 && db->pUnlockConnection==0 ){
+        addToBlockedList(db);
+    }
+    db->pBlockingConnection = pBlocker;
+    leaveMutex();
 }
 
 /*
@@ -224,98 +224,98 @@ void sqlite3ConnectionBlocked(sqlite3 *db, sqlite3 *pBlocker){
 **      list.
 */
 void sqlite3ConnectionUnlocked(sqlite3 *db){
-  void (*xUnlockNotify)(void **, int) = 0; /* Unlock-notify cb to invoke */
-  int nArg = 0;                            /* Number of entries in aArg[] */
-  sqlite3 **pp;                            /* Iterator variable */
-  void **aArg;               /* Arguments to the unlock callback */
-  void **aDyn = 0;           /* Dynamically allocated space for aArg[] */
-  void *aStatic[16];         /* Starter space for aArg[].  No malloc required */
+    void (*xUnlockNotify)(void **, int) = 0; /* Unlock-notify cb to invoke */
+    int nArg = 0;                            /* Number of entries in aArg[] */
+    sqlite3 **pp;                            /* Iterator variable */
+    void **aArg;               /* Arguments to the unlock callback */
+    void **aDyn = 0;           /* Dynamically allocated space for aArg[] */
+    void *aStatic[16];         /* Starter space for aArg[].  No malloc required */
 
-  aArg = aStatic;
-  enterMutex();         /* Enter STATIC_MASTER mutex */
+    aArg = aStatic;
+    enterMutex();         /* Enter STATIC_MASTER mutex */
 
-  /* This loop runs once for each entry in the blocked-connections list. */
-  for(pp=&sqlite3BlockedList; *pp; /* no-op */ ){
-    sqlite3 *p = *pp;
+    /* This loop runs once for each entry in the blocked-connections list. */
+    for(pp=&sqlite3BlockedList; *pp; /* no-op */ ){
+        sqlite3 *p = *pp;
 
-    /* Step 1. */
-    if( p->pBlockingConnection==db ){
-      p->pBlockingConnection = 0;
-    }
-
-    /* Step 2. */
-    if( p->pUnlockConnection==db ){
-      assert( p->xUnlockNotify );
-      if( p->xUnlockNotify!=xUnlockNotify && nArg!=0 ){
-        xUnlockNotify(aArg, nArg);
-        nArg = 0;
-      }
-
-      sqlite3BeginBenignMalloc();
-      assert( aArg==aDyn || (aDyn==0 && aArg==aStatic) );
-      assert( nArg<=(int)ArraySize(aStatic) || aArg==aDyn );
-      if( (!aDyn && nArg==(int)ArraySize(aStatic))
-       || (aDyn && nArg==(int)(sqlite3MallocSize(aDyn)/sizeof(void*)))
-      ){
-        /* The aArg[] array needs to grow. */
-        void **pNew = (void **)sqlite3Malloc(nArg*sizeof(void *)*2);
-        if( pNew ){
-          memcpy(pNew, aArg, nArg*sizeof(void *));
-          sqlite3_free(aDyn);
-          aDyn = aArg = pNew;
-        }else{
-          /* This occurs when the array of context pointers that need to
-          ** be passed to the unlock-notify callback is larger than the
-          ** aStatic[] array allocated on the stack and the attempt to 
-          ** allocate a larger array from the heap has failed.
-          **
-          ** This is a difficult situation to handle. Returning an error
-          ** code to the caller is insufficient, as even if an error code
-          ** is returned the transaction on connection db will still be
-          ** closed and the unlock-notify callbacks on blocked connections
-          ** will go unissued. This might cause the application to wait
-          ** indefinitely for an unlock-notify callback that will never 
-          ** arrive.
-          **
-          ** Instead, invoke the unlock-notify callback with the context
-          ** array already accumulated. We can then clear the array and
-          ** begin accumulating any further context pointers without 
-          ** requiring any dynamic allocation. This is sub-optimal because
-          ** it means that instead of one callback with a large array of
-          ** context pointers the application will receive two or more
-          ** callbacks with smaller arrays of context pointers, which will
-          ** reduce the applications ability to prioritize multiple 
-          ** connections. But it is the best that can be done under the
-          ** circumstances.
-          */
-          xUnlockNotify(aArg, nArg);
-          nArg = 0;
+        /* Step 1. */
+        if( p->pBlockingConnection==db ){
+            p->pBlockingConnection = 0;
         }
-      }
-      sqlite3EndBenignMalloc();
 
-      aArg[nArg++] = p->pUnlockArg;
-      xUnlockNotify = p->xUnlockNotify;
-      p->pUnlockConnection = 0;
-      p->xUnlockNotify = 0;
-      p->pUnlockArg = 0;
+        /* Step 2. */
+        if( p->pUnlockConnection==db ){
+            assert( p->xUnlockNotify );
+            if( p->xUnlockNotify!=xUnlockNotify && nArg!=0 ){
+                xUnlockNotify(aArg, nArg);
+                nArg = 0;
+            }
+
+            sqlite3BeginBenignMalloc();
+            assert( aArg==aDyn || (aDyn==0 && aArg==aStatic) );
+            assert( nArg<=(int)ArraySize(aStatic) || aArg==aDyn );
+            if( (!aDyn && nArg==(int)ArraySize(aStatic))
+                || (aDyn && nArg==(int)(sqlite3MallocSize(aDyn)/sizeof(void*)))
+                ){
+                /* The aArg[] array needs to grow. */
+                void **pNew = (void **)sqlite3Malloc(nArg*sizeof(void *)*2);
+                if( pNew ){
+                    memcpy(pNew, aArg, nArg*sizeof(void *));
+                    sqlite3_free(aDyn);
+                    aDyn = aArg = pNew;
+                }else{
+                    /* This occurs when the array of context pointers that need to
+                    ** be passed to the unlock-notify callback is larger than the
+                    ** aStatic[] array allocated on the stack and the attempt to 
+                    ** allocate a larger array from the heap has failed.
+                    **
+                    ** This is a difficult situation to handle. Returning an error
+                    ** code to the caller is insufficient, as even if an error code
+                    ** is returned the transaction on connection db will still be
+                    ** closed and the unlock-notify callbacks on blocked connections
+                    ** will go unissued. This might cause the application to wait
+                    ** indefinitely for an unlock-notify callback that will never 
+                    ** arrive.
+                    **
+                    ** Instead, invoke the unlock-notify callback with the context
+                    ** array already accumulated. We can then clear the array and
+                    ** begin accumulating any further context pointers without 
+                    ** requiring any dynamic allocation. This is sub-optimal because
+                    ** it means that instead of one callback with a large array of
+                    ** context pointers the application will receive two or more
+                    ** callbacks with smaller arrays of context pointers, which will
+                    ** reduce the applications ability to prioritize multiple 
+                    ** connections. But it is the best that can be done under the
+                    ** circumstances.
+                    */
+                    xUnlockNotify(aArg, nArg);
+                    nArg = 0;
+                }
+            }
+            sqlite3EndBenignMalloc();
+
+            aArg[nArg++] = p->pUnlockArg;
+            xUnlockNotify = p->xUnlockNotify;
+            p->pUnlockConnection = 0;
+            p->xUnlockNotify = 0;
+            p->pUnlockArg = 0;
+        }
+
+        /* Step 3. */
+        if( p->pBlockingConnection==0 && p->pUnlockConnection==0 ){
+            /* Remove connection p from the blocked connections list. */
+            *pp = p->pNextBlocked;
+            p->pNextBlocked = 0;
+        }else{
+            pp = &p->pNextBlocked;
+        }
     }
 
-    /* Step 3. */
-    if( p->pBlockingConnection==0 && p->pUnlockConnection==0 ){
-      /* Remove connection p from the blocked connections list. */
-      *pp = p->pNextBlocked;
-      p->pNextBlocked = 0;
-    }else{
-      pp = &p->pNextBlocked;
+    if( nArg!=0 ){
+        xUnlockNotify(aArg, nArg);
     }
-  }
-
-  if( nArg!=0 ){
-    xUnlockNotify(aArg, nArg);
-  }
-  sqlite3_free(aDyn);
-  leaveMutex();         /* Leave STATIC_MASTER mutex */
+    sqlite3_free(aDyn);
+    leaveMutex();         /* Leave STATIC_MASTER mutex */
 }
 
 /*
@@ -323,10 +323,10 @@ void sqlite3ConnectionUnlocked(sqlite3 *db){
 ** being closed. The connection is removed from the blocked list.
 */
 void sqlite3ConnectionClosed(sqlite3 *db){
-  sqlite3ConnectionUnlocked(db);
-  enterMutex();
-  removeFromBlockedList(db);
-  checkListProperties(db);
-  leaveMutex();
+    sqlite3ConnectionUnlocked(db);
+    enterMutex();
+    removeFromBlockedList(db);
+    checkListProperties(db);
+    leaveMutex();
 }
 #endif

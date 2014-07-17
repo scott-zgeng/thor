@@ -10,17 +10,17 @@
 **
 *************************************************************************
 **
-** This file contains code to support the concept of "benign" 
+** This file contains code to support the concept of "benign"
 ** malloc failures (when the xMalloc() or xRealloc() method of the
 ** sqlite3_mem_methods structure fails to allocate a block of memory
-** and returns 0). 
+** and returns 0).
 **
 ** Most malloc failures are non-benign. After they occur, SQLite
 ** abandons the current operation and returns an error code (usually
 ** SQLITE_NOMEM) to the user. However, sometimes a fault is not necessarily
-** fatal. For example, if a malloc fails while resizing a hash table, this 
-** is completely recoverable simply by not carrying out the resize. The 
-** hash table will continue to function normally.  So a malloc failure 
+** fatal. For example, if a malloc fails while resizing a hash table, this
+** is completely recoverable simply by not carrying out the resize. The
+** hash table will continue to function normally.  So a malloc failure
 ** during a hash table resize is a benign fault.
 */
 
@@ -33,8 +33,8 @@
 */
 typedef struct BenignMallocHooks BenignMallocHooks;
 static SQLITE_WSD struct BenignMallocHooks {
-  void (*xBenignBegin)(void);
-  void (*xBenignEnd)(void);
+    void(*xBenignBegin)(void);
+    void(*xBenignEnd)(void);
 } sqlite3Hooks = { 0, 0 };
 
 /* The "wsdHooks" macro will resolve to the appropriate BenignMallocHooks
@@ -45,7 +45,7 @@ static SQLITE_WSD struct BenignMallocHooks {
 */
 #ifdef SQLITE_OMIT_WSD
 # define wsdHooksInit \
-  BenignMallocHooks *x = &GLOBAL(BenignMallocHooks,sqlite3Hooks)
+    BenignMallocHooks *x = &GLOBAL(BenignMallocHooks,sqlite3Hooks)
 # define wsdHooks x[0]
 #else
 # define wsdHooksInit
@@ -58,12 +58,12 @@ static SQLITE_WSD struct BenignMallocHooks {
 ** sqlite3EndBenignMalloc() are called, respectively.
 */
 void sqlite3BenignMallocHooks(
-  void (*xBenignBegin)(void),
-  void (*xBenignEnd)(void)
-){
-  wsdHooksInit;
-  wsdHooks.xBenignBegin = xBenignBegin;
-  wsdHooks.xBenignEnd = xBenignEnd;
+    void(*xBenignBegin)(void),
+    void(*xBenignEnd)(void)
+    ){
+    wsdHooksInit;
+    wsdHooks.xBenignBegin = xBenignBegin;
+    wsdHooks.xBenignEnd = xBenignEnd;
 }
 
 /*
@@ -72,16 +72,16 @@ void sqlite3BenignMallocHooks(
 ** indicates that subsequent malloc failures are non-benign.
 */
 void sqlite3BeginBenignMalloc(void){
-  wsdHooksInit;
-  if( wsdHooks.xBenignBegin ){
-    wsdHooks.xBenignBegin();
-  }
+    wsdHooksInit;
+    if (wsdHooks.xBenignBegin){
+        wsdHooks.xBenignBegin();
+    }
 }
 void sqlite3EndBenignMalloc(void){
-  wsdHooksInit;
-  if( wsdHooks.xBenignEnd ){
-    wsdHooks.xBenignEnd();
-  }
+    wsdHooksInit;
+    if (wsdHooks.xBenignEnd){
+        wsdHooks.xBenignEnd();
+    }
 }
 
 #endif   /* #ifndef SQLITE_OMIT_BUILTIN_TEST */
