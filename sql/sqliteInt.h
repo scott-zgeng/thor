@@ -2513,6 +2513,8 @@ struct Parse {
     Table *pZombieTab;        /* List of Table objects to delete after code gen */
     TriggerPrg *pTriggerPrg;  /* Linked list of coded triggers */
     With *pWith;              /* Current WITH clause, or NULL */
+
+    int bNewEngine;
 };
 
 /*
