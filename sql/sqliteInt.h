@@ -2514,7 +2514,7 @@ struct Parse {
     TriggerPrg *pTriggerPrg;  /* Linked list of coded triggers */
     With *pWith;              /* Current WITH clause, or NULL */
 
-    int bNewEngine;
+    int columnStorage;
 };
 
 /*
@@ -3101,6 +3101,9 @@ int sqlite3Select(Parse*, Select*, SelectDest*);
 Select *sqlite3SelectNew(Parse*, ExprList*, SrcList*, Expr*, ExprList*,
     Expr*, ExprList*, u16, Expr*, Expr*);
 void sqlite3SelectDelete(sqlite3*, Select*);
+
+int sqlite3SelectCreatePlan(Parse*, Select*);  // added by scott.zgeng
+
 Table *sqlite3SrcListLookup(Parse*, SrcList*);
 int sqlite3IsReadOnly(Parse*, Table*, int);
 void sqlite3OpenTable(Parse*, int iCur, int iDb, Table*, int);

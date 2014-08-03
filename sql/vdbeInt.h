@@ -366,6 +366,8 @@ struct Vdbe {
     int nOnceFlag;          /* Size of array aOnceFlag[] */
     u8 *aOnceFlag;          /* Flags for OP_Once */
     AuxData *pAuxData;      /* Linked list of auxdata allocations */
+
+    void* pRootNode;        // used to new plan tree, added by scott.zgeng
 };
 
 /*

@@ -2533,6 +2533,7 @@ static void yy_reduce(
                   sqlite3ExplainBegin(pParse->pVdbe);
                   sqlite3ExplainSelect(pParse->pVdbe, yymsp[0].minor.yy3);
                   sqlite3ExplainFinish(pParse->pVdbe);
+                  sqlite3SelectCreatePlan(pParse, yymsp[0].minor.yy3);
                   sqlite3SelectDelete(pParse->db, yymsp[0].minor.yy3);
     }
 #line 2537 "parse.c"

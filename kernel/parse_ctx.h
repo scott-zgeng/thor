@@ -6,7 +6,7 @@
 
 extern "C" {
 #include "../sql/sqliteInt.h"
-
+#include "../sql/vdbeInt.h"
 }
 
 
@@ -57,21 +57,23 @@ public:
     virtual result_t next(query_pack_t* pack) = 0;
     virtual const char* name() = 0;
 
-
 };
 
 
-class node_generator
+class expr_base_t;
+class node_generator_t
 {
 public:
-    node_generator(Parse* parse, Select* select);
-    ~node_generator();
+    node_generator_t(Parse* parse, Select* select);
+    ~node_generator_t();
 
 public:
     result_t build(node_base_t** root);
 
 private:        
     result_t build_join(node_base_t** scan_nodes, int32 tab_num, node_base_t** root);
+    result_t build_expression(Expr* expr, expr_base_t** root);       
+    expr_base_t* create_expression(Expr* expr);
 
 private:
     Parse* m_parse;
@@ -135,6 +137,38 @@ class project_node_t : public node_base_t
 };
 
 
+class expr_base_t
+{
+public:
+    expr_base_t() { 
+        m_left = NULL; 
+        m_right = NULL; 
+    }
+    virtual ~expr_base_t() {}
+
+    virtual result_t init(Expr* expr) = 0;
+    virtual const char* name() = 0;
+
+
+    expr_base_t* m_left;
+    expr_base_t* m_right;
+
+    //virtual result_t calc() = 0;
+    
+};
+
+
+class expr_column_t: public expr_base_t
+{
+public:
+    expr_column_t();
+    virtual ~expr_column_t();
+
+public:
+    virtual result_t init(Expr* expr);
+    virtual const char* name() { return "EXPR_COLUMN";  }
+
+};
 
 
 #endif //__PARSE_CTX__

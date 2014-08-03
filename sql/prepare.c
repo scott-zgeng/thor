@@ -552,6 +552,7 @@ static int sqlite3Prepare(
     const char *zSql,         /* UTF-8 encoded SQL statement. */
     int nBytes,               /* Length of zSql in bytes. */
     int saveSqlFlag,          /* True to copy SQL text into the sqlite3_stmt */
+    int columnStorage,        /* True to use the colume storage execute engine */
     Vdbe *pReprepare,         /* VM being reprepared */
     sqlite3_stmt **ppStmt,    /* OUT: A pointer to the prepared statement */
     const char **pzTail       /* OUT: End of parsed string */
@@ -567,10 +568,14 @@ static int sqlite3Prepare(
         rc = SQLITE_NOMEM;
         goto end_prepare;
     }
+
     pParse->pReprepare = pReprepare;
+    pParse->columnStorage = columnStorage;  // added by scott.zgeng
+
     assert(ppStmt && *ppStmt == 0);
     assert(!db->mallocFailed);
     assert(sqlite3_mutex_held(db->mutex));
+
 
     /* Check to verify that it is possible to get a read lock on all
     ** database schemas.  The inability to get a read lock indicates that
@@ -729,10 +734,10 @@ static int sqlite3LockAndPrepare(
     }
     sqlite3_mutex_enter(db->mutex);
     sqlite3BtreeEnterAll(db);
-    rc = sqlite3Prepare(db, zSql, nBytes, saveSqlFlag, pOld, ppStmt, pzTail);
+    rc = sqlite3Prepare(db, zSql, nBytes, saveSqlFlag, 0, pOld, ppStmt, pzTail);
     if (rc == SQLITE_SCHEMA){
         sqlite3_finalize(*ppStmt);
-        rc = sqlite3Prepare(db, zSql, nBytes, saveSqlFlag, pOld, ppStmt, pzTail);
+        rc = sqlite3Prepare(db, zSql, nBytes, saveSqlFlag, 0, pOld, ppStmt, pzTail);
     }
     sqlite3BtreeLeaveAll(db);
     sqlite3_mutex_leave(db->mutex);
@@ -810,6 +815,40 @@ int sqlite3_prepare_v2(
     assert(rc == SQLITE_OK || ppStmt == 0 || *ppStmt == 0);  /* VERIFY: F13021 */
     return rc;
 }
+
+
+int sqlite3_cs_prepare(sqlite3 *db, const char *zSql, int nBytes, sqlite3_stmt **ppStmt, const char **pzTail)
+{
+    int rc;
+    assert(ppStmt != 0);
+    *ppStmt = 0;
+    if (!sqlite3SafetyCheckOk(db)){
+        return SQLITE_MISUSE_BKPT;
+    }
+    sqlite3_mutex_enter(db->mutex);
+    sqlite3BtreeEnterAll(db);
+    rc = sqlite3Prepare(db, zSql, nBytes, 1, 1, NULL, ppStmt, pzTail);
+    if (rc == SQLITE_SCHEMA){
+        sqlite3_finalize(*ppStmt);
+        rc = sqlite3Prepare(db, zSql, nBytes, 1, 1, NULL, ppStmt, pzTail);
+    }
+    sqlite3BtreeLeaveAll(db);
+    sqlite3_mutex_leave(db->mutex);
+    assert(rc == SQLITE_OK || *ppStmt == 0);
+    return rc;
+}
+
+int sqlite3_cs_step(sqlite3_stmt* stmt)
+{
+    return SQLITE_OK;
+}
+
+
+int sqlite3_cs_finalize(sqlite3_stmt* stmt)
+{
+    return SQLITE_OK;
+}
+
 
 
 #ifndef SQLITE_OMIT_UTF16

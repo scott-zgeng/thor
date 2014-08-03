@@ -3215,6 +3215,12 @@ SQLITE_API int sqlite3_prepare16_v2(
   const void **pzTail     /* OUT: Pointer to unused portion of zSql */
 );
 
+// add by scott.zgeng
+SQLITE_API int sqlite3_cs_prepare(sqlite3 *db, const char *zSql, int nBytes, sqlite3_stmt **ppStmt, const char **pzTail);
+SQLITE_API int sqlite3_cs_step(sqlite3_stmt* stmt);
+SQLITE_API int sqlite3_cs_finalize(sqlite3_stmt* stmt);
+
+
 /*
 ** CAPI3REF: Retrieving Statement SQL
 **

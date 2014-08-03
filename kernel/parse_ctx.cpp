@@ -2,23 +2,42 @@
 
 #include <assert.h>
 
+
+
 #include "parse_ctx.h"
 
 
-node_generator::node_generator(Parse* parse, Select* select)
+int sqlite3SelectCreatePlan(Parse* pParse, Select* pSelete)
+{
+    if (!pParse->columnStorage) return SQLITE_OK;
+
+    node_generator_t generator(pParse, pSelete);
+
+    node_base_t* root = NULL;
+    if (generator.build(&root) != RT_SUCCEEDED)
+        return SQLITE_ERROR;
+
+    pParse->pVdbe->pRootNode = root;
+
+    return SQLITE_OK;
+}
+
+
+
+node_generator_t::node_generator_t(Parse* parse, Select* select)
 {
     m_parse = parse;
     m_select = select;
 }
 
-node_generator::~node_generator()
+node_generator_t::~node_generator_t()
 {
 
 }
 
 
 
-result_t node_generator::build_join(node_base_t** scan_nodes, int32 tab_num, node_base_t** root)
+result_t node_generator_t::build_join(node_base_t** scan_nodes, int32 tab_num, node_base_t** root)
 {
     if (tab_num == 1) return RT_SUCCEEDED;
 
@@ -37,7 +56,7 @@ result_t node_generator::build_join(node_base_t** scan_nodes, int32 tab_num, nod
     return RT_SUCCEEDED;
 }
 
-result_t node_generator::build(node_base_t** root_node)
+result_t node_generator_t::build(node_base_t** root_node)
 {
     IF_RETURN_FAILED(m_select->pSrc->nSrc != m_select->pSrc->nAlloc);
     IF_RETURN_FAILED(m_select->pSrc->nSrc > MAX_JOIN_TABLE);
@@ -61,11 +80,40 @@ result_t node_generator::build(node_base_t** root_node)
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
 
-    
+    return RT_SUCCEEDED;
+}
 
+result_t node_generator_t::build_expression(Expr* expr, expr_base_t** root)
+{
+    assert(expr);
+    
+    expr_base_t* expr_node = create_expression(expr);
+    IF_RETURN_FAILED(expr_node == NULL);
+    
+    result_t ret;
+    if (expr->pLeft != NULL) {
+        ret = build_expression(expr->pLeft, &expr_node->m_left);
+        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+    }
+
+    if (expr->pRight != NULL) {
+        ret = build_expression(expr->pRight, &expr_node->m_right);
+        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+    }
 
 
     return RT_SUCCEEDED;
+}
+
+expr_base_t* node_generator_t::create_expression(Expr* expr)
+{
+    switch (expr->op)
+    {
+    case TK_COLUMN:
+        return new expr_column_t();
+    default:
+        return NULL;
+    }
 }
 
 
@@ -131,5 +179,22 @@ result_t join_node_t::next(query_pack_t* pack)
 const char* join_node_t::name()
 {
     return "JOIN_NODE";
+}
+
+
+expr_column_t::expr_column_t()
+{
+
+}
+
+
+expr_column_t::~expr_column_t()
+{
+
+}
+
+result_t expr_column_t::init(Expr* expr)
+{
+    return RT_FAILED;
 }
 

@@ -402,6 +402,7 @@ cmd ::= select(X).  {
   sqlite3ExplainBegin(pParse->pVdbe);
   sqlite3ExplainSelect(pParse->pVdbe, X);
   sqlite3ExplainFinish(pParse->pVdbe);
+  sqlite3SelectCreatePlan(pParse, X);
   sqlite3SelectDelete(pParse->db, X);
 }
 
