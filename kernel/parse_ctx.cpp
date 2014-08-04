@@ -178,7 +178,7 @@ void scan_node_t::uninit()
 }
 
 const char* scan_node_t::name()
-{
+{  
     return "SCAN_NODE";
 }
 
@@ -236,16 +236,30 @@ result_t expr_plus_t::init(Expr* expr)
 {
     return RT_FAILED;
 }
-    
+
+
+
+
 //template<typename T1, typename T2>
-result_t expr_plus_t::calc(query_pack_t* pack)
+result_t expr_plus_t::calc(query_pack_t* pack, expr_stack_data_t* output)
 {
     assert(m_left && m_right);
 
-    //result_t ret;
+    result_t ret;
 
-    //ret = m_left->calc(pack);
-    //IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+    expr_stack_data_t* out = pack->push(1024 * sizeof(uint64)));
+      
+    expr_stack_data_t left_out;
+    ret = m_left->calc(pack, &left_out);
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+    expr_stack_data_t right_out;
+    ret = m_right->calc(pack, &right_out);
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+
+    
+
 
     //pack->move_out_2_left();
 

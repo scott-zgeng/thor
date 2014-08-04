@@ -156,6 +156,13 @@ class project_node_t : public node_base_t
 
 };
 
+class expr_stack_data_t
+{
+    int32 type;
+    int8* ptr;
+    int32 offset;
+};
+
 
 class expr_base_t
 {
@@ -168,7 +175,7 @@ public:
 
     virtual result_t init(Expr* expr) = 0;
     virtual const char* name() = 0;
-    virtual result_t calc(query_pack_t* pack) = 0;
+    virtual result_t calc(query_pack_t* pack, expr_stack_data_t* output) = 0;
 
     expr_base_t* m_left;
     expr_base_t* m_right;    
@@ -186,7 +193,7 @@ public:
 public:
     virtual result_t init(Expr* expr);
     virtual const char* name() { return "EXPR_PLUS"; }
-    virtual result_t calc(query_pack_t* pack);
+    virtual result_t calc(query_pack_t* pack, expr_stack_data_t* output);
 };
 
 class expr_multiple_t: public expr_base_t
@@ -198,7 +205,7 @@ public:
 public:
     virtual result_t init(Expr* expr);
     virtual const char* name() { return "EXPR_MULTIPLE"; }
-    virtual result_t calc(query_pack_t* pack);
+    virtual result_t calc(query_pack_t* pack, expr_stack_data_t* output);
 };
 
 
@@ -212,7 +219,7 @@ public:
 public:
     virtual result_t init(Expr* expr);
     virtual const char* name() { return "EXPR_INTEGER"; }
-    virtual result_t calc(query_pack_t* pack);
+    virtual result_t calc(query_pack_t* pack, expr_stack_data_t* output);
 
     //virtual int return_type();
 };
@@ -228,12 +235,12 @@ public:
 public:
     virtual result_t init(Expr* expr) { return RT_FAILED; }
     virtual const char* name() { return "EXPR_LOGIC"; }
-    virtual result_t calc(query_pack_t* pack) { return RT_FAILED; }
+    virtual result_t calc(query_pack_t* pack, expr_stack_data_t* output) { return RT_FAILED; }
 };
 
 
 
-class expr_and_t : public expr_base_t
+class expr_and_t: public expr_base_t
 {
 public:
     expr_and_t();
@@ -242,7 +249,7 @@ public:
 public:
     virtual result_t init(Expr* expr);
     virtual const char* name() { return "EXPR_AND"; }
-    virtual result_t calc(query_pack_t* pack);
+    virtual result_t calc(query_pack_t* pack, expr_stack_data_t* output);
 };
 
 class expr_column_t: public expr_base_t
@@ -254,7 +261,7 @@ public:
 public:
     virtual result_t init(Expr* expr);
     virtual const char* name() { return "EXPR_COLUMN";  }
-    virtual result_t calc(query_pack_t* pack);
+    virtual result_t calc(query_pack_t* pack, expr_stack_data_t* output);
 
 private:
     int32 m_table_id;
