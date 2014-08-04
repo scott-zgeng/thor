@@ -20,6 +20,7 @@ typedef unsigned int uint32;
 typedef long long int64;
 typedef unsigned long long uint64;
 
+typedef unsigned long long rowid_t;
 
 // 为了防止和内置类型混用
 struct result_t
@@ -45,7 +46,22 @@ const static result_t RT_FAILED = { -1 };
 
 class query_pack_t
 {
+public:
+    static const int SEGMENT_SIZE = 1024;
+public:
+    query_pack_t();
+    ~query_pack_t();
 
+public:
+    //uint8 alloc_buffer();
+
+    result_t generate_data(int32 table_id, int32 column_id);
+
+private:
+
+    bool usedd_map[4];
+    uint8 nullmap[SEGMENT_SIZE * 4];
+    uint8 buffer[SEGMENT_SIZE * 8 * 4];
 };
 
 
@@ -69,10 +85,11 @@ public:
 
 public:
     result_t build(node_base_t** root);
+    result_t build_expression(Expr* expr, expr_base_t** root);
 
 private:        
     result_t build_join(node_base_t** scan_nodes, int32 tab_num, node_base_t** root);
-    result_t build_expression(Expr* expr, expr_base_t** root);       
+    
     expr_base_t* create_expression(Expr* expr);
 
 private:
@@ -95,6 +112,9 @@ public:
 
 private:
     int32 m_index;
+
+
+    expr_base_t* m_condition;  // filter of where 
 };
 
 class join_node_t : public node_base_t
@@ -148,15 +168,82 @@ public:
 
     virtual result_t init(Expr* expr) = 0;
     virtual const char* name() = 0;
-
+    virtual result_t calc(query_pack_t* pack) = 0;
 
     expr_base_t* m_left;
-    expr_base_t* m_right;
-
-    //virtual result_t calc() = 0;
-    
+    expr_base_t* m_right;    
 };
 
+
+
+
+class expr_plus_t: public expr_base_t
+{
+public:
+    expr_plus_t();
+    virtual ~expr_plus_t();
+
+public:
+    virtual result_t init(Expr* expr);
+    virtual const char* name() { return "EXPR_PLUS"; }
+    virtual result_t calc(query_pack_t* pack);
+};
+
+class expr_multiple_t: public expr_base_t
+{
+public:
+    expr_multiple_t();
+    virtual ~expr_multiple_t();
+
+public:
+    virtual result_t init(Expr* expr);
+    virtual const char* name() { return "EXPR_MULTIPLE"; }
+    virtual result_t calc(query_pack_t* pack);
+};
+
+
+
+class expr_integer_t: public expr_base_t
+{
+public:
+    expr_integer_t();
+    virtual ~expr_integer_t();
+
+public:
+    virtual result_t init(Expr* expr);
+    virtual const char* name() { return "EXPR_INTEGER"; }
+    virtual result_t calc(query_pack_t* pack);
+
+    //virtual int return_type();
+};
+
+
+template<int OP_TYPE>
+class expr_logic_op_t : public expr_base_t
+{
+public:
+    expr_logic_op_t(){}
+    virtual ~expr_logic_op_t() {}
+
+public:
+    virtual result_t init(Expr* expr) { return RT_FAILED; }
+    virtual const char* name() { return "EXPR_LOGIC"; }
+    virtual result_t calc(query_pack_t* pack) { return RT_FAILED; }
+};
+
+
+
+class expr_and_t : public expr_base_t
+{
+public:
+    expr_and_t();
+    virtual ~expr_and_t();
+
+public:
+    virtual result_t init(Expr* expr);
+    virtual const char* name() { return "EXPR_AND"; }
+    virtual result_t calc(query_pack_t* pack);
+};
 
 class expr_column_t: public expr_base_t
 {
@@ -167,7 +254,11 @@ public:
 public:
     virtual result_t init(Expr* expr);
     virtual const char* name() { return "EXPR_COLUMN";  }
+    virtual result_t calc(query_pack_t* pack);
 
+private:
+    int32 m_table_id;
+    int32 m_column_id;
 };
 
 
