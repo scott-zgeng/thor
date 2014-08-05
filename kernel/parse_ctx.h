@@ -11,60 +11,14 @@ extern "C" {
 
 
 
-typedef char int8;
-typedef unsigned uint8;
-typedef short int16;
-typedef unsigned short uint16;
-typedef int int32;
-typedef unsigned int uint32;
-typedef long long int64;
-typedef unsigned long long uint64;
+#include "define.h"
 
-typedef unsigned long long rowid_t;
-
-// 为了防止和内置类型混用
-struct result_t
-{
-    uint32 code;
-    bool operator == (result_t other) { return code == other.code; }
-    bool operator != (result_t other) { return code != other.code; }
-};
-
-
-const static result_t RT_SUCCEEDED = { 0 };
-const static result_t RT_FAILED = { -1 };
-
-
-#define IF_RETURN(code, condition) \
-    do { if (condition) { printf("return from %s:%d\n", __FILE__, __LINE__); return (code); } } while (0)
-
-#define IF_RETURN_FAILED(condition) IF_RETURN(RT_FAILED, condition)
 
 #define MAX_JOIN_TABLE 8
 
 
 
-class query_pack_t
-{
-public:
-    static const int SEGMENT_SIZE = 1024;
-public:
-    query_pack_t();
-    ~query_pack_t();
-
-public:
-    //uint8 alloc_buffer();
-
-    result_t generate_data(int32 table_id, int32 column_id);
-
-private:
-
-    bool usedd_map[4];
-    uint8 nullmap[SEGMENT_SIZE * 4];
-    uint8 buffer[SEGMENT_SIZE * 8 * 4];
-};
-
-
+class query_pack_t;
 class node_base_t
 {
 public:
@@ -72,7 +26,6 @@ public:
     virtual void uninit() = 0;
     virtual result_t next(query_pack_t* pack) = 0;
     virtual const char* name() = 0;
-
 };
 
 
@@ -84,13 +37,10 @@ public:
     ~node_generator_t();
 
 public:
-    result_t build(node_base_t** root);
-    result_t build_expression(Expr* expr, expr_base_t** root);
+    result_t build(node_base_t** root);    
 
 private:        
-    result_t build_join(node_base_t** scan_nodes, int32 tab_num, node_base_t** root);
-    
-    expr_base_t* create_expression(Expr* expr);
+    result_t build_join(node_base_t** scan_nodes, int32 tab_num, node_base_t** root);       
 
 private:
     Parse* m_parse;
@@ -156,117 +106,7 @@ class project_node_t : public node_base_t
 
 };
 
-class expr_stack_data_t
-{
-    int32 type;
-    int8* ptr;
-    int32 offset;
-};
 
-
-class expr_base_t
-{
-public:
-    expr_base_t() { 
-        m_left = NULL; 
-        m_right = NULL; 
-    }
-    virtual ~expr_base_t() {}
-
-    virtual result_t init(Expr* expr) = 0;
-    virtual const char* name() = 0;
-    virtual result_t calc(query_pack_t* pack, expr_stack_data_t* output) = 0;
-
-    expr_base_t* m_left;
-    expr_base_t* m_right;    
-};
-
-
-
-
-class expr_plus_t: public expr_base_t
-{
-public:
-    expr_plus_t();
-    virtual ~expr_plus_t();
-
-public:
-    virtual result_t init(Expr* expr);
-    virtual const char* name() { return "EXPR_PLUS"; }
-    virtual result_t calc(query_pack_t* pack, expr_stack_data_t* output);
-};
-
-class expr_multiple_t: public expr_base_t
-{
-public:
-    expr_multiple_t();
-    virtual ~expr_multiple_t();
-
-public:
-    virtual result_t init(Expr* expr);
-    virtual const char* name() { return "EXPR_MULTIPLE"; }
-    virtual result_t calc(query_pack_t* pack, expr_stack_data_t* output);
-};
-
-
-
-class expr_integer_t: public expr_base_t
-{
-public:
-    expr_integer_t();
-    virtual ~expr_integer_t();
-
-public:
-    virtual result_t init(Expr* expr);
-    virtual const char* name() { return "EXPR_INTEGER"; }
-    virtual result_t calc(query_pack_t* pack, expr_stack_data_t* output);
-
-    //virtual int return_type();
-};
-
-
-template<int OP_TYPE>
-class expr_logic_op_t : public expr_base_t
-{
-public:
-    expr_logic_op_t(){}
-    virtual ~expr_logic_op_t() {}
-
-public:
-    virtual result_t init(Expr* expr) { return RT_FAILED; }
-    virtual const char* name() { return "EXPR_LOGIC"; }
-    virtual result_t calc(query_pack_t* pack, expr_stack_data_t* output) { return RT_FAILED; }
-};
-
-
-
-class expr_and_t: public expr_base_t
-{
-public:
-    expr_and_t();
-    virtual ~expr_and_t();
-
-public:
-    virtual result_t init(Expr* expr);
-    virtual const char* name() { return "EXPR_AND"; }
-    virtual result_t calc(query_pack_t* pack, expr_stack_data_t* output);
-};
-
-class expr_column_t: public expr_base_t
-{
-public:
-    expr_column_t();
-    virtual ~expr_column_t();
-
-public:
-    virtual result_t init(Expr* expr);
-    virtual const char* name() { return "EXPR_COLUMN";  }
-    virtual result_t calc(query_pack_t* pack, expr_stack_data_t* output);
-
-private:
-    int32 m_table_id;
-    int32 m_column_id;
-};
 
 
 #endif //__PARSE_CTX__

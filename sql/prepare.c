@@ -14,6 +14,7 @@
 ** from disk.
 */
 #include "sqliteInt.h"
+#include "vdbeInt.h"  // added by scott.zgeng
 
 /*
 ** Fill the InitData structure with an error message that indicates
@@ -817,7 +818,7 @@ int sqlite3_prepare_v2(
 }
 
 
-int sqlite3_cs_prepare(sqlite3 *db, const char *zSql, int nBytes, sqlite3_stmt **ppStmt, const char **pzTail)
+int sqlite3_vector_prepare(sqlite3 *db, const char *zSql, int nBytes, sqlite3_stmt **ppStmt, const char **pzTail)
 {
     int rc;
     assert(ppStmt != 0);
@@ -838,13 +839,16 @@ int sqlite3_cs_prepare(sqlite3 *db, const char *zSql, int nBytes, sqlite3_stmt *
     return rc;
 }
 
-int sqlite3_cs_step(sqlite3_stmt* stmt)
+
+
+int sqlite3_vector_step(sqlite3_stmt* stmt)
 {
-    return SQLITE_OK;
+    Vdbe* v = (Vdbe*)stmt;
+    return sqlite3VectorStep(v->pRootNode);    
 }
 
 
-int sqlite3_cs_finalize(sqlite3_stmt* stmt)
+int sqlite3_vector_finalize(sqlite3_stmt* stmt)
 {
     return SQLITE_OK;
 }

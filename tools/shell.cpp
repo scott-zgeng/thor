@@ -61,15 +61,15 @@ int main(int argc, char **argv)
 
     sqlite3_stmt* stmt;
     const char* tail;    
-    ret = sqlite3_cs_prepare(db, sql, strlen(sql), &stmt, &tail);
-    IF_RETURN(ret, ret != SQLITE_DONE);
+    ret = sqlite3_vector_prepare(db, sql, strlen(sql), &stmt, &tail);
+    IF_RETURN(ret, ret != SQLITE_OK);
 
-    while (sqlite3_cs_step(stmt) == SQLITE_ROW) {
+    while (sqlite3_vector_step(stmt) == SQLITE_ROW) {
 
 
     }
 
-    sqlite3_cs_finalize(stmt);
+    sqlite3_vector_finalize(stmt);
 
     return 0;
 }

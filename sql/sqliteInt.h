@@ -3103,6 +3103,7 @@ Select *sqlite3SelectNew(Parse*, ExprList*, SrcList*, Expr*, ExprList*,
 void sqlite3SelectDelete(sqlite3*, Select*);
 
 int sqlite3SelectCreatePlan(Parse*, Select*);  // added by scott.zgeng
+int sqlite3VectorStep(void* root);
 
 Table *sqlite3SrcListLookup(Parse*, SrcList*);
 int sqlite3IsReadOnly(Parse*, Table*, int);

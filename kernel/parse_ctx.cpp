@@ -5,6 +5,7 @@
 
 
 #include "parse_ctx.h"
+#include "expression.h"
 
 
 int sqlite3SelectCreatePlan(Parse* pParse, Select* pSelete)
@@ -22,22 +23,13 @@ int sqlite3SelectCreatePlan(Parse* pParse, Select* pSelete)
     return SQLITE_OK;
 }
 
-
-
-query_pack_t::query_pack_t()
+int sqlite3VectorStep(void* root)
 {
+    query_pack_t* pack = new query_pack_t();
+    node_base_t* root_node = (node_base_t*)root;
+    root_node->next(pack);
 
-}
-
-query_pack_t::~query_pack_t()
-{
-
-}
-
-
-result_t query_pack_t::generate_data(int32 table_id, int32 column_id)
-{
-    return RT_SUCCEEDED;
+    return SQLITE_DONE;
 }
 
 
@@ -97,57 +89,11 @@ result_t node_generator_t::build(node_base_t** root_node)
     ret = build_join(scan_nodes, tab_num, &root);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
+    *root_node = root;
 
     return RT_SUCCEEDED;
 }
 
-result_t node_generator_t::build_expression(Expr* expr, expr_base_t** root)
-{
-    assert(expr);
-    result_t ret;
-
-    expr_base_t* expr_node = create_expression(expr);
-    IF_RETURN_FAILED(expr_node == NULL);
-    
-    ret = expr_node->init(expr);
-    IF_RETURN_FAILED(expr_node == NULL);
-    
-    if (expr->pLeft != NULL) {
-        ret = build_expression(expr->pLeft, &expr_node->m_left);
-        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
-    }
-
-    if (expr->pRight != NULL) {
-        ret = build_expression(expr->pRight, &expr_node->m_right);
-        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
-    }
-
-    *root = expr_node;
-    return RT_SUCCEEDED;
-}
-
-expr_base_t* node_generator_t::create_expression(Expr* expr)
-{
-    switch (expr->op)
-    {
-    case TK_COLUMN:
-        return new expr_column_t();
-    case TK_INTEGER:
-        return new expr_integer_t();
-    //case TK_FLOAT:
-        //return new expr_float_t();
-    
-    case TK_GT:
-        return new expr_logic_op_t<TK_GT>();
-    case TK_LT:
-        return new expr_logic_op_t<TK_LT>();
-    case TK_NE:
-        return new expr_logic_op_t<TK_NE>();
-
-    default:        
-        return NULL;
-    }
-}
 
 
 scan_node_t::scan_node_t(int index)
@@ -162,11 +108,10 @@ scan_node_t::~scan_node_t()
 }
 
 result_t scan_node_t::init(Parse* parse, Select* select)
-{
-    node_generator_t  generator(parse, select);
+{    
     result_t ret;
     
-    ret = generator.build_expression(select->pWhere, &m_condition);
+    ret = expr_base_t::build(select->pWhere, &m_condition);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
     return RT_SUCCEEDED;
@@ -184,7 +129,13 @@ const char* scan_node_t::name()
 
 result_t scan_node_t::next(query_pack_t* pack)
 {
-    return RT_FAILED;
+    assert(!m_condition->has_null());
+    result_t ret;    
+    const stack_segment_t& result = pack->alloc_segment(m_condition->data_type(), false);
+    ret = m_condition->calc(pack, result);
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+    return RT_SUCCEEDED;
 }
 
 
@@ -220,124 +171,3 @@ const char* join_node_t::name()
 {
     return "JOIN_NODE";
 }
-
-
-//--------------------------------------------------------------
-// expr_column_t
-//--------------------------------------------------------------
-expr_plus_t::expr_plus_t()
-{
-}
-expr_plus_t::~expr_plus_t()
-{
-}
-
-result_t expr_plus_t::init(Expr* expr)
-{
-    return RT_FAILED;
-}
-
-
-
-
-//template<typename T1, typename T2>
-result_t expr_plus_t::calc(query_pack_t* pack, expr_stack_data_t* output)
-{
-    assert(m_left && m_right);
-
-    result_t ret;
-
-    expr_stack_data_t* out = pack->push(1024 * sizeof(uint64)));
-      
-    expr_stack_data_t left_out;
-    ret = m_left->calc(pack, &left_out);
-    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
-
-    expr_stack_data_t right_out;
-    ret = m_right->calc(pack, &right_out);
-    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
-
-
-    
-
-
-    //pack->move_out_2_left();
-
-    //m_right->calc(pack);
-    //IF_RETURN_FAILED(ret != RT_SUCCEEDED);
-
-    //// 获取刚刚计算得到的BUFFER
-    //int32* left_data = (int32*)pack->get_left_data();
-    //int32* right_data = (int32*)pack->get_right_data();
-    //int32* out_data = (int32*)pack->get_out_data();
-    //int32 count = pack->get_row_count();
-
-    //for (int i = 0; i < count; i++) {
-    //    out_data[i] = left_data[i] + right_data[i];
-    //}
-
-    //return ret;
-    return RT_FAILED;
-}
-
-//--------------------------------------------------------------
-// expr_column_t
-//--------------------------------------------------------------
-
-expr_integer_t::expr_integer_t()
-{
-
-}
-    
-expr_integer_t::~expr_integer_t()
-{
-}
-
-result_t expr_integer_t::init(Expr* expr)
-{
-    //expr->
-    return RT_SUCCEEDED;
-}
-    
-result_t expr_integer_t::calc(query_pack_t* pack)
-{
-    return RT_SUCCEEDED;
-}
-
-
-
-//--------------------------------------------------------------
-// expr_column_t
-//--------------------------------------------------------------
-expr_column_t::expr_column_t()
-{
-
-}
-
-
-expr_column_t::~expr_column_t()
-{
-
-}
-
-result_t expr_column_t::init(Expr* expr)
-{
-    m_table_id = expr->iTable;
-    m_column_id = expr->iColumn;
-    return RT_SUCCEEDED;
-}
-
-
-
-result_t expr_column_t::calc(query_pack_t* pack)
-{
-    assert(m_left == NULL && m_right == NULL);
-
-    // 获取已经存储在PACK中的行
-    result_t ret;
-    ret = pack->generate_data(m_table_id, m_column_id);
-    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
-
-    return RT_SUCCEEDED;
-}
-
