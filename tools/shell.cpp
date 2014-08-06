@@ -5,8 +5,9 @@
 #include "../sql/sqlite3.h"
 
 
-#define IF_RETURN(code, condition) \
-do { if (condition) { printf("return from %s:%d\n", __FILE__, __LINE__); return (code); } } while (0)
+
+#include "../kernel/define.h"
+
 
 
 static int do_command(sqlite3* db, const char* sql)

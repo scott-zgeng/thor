@@ -131,7 +131,7 @@ result_t scan_node_t::next(query_pack_t* pack)
 {
     assert(!m_condition->has_null());
     result_t ret;    
-    const stack_segment_t& result = pack->alloc_segment(m_condition->data_type(), false);
+    const stack_segment_t& result = pack->alloc_segment(m_condition);
     ret = m_condition->calc(pack, result);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 

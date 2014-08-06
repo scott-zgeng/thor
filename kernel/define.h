@@ -28,14 +28,14 @@ struct result_t
 
 
 enum data_type_t {
-    TYPE_UNKNOWN = 0,
-    TYPE_INT8,
-    TYPE_INT16,
-    TYPE_INT32,
-    TYPE_INT64,
-    TYPE_FLOAT,
-    TYPE_DOUBLE,
-    TYPE_STRING,
+    DB_UNKNOWN = 0,
+    DB_INT8,
+    DB_INT16,
+    DB_INT32,
+    DB_INT64,
+    DB_FLOAT,
+    DB_DOUBLE,
+    DB_STRING,
 };
 
 
@@ -52,12 +52,14 @@ const static result_t RT_FAILED = { -1 };
 #endif
 
 
+
 #define IF_RETURN(code, condition) \
     do { if (condition) { DB_TRACE("if_return"); return (code); } } while (0)
 
 #define IF_RETURN_FAILED(condition) IF_RETURN(RT_FAILED, condition)
 
 
+#define INLINE  inline
 
 #endif //__DEFINE_H__
 
