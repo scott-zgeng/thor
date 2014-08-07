@@ -36,6 +36,8 @@ enum data_type_t {
     DB_FLOAT,
     DB_DOUBLE,
     DB_STRING,
+
+    DB_TYPE_SIZE
 };
 
 
