@@ -6,22 +6,25 @@
 
 #include <stdio.h>
 
-typedef char int8;
-typedef unsigned uint8;
-typedef short int16;
-typedef unsigned short uint16;
-typedef int int32;
-typedef unsigned int uint32;
-typedef long long int64;
-typedef unsigned long long uint64;
+typedef char db_int8;
+typedef unsigned db_uint8;
+typedef short db_int16;
+typedef unsigned short db_uint16;
+typedef int db_int32;
+typedef unsigned int db_uint32;
+typedef long long db_int64;
+typedef unsigned long long db_uint64;
+typedef float db_float;
+typedef double db_double;
+typedef char* db_string;
 
 
-typedef unsigned long long rowid_t;
+typedef unsigned long long db_rowid;
 
 // 为了防止和内置类型混用
 struct result_t
 {
-    uint32 code;
+    db_uint32 code;
     bool operator == (result_t other) { return code == other.code; }
     bool operator != (result_t other) { return code != other.code; }
 };
@@ -56,12 +59,20 @@ const static result_t RT_FAILED = { -1 };
 
 
 #define IF_RETURN(code, condition) \
-    do { if (condition) { DB_TRACE("if_return"); return (code); } } while (0)
+do { if (condition) { DB_TRACE("if_return"); return (code); } } while (0)
 
 #define IF_RETURN_FAILED(condition) IF_RETURN(RT_FAILED, condition)
 
 
 #define INLINE  inline
+
+
+#undef COMPILE_ASSERT
+#define COMPILE_ASSERT(condition)  do { int __dummy[(condition) ? 1 : -1]; __dummy[0] = __dummy[0]; } while (0)
+    
+
+
+
 
 #endif //__DEFINE_H__
 

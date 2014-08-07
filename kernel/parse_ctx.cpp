@@ -47,13 +47,13 @@ node_generator_t::~node_generator_t()
 
 
 
-result_t node_generator_t::build_join(node_base_t** scan_nodes, int32 tab_num, node_base_t** root)
+result_t node_generator_t::build_join(node_base_t** scan_nodes, db_int32 tab_num, node_base_t** root)
 {
     if (tab_num == 1) return RT_SUCCEEDED;
 
     result_t ret;
     node_base_t* node = scan_nodes[0];
-    for (int32 i = 1; i < tab_num; i++) {
+    for (db_int32 i = 1; i < tab_num; i++) {
         node_base_t* new_node = new join_node_t(node, scan_nodes[i]);
         IF_RETURN_FAILED(new_node == NULL);
 
@@ -72,10 +72,10 @@ result_t node_generator_t::build(node_base_t** root_node)
     IF_RETURN_FAILED(m_select->pSrc->nSrc > MAX_JOIN_TABLE);
 
     result_t ret;
-    int32 tab_num = m_select->pSrc->nSrc;
+    db_int32 tab_num = m_select->pSrc->nSrc;
 
     node_base_t* scan_nodes[MAX_JOIN_TABLE];    
-    for (int32 i = 0; i < tab_num; i++) {
+    for (db_int32 i = 0; i < tab_num; i++) {
         
         // TODO(scott.zgeng@gmail.com): 需要增加异常情况退出的内存泄露
         scan_nodes[i] = new scan_node_t(i);

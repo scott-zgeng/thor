@@ -40,7 +40,7 @@ public:
     result_t build(node_base_t** root);    
 
 private:        
-    result_t build_join(node_base_t** scan_nodes, int32 tab_num, node_base_t** root);       
+    result_t build_join(node_base_t** scan_nodes, db_int32 tab_num, node_base_t** root);       
 
 private:
     Parse* m_parse;
@@ -61,7 +61,7 @@ public:
     virtual const char* name();
 
 private:
-    int32 m_index;
+    db_int32 m_index;
 
 
     expr_base_t* m_condition;  // filter of where 

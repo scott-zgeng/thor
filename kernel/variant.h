@@ -6,56 +6,83 @@
 
 #include "define.h"
 
+
+
 // NOTE(scott.zgeng): 根据数据类型定义元的数据类型
-template<data_type_t TYPE>
-struct variant {};
+template<typename T> struct variant_type { data_type_t operator() (); };
+#define VARIANT_TYPE(T, TYPE)  \
+    template<> struct variant_type<T> { data_type_t operator() () { return TYPE; } }
+
+VARIANT_TYPE(db_int8, DB_INT8);
+VARIANT_TYPE(db_int16, DB_INT16);
+VARIANT_TYPE(db_int32, DB_INT32);
+VARIANT_TYPE(db_int64, DB_INT64);
+VARIANT_TYPE(db_float, DB_FLOAT);
+VARIANT_TYPE(db_double, DB_DOUBLE);
+VARIANT_TYPE(db_string, DB_STRING);
 
 
-template<> struct variant<DB_INT8>     { int8 v; };
-template<> struct variant<DB_INT16>     { int16 v; };
-template<> struct variant<DB_INT32>     { int32 v; };
-template<> struct variant<DB_INT64>     { int64 v; };
-template<> struct variant<DB_FLOAT>     { float v; };
-template<> struct variant<DB_DOUBLE>    { double v; };
-template<> struct variant<DB_STRING>    { char* v; };
+template<typename T, typename RT, bool MUTE = false> struct variant_cast {};
+
+#define VARIANT_CAST(T, RT)  \
+    template<> struct variant_cast<T, RT, false> { RT operator () (T v) { return v; } }
+
+#define VARIANT_CAST_NO_WARNING(T, RT)  \
+    template<> struct variant_cast<T, RT, false> { RT operator () (T v) { return (RT)v; } }
+
+#define VARIANT_CAST_DISABLE(T, RT)  \
+    template<> struct variant_cast<T, RT, false> { RT operator () (T v) { assert(false);  return 0; } }
+
+#define VARIANT_CAST_FORCE(T, RT)  \
+    template<> struct variant_cast<T, RT, true> { RT operator () (T v) { return (RT)v; } }
 
 
-template<data_type_t TYPE, data_type_t RT_TYPE>
-struct variant_convertor {};
+VARIANT_CAST(db_int8, db_int16);
+VARIANT_CAST(db_int8, db_int32);
+VARIANT_CAST(db_int8, db_int64);
+VARIANT_CAST(db_int8, db_float);
+VARIANT_CAST(db_int8, db_double);
 
-#define VARIANT_CONV_ENABLE(TYPE, RT_TYPE, type, rt_type)  \
-    template<> struct variant_convertor<TYPE, RT_TYPE> { rt_type operator () (type v) { return (rt_type)v; }}
+VARIANT_CAST(db_int16, db_int16);
+VARIANT_CAST(db_int16, db_int32);
+VARIANT_CAST(db_int16, db_int64);
+VARIANT_CAST(db_int16, db_float);
+VARIANT_CAST(db_int16, db_double);
 
-VARIANT_CONV_ENABLE(DB_INT8, DB_INT16, int8, int16);
-VARIANT_CONV_ENABLE(DB_INT8, DB_INT32, int8, int32);
-VARIANT_CONV_ENABLE(DB_INT8, DB_INT64, int8, int64);
-VARIANT_CONV_ENABLE(DB_INT8, DB_FLOAT, int8, float);
-VARIANT_CONV_ENABLE(DB_INT8, DB_DOUBLE, int8, double);
+VARIANT_CAST_DISABLE(db_int32, db_int16);
+VARIANT_CAST(db_int32, db_int32);
+VARIANT_CAST(db_int32, db_int64);
+VARIANT_CAST_DISABLE(db_int32, db_float);
+VARIANT_CAST(db_int32, db_double);
 
-VARIANT_CONV_ENABLE(DB_INT16, DB_INT32, int16, int32);
-VARIANT_CONV_ENABLE(DB_INT16, DB_INT64, int16, int64);
-VARIANT_CONV_ENABLE(DB_INT16, DB_FLOAT, int16, float);
-VARIANT_CONV_ENABLE(DB_INT16, DB_DOUBLE, int16, double);
+VARIANT_CAST_NO_WARNING(db_int64, db_int16);
+VARIANT_CAST_NO_WARNING(db_int64, db_int32);
+VARIANT_CAST(db_int64, db_int64);
+VARIANT_CAST_NO_WARNING(db_int64, db_float);
+VARIANT_CAST_NO_WARNING(db_int64, db_double);
 
-VARIANT_CONV_ENABLE(DB_INT32, DB_INT64, int32, int64);
-VARIANT_CONV_ENABLE(DB_INT32, DB_DOUBLE, int32, double);
+VARIANT_CAST_DISABLE(db_float, db_int16);
+VARIANT_CAST_DISABLE(db_float, db_int32);
+VARIANT_CAST_DISABLE(db_float, db_int64);
+VARIANT_CAST_DISABLE(db_float, db_float);
+VARIANT_CAST(db_float, db_double);
 
-VARIANT_CONV_ENABLE(DB_INT64, DB_DOUBLE, int64, double);
-
-VARIANT_CONV_ENABLE(DB_FLOAT, DB_DOUBLE, float, double);
-
-
-template<data_type_t TYPE, data_type_t RT_TYPE>
-struct variant_cast {};
-
-#define VARIANT_CAST(TYPE, RT_TYPE, type, rt_type)  \
-    template<> struct variant_cast<TYPE, RT_TYPE> { rt_type operator () (type v) { return (rt_type)v; } }
+VARIANT_CAST_DISABLE(db_double, db_int8);
+VARIANT_CAST_DISABLE(db_double, db_int16);
+VARIANT_CAST_DISABLE(db_double, db_int32);
+VARIANT_CAST_DISABLE(db_double, db_int64);
+VARIANT_CAST_DISABLE(db_double, db_float);
+VARIANT_CAST_DISABLE(db_double, db_double);
 
 
-VARIANT_CAST(DB_INT8, DB_INT64, int8, int64);
-VARIANT_CAST(DB_INT16, DB_INT64, int16, int64);
-VARIANT_CAST(DB_INT32, DB_INT64, int32, int64);
-VARIANT_CAST(DB_INT64, DB_INT64, int64, int64);
+
+VARIANT_CAST_FORCE(db_int64, db_int8);
+VARIANT_CAST_FORCE(db_int64, db_int16);
+VARIANT_CAST_FORCE(db_int64, db_int32);
+VARIANT_CAST_FORCE(db_int64, db_int64);
+
+
+
 
 #endif //__VARIANT_H__
 
