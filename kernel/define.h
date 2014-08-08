@@ -6,6 +6,22 @@
 
 #include <stdio.h>
 
+
+
+enum data_type_t {
+    DB_UNKNOWN = 0,
+    DB_INT8,
+    DB_INT16,
+    DB_INT32,
+    DB_INT64,
+    DB_FLOAT,
+    DB_DOUBLE,
+    DB_STRING,
+    DB_MAX_TYPE  // 必须放在最后
+};
+
+
+// 和上面的data_type是对应的
 typedef char db_int8;
 typedef unsigned db_uint8;
 typedef short db_int16;
@@ -19,7 +35,7 @@ typedef double db_double;
 typedef char* db_string;
 
 
-typedef unsigned long long db_rowid;
+typedef unsigned long long rowid_t;
 
 // 为了防止和内置类型混用
 struct result_t
@@ -28,22 +44,6 @@ struct result_t
     bool operator == (result_t other) { return code == other.code; }
     bool operator != (result_t other) { return code != other.code; }
 };
-
-
-enum data_type_t {
-    DB_UNKNOWN = 0,
-    DB_INT8,
-    DB_INT16,
-    DB_INT32,
-    DB_INT64,
-    DB_FLOAT,
-    DB_DOUBLE,
-    DB_STRING,
-
-    DB_TYPE_SIZE
-};
-
-
 
 
 const static result_t RT_SUCCEEDED = { 0 };
@@ -71,6 +71,7 @@ do { if (condition) { DB_TRACE("if_return"); return (code); } } while (0)
 #define COMPILE_ASSERT(condition)  do { int __dummy[(condition) ? 1 : -1]; __dummy[0] = __dummy[0]; } while (0)
     
 
+static const db_int32 SEGMENT_SIZE = 1024;
 
 
 

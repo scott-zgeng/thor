@@ -9,9 +9,15 @@
 
 
 // NOTE(scott.zgeng): 根据数据类型定义元的数据类型
-template<typename T> struct variant_type { data_type_t operator() (); };
+template<typename T> 
+struct variant_type { 
+    data_type_t operator() (); 
+};
+
 #define VARIANT_TYPE(T, TYPE)  \
-    template<> struct variant_type<T> { data_type_t operator() () { return TYPE; } }
+    template<> struct variant_type<T> { \
+        data_type_t operator() () { return TYPE; } \
+    }
 
 VARIANT_TYPE(db_int8, DB_INT8);
 VARIANT_TYPE(db_int16, DB_INT16);
@@ -22,19 +28,28 @@ VARIANT_TYPE(db_double, DB_DOUBLE);
 VARIANT_TYPE(db_string, DB_STRING);
 
 
-template<typename T, typename RT, bool MUTE = false> struct variant_cast {};
+template<typename T, typename RT, bool MUTE=false> 
+struct variant_cast {};
 
 #define VARIANT_CAST(T, RT)  \
-    template<> struct variant_cast<T, RT, false> { RT operator () (T v) { return v; } }
+    template<> struct variant_cast<T, RT, false> { \
+        RT operator () (T v) { return v; } \
+    }
 
 #define VARIANT_CAST_NO_WARNING(T, RT)  \
-    template<> struct variant_cast<T, RT, false> { RT operator () (T v) { return (RT)v; } }
+    template<> struct variant_cast<T, RT, false> { \
+        RT operator () (T v) { return (RT)v; } \
+    }
 
 #define VARIANT_CAST_DISABLE(T, RT)  \
-    template<> struct variant_cast<T, RT, false> { RT operator () (T v) { assert(false);  return 0; } }
+    template<> struct variant_cast<T, RT, false> { \
+        RT operator () (T v) { assert(false);  return 0; } \
+    }
 
 #define VARIANT_CAST_FORCE(T, RT)  \
-    template<> struct variant_cast<T, RT, true> { RT operator () (T v) { return (RT)v; } }
+    template<> struct variant_cast<T, RT, true> { \
+        RT operator () (T v) { return (RT)v; } \
+    }
 
 
 VARIANT_CAST(db_int8, db_int16);

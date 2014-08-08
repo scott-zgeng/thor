@@ -5,75 +5,18 @@
 #include "expression.h"
 
 
-db_int32 data_type_size(data_type_t type)
-{    
-    switch (type)
-    {
-    case DB_INT8:
-        return sizeof(db_int8);
-    case DB_INT16:
-        return sizeof(db_int16);
-    case DB_INT32:
-        return sizeof(db_int32);
-    case DB_INT64:
-        return sizeof(db_int64);
-    case DB_FLOAT:
-        return sizeof(db_float);
-    case DB_DOUBLE:
-        return sizeof(db_double);
-    case DB_STRING:
-        return sizeof(db_string);
-    default:
-        return (-1);
-    }
-}
 
 
-//-----------------------------------------------------------------------------
-// query_pack_t
-//-----------------------------------------------------------------------------
-query_pack_t::query_pack_t()
+
+
+void expr_context_t::alloc_memory(db_int32 size, mem_handle_t& handle)
 {
-    m_offset = 0;
+    // NOTE(scott.zgeng): BUFFER的大小完全可以根据已知的表达式，得到最大需要空间大小
+    assert(m_position + size <= m_end);
+
+    handle.init(this, m_position);
+    m_position += size;
 }
-
-query_pack_t::~query_pack_t()
-{
-
-}
-
-
-result_t query_pack_t::generate_data(db_int32 table_id, db_int32 column_id)
-{
-    return RT_SUCCEEDED;
-}
-
-const stack_segment_t query_pack_t::alloc_segment(expr_base_t* expr)
-{
-    db_int32 size = (data_type_size(expr->data_type()) + expr->has_null()) * SEGMENT_SIZE;
-
-    if (m_offset + size > sizeof(m_buffer))
-        return stack_segment_t::NULL_SEGMENT;
-
-    void* ptr = m_buffer + m_offset;
-    m_offset += size;
-
-    return stack_segment_t(this, ptr);
-}
-
-void query_pack_t::free_segment(const stack_segment_t& frame)
-{
-    db_int8* ptr = (db_int8*)frame.ptr();
-    assert(ptr >= m_buffer && ptr < m_buffer + sizeof(m_buffer));
-    m_offset = m_buffer - ptr;
-}
-
-
-//-----------------------------------------------------------------------------
-// stack_frame_t
-//-----------------------------------------------------------------------------
-const stack_segment_t stack_segment_t::NULL_SEGMENT = { NULL, NULL};
-
 
 //-----------------------------------------------------------------------------
 // expr_base_t
@@ -110,11 +53,11 @@ static expr_base_t* create_expression_integer(Expr* expr)
 {
     db_int64 value = expr->u.iValue;
 
-    if (CHAR_MIN >= value && value <= CHAR_MAX)
+    if (CHAR_MIN <= value && value <= CHAR_MAX)
         return new expr_integer_t<db_int8>;
-    else if (SHRT_MIN >= value && value <= SHRT_MAX)
+    else if (SHRT_MIN <= value && value <= SHRT_MAX)
         return new expr_integer_t<db_int16>;
-    else if (INT_MIN >= value && value <= INT_MAX)
+    else if (INT_MIN <= value && value <= INT_MAX)
         return new expr_integer_t<db_int32>;
     else
         return new expr_integer_t<db_int64>;
@@ -146,14 +89,14 @@ static expr_base_t* create_expression_logic_impl(data_type_t type, expr_base_t* 
 }
 
 template<int OP_TYPE>
-static expr_base_t* create_expression_arith_impl(data_type_t type)
+static expr_base_t* create_expression_arith_impl(data_type_t type, expr_base_t* left, expr_base_t* right)
 {
     switch (type)
     {
     case DB_INT64:
-        return new binary_expr_t<OP_TYPE, db_int64, db_int64>();
+        return new binary_expr_t<OP_TYPE, db_int64, db_int64>(left, right);
     case DB_DOUBLE:
-        return new binary_expr_t<OP_TYPE, db_double, db_double>();
+        return new binary_expr_t<OP_TYPE, db_double, db_double>(left, right);
     default:
         return NULL;
     }
@@ -162,8 +105,8 @@ static expr_base_t* create_expression_arith_impl(data_type_t type)
 
 static expr_base_t* create_expression_binary(Expr* expr, expr_base_t* left, expr_base_t* right)
 {
-    assert(left->data_type() == right->data_type());
-    data_type_t type = left->data_type();
+    assert(left->type() == right->type());
+    data_type_t type = left->type();
 
     switch (expr->op)
     {
@@ -181,9 +124,14 @@ static expr_base_t* create_expression_binary(Expr* expr, expr_base_t* left, expr
         return create_expression_logic_impl<TK_LE>(type, left, right);
 
     case TK_PLUS:        
+        return create_expression_arith_impl<TK_PLUS>(type, left, right);
     case TK_MINUS:
+        return create_expression_arith_impl<TK_MINUS>(type, left, right);
     case TK_STAR:
+        return create_expression_arith_impl<TK_STAR>(type, left, right);
     case TK_SLASH:
+        return create_expression_arith_impl<TK_SLASH>(type, left, right);
+        
         
     default:
         return NULL;
@@ -211,7 +159,7 @@ expr_base_t* expr_base_t::create_instance(Expr* expr, expr_base_t* left, expr_ba
 data_type_t convert_type(int op_type, data_type_t left, data_type_t right)
 {
     // NOTE(scott.zgeng): 逻辑运算转为能覆盖两者范围的数据类型
-    const static data_type_t s_logic_matrix[DB_TYPE_SIZE][DB_TYPE_SIZE] = {
+    const static data_type_t s_logic_matrix[DB_MAX_TYPE][DB_MAX_TYPE] = {
         //                unknown     int8        int16       int32       int64       float       double      string
         /* unknown */   { DB_UNKNOWN, DB_UNKNOWN, DB_UNKNOWN, DB_UNKNOWN, DB_UNKNOWN, DB_UNKNOWN, DB_UNKNOWN, DB_UNKNOWN }, 
         /* int8 */      { DB_UNKNOWN, DB_INT8,    DB_INT16,   DB_INT32,   DB_INT64,   DB_FLOAT,   DB_DOUBLE,  DB_UNKNOWN },
@@ -224,7 +172,7 @@ data_type_t convert_type(int op_type, data_type_t left, data_type_t right)
     };
 
     // NOTE(scott.zgeng): 算数运算全部转为最大的数据类型计算，整形转换为INT64, 浮点型转换为DOUBLE
-    const static data_type_t s_arith_matrix[DB_TYPE_SIZE][DB_TYPE_SIZE] = {
+    const static data_type_t s_arith_matrix[DB_MAX_TYPE][DB_MAX_TYPE] = {
         //                unknown     int8        int16       int32       int64       float       double      string
         /* unknown */   { DB_UNKNOWN, DB_UNKNOWN, DB_UNKNOWN, DB_UNKNOWN, DB_UNKNOWN, DB_UNKNOWN, DB_UNKNOWN, DB_UNKNOWN },   
         /* int8 */      { DB_UNKNOWN, DB_INT64,   DB_INT64,   DB_INT64,   DB_INT64,   DB_DOUBLE,  DB_DOUBLE,  DB_UNKNOWN }, 
@@ -245,6 +193,7 @@ data_type_t convert_type(int op_type, data_type_t left, data_type_t right)
     case TK_LT:
     case TK_LE:
         return s_logic_matrix[left][right];
+
     case TK_PLUS:
     case TK_MINUS:
     case TK_STAR:
@@ -272,7 +221,7 @@ expr_base_t* create_convert_expr_impl(data_type_t rt_type, expr_base_t* children
         return new expr_convert_t<T, db_float>(children);
     case DB_DOUBLE:
         return new expr_convert_t<T, db_double>(children);
-    case DB_INT8:
+    
     default:
         return NULL;
     }
@@ -292,9 +241,7 @@ expr_base_t* create_convert_expr(data_type_t type, data_type_t rt_type, expr_bas
         return create_convert_expr_impl<db_int64>(rt_type, children);
     case DB_FLOAT:
         return create_convert_expr_impl<db_float>(rt_type, children);
-    
-    case DB_DOUBLE:        
-    case DB_STRING:
+
     default:
         return NULL;
     }
@@ -320,8 +267,8 @@ result_t expr_base_t::build(Expr* expr, expr_base_t** root)
     }
 
     if (left != NULL && right != NULL) {
-        data_type_t left_type = left->data_type();
-        data_type_t right_type = right->data_type();
+        data_type_t left_type = left->type();
+        data_type_t right_type = right->type();
 
         data_type_t ret_type = convert_type(expr->op, left_type, right_type);
         IF_RETURN_FAILED(ret_type == DB_UNKNOWN);

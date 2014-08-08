@@ -15,74 +15,100 @@ extern "C" {
 
 
 
-db_int32 data_type_size(data_type_t type);
-
-static const db_int32 SEGMENT_SIZE = 1024;
-
-
-class expr_base_t;
-class stack_segment_t;
-class query_pack_t
+class expr_context_t
 {
 public:
-    query_pack_t();
-    ~query_pack_t();
+    friend class mem_handle_t;
+
+    expr_context_t() {
+        m_row_count = 0;
+        m_begin = m_buffer;
+        m_end = m_begin + sizeof(m_buffer);
+        m_position = m_begin;
+    }
+
+    expr_context_t::~expr_context_t() {
+    }
 
 public:
-    result_t generate_data(db_int32 table_id, db_int32 column_id);
-    const stack_segment_t alloc_segment(expr_base_t* expr);
-    void free_segment(const stack_segment_t& segment);
+    void alloc_memory(db_int32 size, mem_handle_t& handle);
+
+    db_int32 row_count() const { 
+        return m_row_count; 
+    }
 
 private:
+    db_int32 m_row_count;
+    db_int8* m_begin;
+    db_int8* m_end;
+    db_int8* m_position;
+
+
     db_int8 m_buffer[SEGMENT_SIZE * 1024 * 2];
-    db_int32 m_offset;
 };
 
 
-class stack_segment_t
+class mem_handle_t
 {
 public:
-    static const stack_segment_t NULL_SEGMENT;
-
-public:
-    stack_segment_t(query_pack_t* pack, void* data) {
-        DB_TRACE("enter stack segment, %p", data);
-
-        m_pack = pack;
-        m_data = data;
+    mem_handle_t() {
+        m_ctx = NULL;
+        m_data = NULL;
     }
 
-    ~stack_segment_t() {
-        DB_TRACE("free stack segment, %p", m_data);
+    ~mem_handle_t() {
+        // NOTE(scott.zgeng): 
+        //  只释放属于栈的空间，如果不是，有可能是空，也可能是应用自己的空间，属于合理用法        
+        if (m_data >= m_ctx->m_buffer && m_data < m_ctx->m_end) {
+            assert(m_data > m_ctx->m_position);
+            m_ctx->m_position = m_data;
+            DB_TRACE("mem_handle free, %p", m_data);
 
-        if (m_data != NULL) {
-            m_pack->free_segment(*this);
+        } else {
+            DB_TRACE("mem_handle no free, %p", m_data);
         }
     }
 
-    void* ptr() const { return m_data; }
+    void init(expr_context_t* ctx, void* data) {
+        DB_TRACE("mem_handle init, %p", data);
+        m_ctx = ctx;
+        m_data = (db_int8*)data;
+    }
+
+    void* ptr() const {
+        return m_data;
+    }
 
 private:
-    query_pack_t* m_pack;
-    void* m_data;
+    expr_context_t* m_ctx;
+    db_int8* m_data;
+
 };
-
-
 
 
 class expr_base_t
 {
 public:
+    // 需要增加一个优化表达式的函数
+    //static result_t optimize(Expr* expr, expr_base_t** root);
+
     static result_t build(Expr* expr, expr_base_t** root);
 
-public:   
-    virtual ~expr_base_t() {}
+public:
+    virtual ~expr_base_t() {
+    }
 
-    virtual result_t init(Expr* expr) { return RT_SUCCEEDED; }
-    virtual bool has_null() { return false; }
+    virtual result_t init(Expr* expr) { 
+        return RT_SUCCEEDED; 
+    }
 
-    virtual result_t calc(query_pack_t* pack, const stack_segment_t& result) = 0;
-    virtual data_type_t data_type() = 0;
+    virtual bool has_null() { 
+        return false; 
+    }
+
+    virtual data_type_t type() = 0;
+
+    virtual result_t calc(expr_context_t* ctx, mem_handle_t& result) = 0;
 
 
 private:
@@ -91,38 +117,42 @@ private:
 
 
 
-
-// NOTE(scott.zgeng): 没有使用操作符重载，觉得没太大必要
 template<int OP_TYPE, typename T, typename RT>
-struct unary_operator
-{
-    result_t execute(T* a, RT* out);
+struct unary_operator {
+    result_t operator()(T* a, RT* out);
 };
 
 
+
 template<int OP_TYPE, typename T, typename RT>
-class unary_expr_t : public expr_base_t
+class unary_expr_t : public expr_base_t 
 {
 public:
-    unary_expr_t(expr_base_t* children) { m_children = children; }
-    virtual ~unary_expr_t() {}
+    unary_expr_t(expr_base_t* children) { 
+        m_children = children; 
+    }
 
-    virtual data_type_t data_type() { variant_type<RT> type; return type(); }
+    virtual ~unary_expr_t() {
+    }
 
-    virtual result_t calc(query_pack_t* pack, const stack_segment_t& result) {
-        assert(m_left);
+    virtual data_type_t type() { 
+        variant_type<RT> type; 
+        return type(); 
+    }
 
-        const stack_segment_t& left_segment = pack->alloc_segment(m_left);
-        IF_RETURN_FAILED(left_segment == NULL_SEGMENT);
+    virtual result_t calc(expr_context_t* ctx, mem_handle_t& result) {
 
-        result_t rt = m_left->calc(pack, left_segment);
-        IF_RETURN_FAILED(rt != RT_SUCCEEDED);
+        ctx->alloc_memory(sizeof(RT)* SEGMENT_SIZE, result);
+
+        mem_handle_t lresult;
+        result_t ret = m_children->calc(ctx, lresult);
+        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
         RT* dst = (RT*)result.ptr();
-        T* src = (T*)left_segment.ptr();
+        T* src = (T*)lresult.ptr();
 
-        unary_operator<OP_TYPE, T, RT> op;
-        return op.execute(src, dst);
+        unary_operator<OP_TYPE, T, RT> unary_op;
+        return unary_op(src, dst);
     }
 
 private:
@@ -131,21 +161,30 @@ private:
 
 
 template<int OP_TYPE, typename T, typename RT>
-struct binary_primitive { RT operator() (T a, T b);};
+struct binary_primitive 
+{
+    RT operator() (T a, T b);
+};
 
 
 #define BINARY_PRIMITIVE(OP_TYPE, SYMBOL)  \
-    template<typename T, typename RT> struct binary_primitive<OP_TYPE, T, RT> { RT operator() (T a, T b) { return a SYMBOL b; } }
+template<typename T, typename RT> \
+struct binary_primitive<OP_TYPE, T, RT> \
+{\
+    RT operator() (T a, T b) { \
+        return a SYMBOL b; \
+    } \
+}
 
 
-BINARY_PRIMITIVE(TK_EQ, ==);
-BINARY_PRIMITIVE(TK_NE, !=);
-BINARY_PRIMITIVE(TK_GT, >);
-BINARY_PRIMITIVE(TK_GE, >=);
-BINARY_PRIMITIVE(TK_LT, <);
-BINARY_PRIMITIVE(TK_LE, <=);
+BINARY_PRIMITIVE(TK_EQ, == );
+BINARY_PRIMITIVE(TK_NE, != );
+BINARY_PRIMITIVE(TK_GT, > );
+BINARY_PRIMITIVE(TK_GE, >= );
+BINARY_PRIMITIVE(TK_LT, < );
+BINARY_PRIMITIVE(TK_LE, <= );
 
-BINARY_PRIMITIVE(TK_ADD, +);
+BINARY_PRIMITIVE(TK_PLUS, +);
 BINARY_PRIMITIVE(TK_MINUS, -);
 BINARY_PRIMITIVE(TK_STAR, *);
 BINARY_PRIMITIVE(TK_SLASH, /);
@@ -156,11 +195,15 @@ BINARY_PRIMITIVE(TK_SLASH, /);
 template<int OP_TYPE, typename T, typename RT>
 struct binary_operator
 {
-    result_t execute(T* a, T* b, RT* out) {
+    result_t operator()(T* a, T* b, RT* out, db_int32 count) {
+        // TODO(scott.zgeng): 增加SIMD指令的运算
+
         binary_primitive<OP_TYPE, T, RT> binary_prim;
-        for (int i = 0; i < SEGMENT_SIZE; i++) {
+
+        for (int i = 0; i < count; i++) {
             out[i] = binary_prim(a[i], b[i]);
         }
+
         return RT_SUCCEEDED;
     }
 };
@@ -171,33 +214,41 @@ class binary_expr_t : public expr_base_t
 {
 public:
     binary_expr_t(expr_base_t* left, expr_base_t* right) {
+        assert(left);
+        assert(right);
+
         m_left = left;
         m_right = right;
     }
 
-    virtual ~binary_expr_t() {}
+    virtual ~binary_expr_t() {
+    }
 
-    virtual data_type_t data_type() { variant_type<RT> type; return type(); }
+    virtual data_type_t type() { 
+        variant_type<RT> type; 
+        return type(); 
+    }
 
-    virtual result_t calc(query_pack_t* pack, const stack_segment_t& result) {
-        assert(m_left);
-        assert(m_right);
+    virtual result_t calc(expr_context_t* ctx, mem_handle_t& result) {
 
-        result_t rt;
-        const stack_segment_t& left_segment = pack->alloc_segment(m_left);
-        rt = m_left->calc(pack, left_segment);
-        IF_RETURN_FAILED(rt != RT_SUCCEEDED);
+        result_t ret;
+        mem_handle_t lresult;
+        mem_handle_t rresult;
 
-        const stack_segment_t& right_segment = pack->alloc_segment(m_right);
-        rt = m_right->calc(pack, right_segment);
-        IF_RETURN_FAILED(rt != RT_SUCCEEDED);
+        ctx->alloc_memory(sizeof(RT)* SEGMENT_SIZE, result);
 
-        RT* dst = (RT*)result.ptr();        
-        T* src1 = (T*)left_segment.ptr();
-        T* src2 = (T*)right_segment.ptr();
+        ret = m_left->calc(ctx, lresult);
+        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
-        binary_operator<OP_TYPE, T, RT> op;
-        return op.execute(src1, src2, dst);
+        ret = m_right->calc(ctx, rresult);
+        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+        RT* dst = (RT*)result.ptr();
+        T* a = (T*)lresult.ptr();
+        T* b = (T*)rresult.ptr();
+
+        binary_operator<OP_TYPE, T, RT> binary_op;
+        return binary_op(a, b, dst, ctx->row_count());
     }
 
 private:
@@ -211,27 +262,41 @@ template<typename T, typename RT>
 class expr_convert_t : public expr_base_t
 {
 public:
-    expr_convert_t(expr_base_t* children) { m_children = children; }
-    virtual ~expr_convert_t() {}
+    expr_convert_t(expr_base_t* children) { 
+        m_children = children; 
+    }
 
-    virtual result_t init(Expr* expr) { return m_children->init(expr); }
-    virtual bool has_null() { return m_children->has_null(); }
+    virtual ~expr_convert_t() {
+    }
 
-    virtual data_type_t data_type() { variant_type<RT> type; return type(); }
+    virtual result_t init(Expr* expr) { 
+        return m_children->init(expr); 
+    }
 
-    virtual result_t calc(query_pack_t* pack, const stack_segment_t& result) {
-        assert(sizeof(T) <= sizeof(RT>));
+    virtual bool has_null() { 
+        return m_children->has_null(); 
+    }
 
-        result_t ret = m_children->calc(pack, result);
+    virtual data_type_t type() { 
+        variant_type<RT> type; 
+        return type(); 
+    }
+
+    virtual result_t calc(expr_context_t* ctx, mem_handle_t& result) {
+        assert(sizeof(T) <= sizeof(RT > ));
+
+        ctx->alloc_memory(sizeof(RT)* SEGMENT_SIZE, result);
+
+        mem_handle_t lresult;
+        result_t ret = m_children->calc(ctx, lresult);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
         RT* dst = (RT*)result.ptr();
-        T* src = (T*)result.ptr();
+        T* src = (T*)lresult.ptr();
 
-        // TODO(scott.zgeng): 如果这里存在性能问题，可以后续改成SIMD方式
-        // 因为公用数据区，所以升级数据类型是从后往前的
+        // TODO(scott.zgeng): 如果这里存在性能问题，可以后续改成SIMD方式        
         variant_cast<T, RT> upcast;
-        for (db_int32 i = SEGMENT_SIZE - 1; i >= 0; i--) {            
+        for (db_int32 i = 0; i < SEGMENT_SIZE; i++) {
             dst[i] = upcast(src[i]);
         }
 
@@ -250,35 +315,38 @@ public:
     expr_column_t() {
         m_table_id = 0;
         m_column_id = 0;
-        m_seed = 0;
     }
 
-    virtual ~expr_column_t() {}
+    virtual ~expr_column_t() {
+    }
 
 public:
     virtual result_t init(Expr* expr) {
-        return RT_SUCCEEDED;
-    }
 
-    virtual result_t calc(query_pack_t* pack, const stack_segment_t& result) {
-        T* out = (T*)result.ptr();
-
-        // TODO(scott.zgeng): 以下代码用来测试
+        // TODO(scott.zgeng): 仅仅用于测试
         for (db_int32 i = 0; i < SEGMENT_SIZE; i++) {
-            out[i] = m_seed;
-            m_seed++;
+            m_seed[i] = i;
         }
 
         return RT_SUCCEEDED;
     }
 
-    virtual data_type_t data_type() { variant_type<T> type; return type(); }
+    virtual data_type_t type() { 
+        variant_type<T> type; 
+        return type(); 
+    }
+
+    virtual result_t calc(expr_context_t* ctx, mem_handle_t& result) {
+        result.init(ctx, m_seed);
+        return RT_SUCCEEDED;
+    }
+
 
 private:
     db_int32 m_table_id;
     db_int32 m_column_id;
 
-    T m_seed;
+    T m_seed[SEGMENT_SIZE];
 };
 
 
@@ -286,31 +354,34 @@ template<typename T>
 class expr_integer_t : public expr_base_t
 {
 public:
-    expr_integer_t() { m_value = 0; }
-    virtual ~expr_integer_t() {}
+    expr_integer_t() { 
+    }
+
+    virtual ~expr_integer_t() {
+    }
 
 public:
     virtual result_t init(Expr* expr) {
         variant_cast<db_int64, T, true> cast_force;
-        m_value = cast_force(expr->u.iValue);
-        return RT_SUCCEEDED;
-    }
-
-    virtual result_t calc(query_pack_t* pack, const stack_segment_t& result) {
-        T* out = (T*)result.ptr();
-
-        // TODO(scott.zgeng): 以下代码用来测试
+        T v = cast_force(expr->u.iValue);
         for (db_int32 i = 0; i < SEGMENT_SIZE; i++) {
-            out[i] = m_value;
+            m_value[i] = v;
         }
-
         return RT_SUCCEEDED;
     }
 
-    virtual data_type_t data_type() { variant_type<T> type; return type(); }
+    virtual data_type_t type() { 
+        variant_type<T> type; 
+        return type(); 
+    }
+    
+    virtual result_t calc(expr_context_t* ctx, mem_handle_t& result) {
+        result.init(ctx, m_value);
+        return RT_SUCCEEDED;
+    }
 
 private:
-    T m_value;   
+    T m_value[SEGMENT_SIZE];    
 };
 
 
