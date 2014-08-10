@@ -850,8 +850,30 @@ int sqlite3_vector_step(sqlite3_stmt* stmt)
 
 int sqlite3_vector_finalize(sqlite3_stmt* stmt)
 {
-    return SQLITE_OK;
+    Vdbe* v = (Vdbe*)stmt;
+
+    sqlite3VectorFinalize(v->pRootNode);    
+    return sqlite3_finalize(stmt);
 }
+
+int sqlite3_vector_column_int(sqlite3_stmt* stmt, int index)
+{
+    Vdbe* v = (Vdbe*)stmt;
+    return sqlite3VectorColumnInt(v->pRootNode, index);
+}
+
+const char* sqlite3_vector_column_string(sqlite3_stmt* stmt, int index)
+{
+    Vdbe* v = (Vdbe*)stmt;
+    return sqlite3VectorColumnString(v->pRootNode, index);
+}
+
+int sqlite3_vector_column_type(sqlite3_stmt* stmt, int index)
+{
+    Vdbe* v = (Vdbe*)stmt;
+    return sqlite3VectorColumnType(v->pRootNode, index);
+}
+
 
 
 

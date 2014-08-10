@@ -3102,8 +3102,15 @@ Select *sqlite3SelectNew(Parse*, ExprList*, SrcList*, Expr*, ExprList*,
     Expr*, ExprList*, u16, Expr*, Expr*);
 void sqlite3SelectDelete(sqlite3*, Select*);
 
-int sqlite3SelectCreatePlan(Parse*, Select*);  // added by scott.zgeng
+// added by scott.zgeng
+int sqlite3SelectCreatePlan(Parse*, Select*);  
 int sqlite3VectorStep(void* root);
+void sqlite3VectorFinalize(void* root);
+
+int sqlite3VectorColumnInt(void* root, int index);
+const char* sqlite3VectorColumnString(void* root, int index);
+int sqlite3VectorColumnType(void* root, int index);
+// added by scott.zgeng end
 
 Table *sqlite3SrcListLookup(Parse*, SrcList*);
 int sqlite3IsReadOnly(Parse*, Table*, int);

@@ -14,31 +14,54 @@ extern "C" {
 }
 
 
+class row_set_t
+{
+public:
+    row_set_t(void* ptr) {
+        row_count = 0;
+        m_buffer = ptr;
+    }
+
+    void* ptr() const {
+        return m_buffer;
+    }
+
+    db_int32 row_count;
+    void* m_buffer;
+};
+
 
 class expr_context_t
 {
 public:
     friend class mem_handle_t;
 
-    expr_context_t() {
-        m_row_count = 0;
+    expr_context_t(row_set_t* row_set) {
+        m_row_set = row_set;
+
         m_begin = m_buffer;
         m_end = m_begin + sizeof(m_buffer);
         m_position = m_begin;
     }
 
     expr_context_t::~expr_context_t() {
+
     }
 
 public:
     void alloc_memory(db_int32 size, mem_handle_t& handle);
 
     db_int32 row_count() const { 
-        return m_row_count; 
+        return m_row_set->row_count;
+    }
+
+    row_set_t* row_set() const {
+        return m_row_set;
     }
 
 private:
-    db_int32 m_row_count;
+    row_set_t* m_row_set;  
+    
     db_int8* m_begin;
     db_int8* m_end;
     db_int8* m_position;

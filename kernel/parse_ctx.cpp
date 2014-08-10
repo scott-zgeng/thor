@@ -25,10 +25,45 @@ int sqlite3SelectCreatePlan(Parse* pParse, Select* pSelete)
 }
 
 int sqlite3VectorStep(void* root)
-{
-    
-    node_base_t* root_node = (node_base_t*)root;
-    root_node->next(NULL);
+{    
+    project_node_t* root_node = (project_node_t*)root;
+
+    if (root_node->m_curr_idx >= SEGMENT_SIZE) {
+        root_node->project();
+        root_node->m_curr_idx = 0;
+    } else {
+        root_node->m_curr_idx++;
+    }
 
     return SQLITE_DONE;
 }
+
+
+
+void sqlite3VectorFinalize(void* root)
+{
+
+}
+
+int sqlite3VectorColumnInt(void* root, int index)
+{
+    project_node_t* root_node = (project_node_t*)root;
+
+    db_int32* ptr = (db_int32*)root_node->m_expr_mem[index].ptr();
+    return ptr[root_node->m_curr_idx];
+}
+
+
+const char* sqlite3VectorColumnString(void* root, int index)
+{
+    node_base_t* root_node = (node_base_t*)root;
+    return NULL;
+}
+
+int sqlite3VectorColumnType(void* root, int index)
+{
+    project_node_t* root_node = (project_node_t*)root;    
+    return root_node->m_result_expr[index]->type();
+}
+
+

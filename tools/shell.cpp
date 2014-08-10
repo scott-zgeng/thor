@@ -65,9 +65,9 @@ int main(int argc, char **argv)
     ret = sqlite3_vector_prepare(db, sql, strlen(sql), &stmt, &tail);
     IF_RETURN(ret, ret != SQLITE_OK);
 
+    int row_value;
     while (sqlite3_vector_step(stmt) == SQLITE_ROW) {
-
-
+        row_value = sqlite3_vector_column_int(stmt, 0);
     }
 
     sqlite3_vector_finalize(stmt);
