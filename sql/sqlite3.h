@@ -3221,6 +3221,8 @@ SQLITE_API int sqlite3_vector_step(sqlite3_stmt* stmt);
 SQLITE_API int sqlite3_vector_finalize(sqlite3_stmt* stmt);
 
 SQLITE_API int sqlite3_vector_column_int(sqlite3_stmt* stmt, int index);
+SQLITE_API long long sqlite3_vector_column_bigint(sqlite3_stmt* stmt, int index);
+
 SQLITE_API const char* sqlite3_vector_column_string(sqlite3_stmt* stmt, int index);
 SQLITE_API int sqlite3_vector_column_type(sqlite3_stmt* stmt, int index);
 

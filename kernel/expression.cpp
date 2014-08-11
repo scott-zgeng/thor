@@ -9,7 +9,7 @@
 
 
 
-void expr_context_t::alloc_memory(db_int32 size, mem_handle_t& handle)
+void mem_stack_t::alloc_memory(db_int32 size, mem_handle_t& handle)
 {
     // NOTE(scott.zgeng): BUFFER的大小完全可以根据已知的表达式，得到最大需要空间大小
     assert(m_position + size <= m_end);

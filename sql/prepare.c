@@ -862,6 +862,12 @@ int sqlite3_vector_column_int(sqlite3_stmt* stmt, int index)
     return sqlite3VectorColumnInt(v->pRootNode, index);
 }
 
+long long sqlite3_vector_column_bigint(sqlite3_stmt* stmt, int index)
+{
+    Vdbe* v = (Vdbe*)stmt;
+    return sqlite3VectorColumnBigInt(v->pRootNode, index);
+}
+
 const char* sqlite3_vector_column_string(sqlite3_stmt* stmt, int index)
 {
     Vdbe* v = (Vdbe*)stmt;

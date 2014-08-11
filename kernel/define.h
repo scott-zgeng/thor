@@ -37,6 +37,10 @@ typedef char* db_string;
 
 typedef unsigned long long rowid_t;
 
+static const rowid_t ROWID_INVALID = (-1);
+static const rowid_t ROWID_SEGMENT = (-2);
+
+
 // 为了防止和内置类型混用
 struct result_t
 {
@@ -48,6 +52,7 @@ struct result_t
 
 const static result_t RT_SUCCEEDED = { 0 };
 const static result_t RT_FAILED = { -1 };
+
 
 
 #ifndef DB_OMIT_TRACE

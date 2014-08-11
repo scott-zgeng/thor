@@ -3108,6 +3108,7 @@ int sqlite3VectorStep(void* root);
 void sqlite3VectorFinalize(void* root);
 
 int sqlite3VectorColumnInt(void* root, int index);
+long long sqlite3VectorColumnBigInt(void* root, int index);
 const char* sqlite3VectorColumnString(void* root, int index);
 int sqlite3VectorColumnType(void* root, int index);
 // added by scott.zgeng end

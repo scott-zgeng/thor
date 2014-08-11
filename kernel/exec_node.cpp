@@ -81,6 +81,8 @@ scan_node_t::scan_node_t(int index)
 {
     m_index = index;
     m_where = NULL;
+
+    m_row_set.m_ptr = m_row_buf;
 }
 
 scan_node_t::~scan_node_t()
@@ -93,6 +95,14 @@ result_t scan_node_t::init(Parse* parse, Select* select)
     result_t ret;
 
     ret = expr_base_t::build(select->pWhere, &m_where);
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+    
+    SrcList::SrcList_item* src = &select->pSrc->a[m_index];
+
+    table_t* table = table_t::find_table(src->zName);
+    IF_RETURN_FAILED(table == NULL);
+
+    ret = table->init_cursor(&m_cursor);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
     return RT_SUCCEEDED;
@@ -110,18 +120,18 @@ db_int32 scan_node_t::size()
 
 
 // 在调用next之前，应用需要先调用该节点size()，计算用来缓存行号的空间，并且双方已经协商好数据格式
-result_t scan_node_t::next(row_set_t* rows)
+result_t scan_node_t::next(row_set_t* rows, mem_stack_t* mem)
 {
     assert(!m_where->has_null());
     result_t ret;
     mem_handle_t result;
 
-    expr_context_t* ectx = new expr_context_t(rows);
-
-    ret = m_where->calc(ectx, result);
+    ret = m_cursor.next_segment(&m_row_set);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
-    row_set_t* in_rows = ectx->row_set();
+    ret = m_where->calc(m_row_set, mem, result);
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
     db_int8* expr_result = (db_int8*)result.ptr();    
     rowid_t* in_ptr = (rowid_t*)in_rows->ptr();
     rowid_t* out_ptr = (rowid_t*)rows->ptr();
@@ -172,7 +182,7 @@ db_int32 join_node_t::size()
 }
 
 
-result_t join_node_t::next(row_set_t* rows)
+result_t join_node_t::next(row_set_t* rows, mem_stack_t* mem)
 {
     return RT_FAILED; 
 }
@@ -184,7 +194,7 @@ result_t join_node_t::next(row_set_t* rows)
 project_node_t::project_node_t(node_base_t* children)
 {
     m_children = children;
-    m_expr_num = 0;
+    m_select_num = 0;
 }
 
 project_node_t::~project_node_t()
@@ -204,15 +214,16 @@ result_t project_node_t::init(Parse* parse, Select* select)
         ret = expr_base_t::build(expr_list->a[i].pExpr, &expr);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
-        m_result_expr[i] = expr;
+        m_select_expr[i] = expr;
     }
 
-    m_expr_num = expr_list->nExpr;
+    m_select_num = expr_list->nExpr;
+    m_curr_idx = -1;
 
     db_int32 alloc_size = m_children->size() * SEGMENT_SIZE;
-    m_row_buff = malloc(alloc_size);
-    IF_RETURN_FAILED(m_row_buff == NULL);
-    
+    m_sub_rows.m_ptr = malloc(alloc_size);
+    IF_RETURN_FAILED(m_sub_rows.m_ptr == NULL);    
+
     return RT_SUCCEEDED;
 }
 
@@ -227,24 +238,21 @@ db_int32 project_node_t::size()
 }
 
 
-result_t project_node_t::next(row_set_t* rows)
+result_t project_node_t::next(row_set_t* rows, mem_stack_t* mem)
 {
-    return RT_SUCCEEDED;
+    return RT_FAILED;
 }
 
 
-result_t project_node_t::project()
+result_t project_node_t::next()
 {
     result_t ret;
 
-    row_set_t sub_rows(m_row_buff);
-    ret = m_children->next(&sub_rows);
+    ret = m_children->next(&m_sub_rows);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
-    expr_context_t ectx(&sub_rows);
-    
-    for (db_int32 i = 0; i < m_expr_num; i++) {
-        ret = m_result_expr[i]->calc(&ectx, m_expr_mem[i]);
+    for (db_int32 i = 0; i < m_select_num; i++) {
+        ret = m_select_expr[i]->calc(&m_mem, m_expr_mem[i]);
     }
 
     return RT_SUCCEEDED;

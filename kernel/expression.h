@@ -13,59 +13,64 @@ extern "C" {
 #include "../sql/vdbeInt.h"
 }
 
-
-class row_set_t
+// row_set提供的功能： 
+//   有多少行数据
+//   如果获取行的数据
+struct row_set_t
 {
+    db_int32 count;
+    db_int32 mode;
+
+    struct row_set_item_t 
+    {
+        db_int32 mode;
+        rowid_t rows[SEGMENT_SIZE];
+    } a[1];
+
+
 public:
+    row_set_t() {
+        row_count = 0;
+        m_ptr = NULL;
+    }
+
     row_set_t(void* ptr) {
         row_count = 0;
-        m_buffer = ptr;
+        m_ptr = ptr;
     }
 
     void* ptr() const {
-        return m_buffer;
+        return m_ptr;
     }
 
+
+    db_int32 mode;
     db_int32 row_count;
-    void* m_buffer;
+    void* m_ptr;
 };
 
 
-class expr_context_t
+class mem_stack_t
 {
 public:
     friend class mem_handle_t;
 
-    expr_context_t(row_set_t* row_set) {
-        m_row_set = row_set;
-
+    mem_stack_t() {
         m_begin = m_buffer;
         m_end = m_begin + sizeof(m_buffer);
         m_position = m_begin;
     }
 
-    expr_context_t::~expr_context_t() {
-
+    mem_stack_t::~mem_stack_t() {
     }
 
 public:
     void alloc_memory(db_int32 size, mem_handle_t& handle);
 
-    db_int32 row_count() const { 
-        return m_row_set->row_count;
-    }
-
-    row_set_t* row_set() const {
-        return m_row_set;
-    }
-
 private:
-    row_set_t* m_row_set;  
-    
     db_int8* m_begin;
     db_int8* m_end;
     db_int8* m_position;
-
 
     db_int8 m_buffer[SEGMENT_SIZE * 1024 * 2];
 };
@@ -92,7 +97,7 @@ public:
         }
     }
 
-    void init(expr_context_t* ctx, void* data) {
+    void init(mem_stack_t* ctx, void* data) {
         DB_TRACE("mem_handle init, %p", data);
         m_ctx = ctx;
         m_data = (db_int8*)data;
@@ -103,7 +108,7 @@ public:
     }
 
 private:
-    expr_context_t* m_ctx;
+    mem_stack_t* m_ctx;
     db_int8* m_data;
 
 };
@@ -131,7 +136,7 @@ public:
 
     virtual data_type_t type() = 0;
 
-    virtual result_t calc(expr_context_t* ctx, mem_handle_t& result) = 0;
+    virtual result_t calc(row_set_t* rows, mem_stack_t* ctx, mem_handle_t& result) = 0;
 
 
 private:
@@ -163,12 +168,12 @@ public:
         return type(); 
     }
 
-    virtual result_t calc(expr_context_t* ctx, mem_handle_t& result) {
+    virtual result_t calc(row_set_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
 
         ctx->alloc_memory(sizeof(RT)* SEGMENT_SIZE, result);
 
         mem_handle_t lresult;
-        result_t ret = m_children->calc(ctx, lresult);
+        result_t ret = m_children->calc(rows, ctx, lresult);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
         RT* dst = (RT*)result.ptr();
@@ -252,7 +257,7 @@ public:
         return type(); 
     }
 
-    virtual result_t calc(expr_context_t* ctx, mem_handle_t& result) {
+    virtual result_t calc(row_set_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
 
         result_t ret;
         mem_handle_t lresult;
@@ -260,10 +265,10 @@ public:
 
         ctx->alloc_memory(sizeof(RT)* SEGMENT_SIZE, result);
 
-        ret = m_left->calc(ctx, lresult);
+        ret = m_left->calc(rows, ctx, lresult);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
-        ret = m_right->calc(ctx, rresult);
+        ret = m_right->calc(rows, ctx, rresult);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
         RT* dst = (RT*)result.ptr();
@@ -305,13 +310,13 @@ public:
         return type(); 
     }
 
-    virtual result_t calc(expr_context_t* ctx, mem_handle_t& result) {
+    virtual result_t calc(row_set_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
         assert(sizeof(T) <= sizeof(RT > ));
 
         ctx->alloc_memory(sizeof(RT)* SEGMENT_SIZE, result);
 
         mem_handle_t lresult;
-        result_t ret = m_children->calc(ctx, lresult);
+        result_t ret = m_children->calc(rows, ctx, lresult);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
         RT* dst = (RT*)result.ptr();
@@ -336,7 +341,7 @@ class expr_column_t : public expr_base_t
 {
 public:
     expr_column_t() {
-        m_table_id = 0;
+        m_table = NULL;
         m_column_id = 0;
     }
 
@@ -345,11 +350,10 @@ public:
 
 public:
     virtual result_t init(Expr* expr) {
+        m_table = table_t::find_table(expr->pTab->zName);
+        IF_RETURN_FAILED(m_table == NULL);
 
-        // TODO(scott.zgeng): 仅仅用于测试
-        for (db_int32 i = 0; i < SEGMENT_SIZE; i++) {
-            m_seed[i] = i;
-        }
+        m_column_id = expr->iColumn;
 
         return RT_SUCCEEDED;
     }
@@ -359,17 +363,30 @@ public:
         return type(); 
     }
 
-    virtual result_t calc(expr_context_t* ctx, mem_handle_t& result) {
-        result.init(ctx, m_seed);
+    virtual result_t calc(row_set_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
+
+        // 如果是扫描模式，则输入SEGMENT_ID就可以获取数据
+        // 如果是随机模式，则输入ROWID 数组，获取对应数据
+
+        
+        // result_ptr = table.get_from_segment(rows.segment);
+        // ctx->
+        if (rows->is_scan()) {
+            void* ptr = m_table->get_segment(rows->curr_segment());
+            IF_RETURN_FAILED(ptr == NULL);
+            result.init(ctx, ptr);
+        } else {
+            ctx->alloc_memory(sizeof(rowid_t)* SEGMENT_SIZE, result);
+            m_table->fill_value(rows, result->ptr());
+        }
+
         return RT_SUCCEEDED;
     }
 
 
 private:
-    db_int32 m_table_id;
     db_int32 m_column_id;
-
-    T m_seed[SEGMENT_SIZE];
+    table_t* m_table;
 };
 
 
@@ -398,7 +415,7 @@ public:
         return type(); 
     }
     
-    virtual result_t calc(expr_context_t* ctx, mem_handle_t& result) {
+    virtual result_t calc(row_set_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
         result.init(ctx, m_value);
         return RT_SUCCEEDED;
     }
