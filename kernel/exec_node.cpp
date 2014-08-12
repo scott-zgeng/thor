@@ -16,7 +16,6 @@ node_generator_t::node_generator_t(Parse* parse, Select* select)
 
 node_generator_t::~node_generator_t()
 {
-
 }
 
 
@@ -74,6 +73,82 @@ result_t node_generator_t::build(node_base_t** root_node)
 
 
 
+
+//-----------------------------------------------------------------------------
+// project_node_t
+//-----------------------------------------------------------------------------
+project_node_t::project_node_t(node_base_t* children)
+{
+    m_children = children;
+}
+
+project_node_t::~project_node_t()
+{
+
+}
+
+result_t project_node_t::init(Parse* parse, Select* select)
+{
+    ExprList* expr_list = select->pEList;
+
+    result_t ret;
+    for (db_int32 i = 0; i < expr_list->nExpr; i++) {
+        expr_base_t* expr = NULL;
+        ret = expr_base_t::build(expr_list->a[i].pExpr, &expr);
+        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+        m_expr_columns.push_back(expr);
+    }
+
+    ret = m_sub_rows.init(m_children->rowid_size());
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+    
+    m_expr_values.resize(expr_list->nExpr);
+
+    m_curr_idx = -1;
+
+    return RT_SUCCEEDED;
+}
+
+void project_node_t::uninit()
+{
+}
+
+db_int32 project_node_t::rowid_size()
+{
+    return 0;
+}
+
+
+result_t project_node_t::next(row_set_t* rows, mem_stack_t* mem)
+{
+    return RT_FAILED;
+}
+
+
+result_t project_node_t::next()
+{
+    result_t ret;
+
+    m_mem.reset();
+
+    ret = m_children->next(&m_sub_rows, &m_mem);
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+    
+    for (db_uint32 i = 0; i < m_expr_columns.size(); i++) {
+
+        mem_handle_t mem_handle;
+        ret = m_expr_columns[i]->calc(&m_sub_rows, &m_mem, mem_handle);
+        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+        m_expr_values[i] = mem_handle.transfer();        
+    }
+
+    return RT_SUCCEEDED;
+}
+
+
+
 //-----------------------------------------------------------------------------
 // scan_node_t
 //-----------------------------------------------------------------------------
@@ -81,8 +156,7 @@ scan_node_t::scan_node_t(int index)
 {
     m_index = index;
     m_where = NULL;
-
-    m_row_set.m_ptr = m_row_buf;
+    m_scan_rows.init(m_scan_buff);
 }
 
 scan_node_t::~scan_node_t()
@@ -96,10 +170,10 @@ result_t scan_node_t::init(Parse* parse, Select* select)
 
     ret = expr_base_t::build(select->pWhere, &m_where);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
-    
+
     SrcList::SrcList_item* src = &select->pSrc->a[m_index];
 
-    table_t* table = table_t::find_table(src->zName);
+    column_table_t* table = column_table_t::find_table(src->zName);
     IF_RETURN_FAILED(table == NULL);
 
     ret = table->init_cursor(&m_cursor);
@@ -113,7 +187,7 @@ void scan_node_t::uninit()
 
 }
 
-db_int32 scan_node_t::size()
+db_int32 scan_node_t::rowid_size()
 {
     return sizeof(rowid_t);
 }
@@ -126,27 +200,27 @@ result_t scan_node_t::next(row_set_t* rows, mem_stack_t* mem)
     result_t ret;
     mem_handle_t result;
 
-    ret = m_cursor.next_segment(&m_row_set);
+    ret = m_cursor.next_segment(&m_scan_rows);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
-    ret = m_where->calc(m_row_set, mem, result);
+    ret = m_where->calc(&m_scan_rows, mem, result);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
-    db_int8* expr_result = (db_int8*)result.ptr();    
-    rowid_t* in_ptr = (rowid_t*)in_rows->ptr();
-    rowid_t* out_ptr = (rowid_t*)rows->ptr();
+    db_bool* expr_result = (db_bool*)result.ptr();
+
+    rowid_t* in_rows = m_scan_rows.data();
+    rowid_t* out_rows = rows->data();
 
     // 获取所有有效的结果集合，去掉不符合的行
     db_int32 count = 0;
-    for (int i = 0; i < ectx->row_count(); i++) {
+    for (int i = 0; i < m_scan_rows.count(); i++) {
         if (expr_result[i]) {
-            out_ptr[count] = in_ptr[i];
+            out_rows[count] = in_rows[i];
             count++;
         }
     }
 
-    rows->row_count = count;
-
+    rows->set_count(count);
     return RT_SUCCEEDED;
 }
 
@@ -176,88 +250,13 @@ void join_node_t::uninit()
 
 }
 
-db_int32 join_node_t::size()
+db_int32 join_node_t::rowid_size()
 {
-    return m_left->size() + m_right->size();
+    return m_left->rowid_size() + m_right->rowid_size();
 }
 
 
 result_t join_node_t::next(row_set_t* rows, mem_stack_t* mem)
 {
-    return RT_FAILED; 
-}
-
-
-//-----------------------------------------------------------------------------
-// project_node_t
-//-----------------------------------------------------------------------------
-project_node_t::project_node_t(node_base_t* children)
-{
-    m_children = children;
-    m_select_num = 0;
-}
-
-project_node_t::~project_node_t()
-{
-
-}
-
-result_t project_node_t::init(Parse* parse, Select* select)
-{
-    // TODO(scott.zgeng@gmail.com): 后续换成vector，这里先简单用
-    ExprList* expr_list = select->pEList;
-    assert(expr_list->nExpr <= MAX_SELECT_RESULT_NUM);
-
-    result_t ret;
-    for (db_int32 i = 0; i < expr_list->nExpr; i++) {
-        expr_base_t* expr = NULL;
-        ret = expr_base_t::build(expr_list->a[i].pExpr, &expr);
-        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
-
-        m_select_expr[i] = expr;
-    }
-
-    m_select_num = expr_list->nExpr;
-    m_curr_idx = -1;
-
-    db_int32 alloc_size = m_children->size() * SEGMENT_SIZE;
-    m_sub_rows.m_ptr = malloc(alloc_size);
-    IF_RETURN_FAILED(m_sub_rows.m_ptr == NULL);    
-
-    return RT_SUCCEEDED;
-}
-
-void project_node_t::uninit()
-{
-
-}
-
-db_int32 project_node_t::size()
-{
-    return 0;
-}
-
-
-result_t project_node_t::next(row_set_t* rows, mem_stack_t* mem)
-{
     return RT_FAILED;
 }
-
-
-result_t project_node_t::next()
-{
-    result_t ret;
-
-    ret = m_children->next(&m_sub_rows);
-    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
-
-    for (db_int32 i = 0; i < m_select_num; i++) {
-        ret = m_select_expr[i]->calc(&m_mem, m_expr_mem[i]);
-    }
-
-    return RT_SUCCEEDED;
-
-
-}
-
-

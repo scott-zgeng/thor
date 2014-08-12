@@ -1,8 +1,8 @@
 // parse_ctx.h by scott.zgeng@gmail.com 2014.07.11
 
  
-#ifndef  __PARSE_CTX__
-#define  __PARSE_CTX__
+#ifndef  __PARSE_CTX_H__
+#define  __PARSE_CTX_H__
 
 extern "C" {
 #include "../sql/sqliteInt.h"
@@ -17,5 +17,5 @@ extern "C" {
 
 
 
-#endif //__PARSE_CTX__
+#endif //__PARSE_CTX_H__
 

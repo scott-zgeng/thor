@@ -34,7 +34,7 @@ int sqlite3VectorStep(void* root)
     root_node->m_curr_idx++;
 
 
-    db_int32 row_count = root_node->m_sub_rows.row_count;
+    db_int32 row_count = root_node->count();
     if (root_node->m_curr_idx < row_count)         
         return SQLITE_ROW;
 
@@ -57,8 +57,8 @@ int sqlite3VectorColumnInt(void* root, int index)
 {
     project_node_t* root_node = (project_node_t*)root;
 
-    db_int32* ptr = (db_int32*)root_node->m_expr_mem[index].ptr();
-    return ptr[root_node->m_curr_idx];
+    db_int32* val = (db_int32*)root_node->column_data(index);
+    return val[root_node->m_curr_idx];
 }
 
 
@@ -66,8 +66,8 @@ long long sqlite3VectorColumnBigInt(void* root, int index)
 {
     project_node_t* root_node = (project_node_t*)root;
 
-    db_int64* ptr = (db_int64*)root_node->m_expr_mem[index].ptr();
-    return ptr[root_node->m_curr_idx];
+    db_int64* val = (db_int64*)root_node->column_data(index);
+    return val[root_node->m_curr_idx];
 }
 
 
@@ -80,7 +80,7 @@ const char* sqlite3VectorColumnString(void* root, int index)
 int sqlite3VectorColumnType(void* root, int index)
 {
     project_node_t* root_node = (project_node_t*)root;    
-    return root_node->m_select_expr[index]->type();
+    return root_node->column_type(index);
 }
 
 

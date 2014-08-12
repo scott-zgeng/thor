@@ -22,6 +22,7 @@ enum data_type_t {
 
 
 // 和上面的data_type是对应的
+typedef bool db_bool;
 typedef char db_int8;
 typedef unsigned db_uint8;
 typedef short db_int16;
@@ -77,7 +78,7 @@ do { if (condition) { DB_TRACE("if_return"); return (code); } } while (0)
     
 
 static const db_int32 SEGMENT_SIZE = 1024;
-
+static const db_int32 MAX_JOIN_TABLE = 8;
 
 
 #endif //__DEFINE_H__

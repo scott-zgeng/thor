@@ -1,10 +1,7 @@
 // expression.h by scott.zgeng@gmail.com 2014.08.5
 
-#ifndef  __EXPRESSION__
-#define  __EXPRESSION__
-
-#include "define.h"
-#include "variant.h"
+#ifndef  __EXPRESSION_H__
+#define  __EXPRESSION_H__
 
 
 
@@ -13,40 +10,86 @@ extern "C" {
 #include "../sql/vdbeInt.h"
 }
 
+
+#include "define.h"
+#include "variant.h"
+#include "column_table.h"
+
+
 // row_set提供的功能： 
 //   有多少行数据
 //   如果获取行的数据
-struct row_set_t
+class row_set_t
 {
-    db_int32 count;
-    db_int32 mode;
-
-    struct row_set_item_t 
-    {
-        db_int32 mode;
-        rowid_t rows[SEGMENT_SIZE];
-    } a[1];
-
-
 public:
+    enum mode_t {
+        SEGMENT_MODE = 0, 
+        RANDOM_MODE,
+    };
+
     row_set_t() {
-        row_count = 0;
-        m_ptr = NULL;
+        m_count = 0;
+        m_segment_id = 0;
+        m_mode = SEGMENT_MODE;
+        m_data = NULL;
+        m_data_alloc = NULL;
     }
 
-    row_set_t(void* ptr) {
-        row_count = 0;
-        m_ptr = ptr;
+    row_set_t(rowid_t* ptr) {
+        m_count = 0;
+        m_segment_id = 0;
+        m_mode = SEGMENT_MODE;
+        m_data = ptr;
+        m_data_alloc = NULL;
     }
 
-    void* ptr() const {
-        return m_ptr;
+    ~row_set_t() {        
+        if (m_data_alloc != NULL) {
+            free(m_data_alloc);
+        }
     }
 
+    result_t init(db_int32 column_num) {
+        assert(m_data_alloc == NULL);
 
-    db_int32 mode;
-    db_int32 row_count;
-    void* m_ptr;
+        m_data_alloc = (rowid_t*)malloc(column_num * SEGMENT_SIZE * sizeof(rowid_t));
+        if (NULL == m_data_alloc)
+            return RT_FAILED;
+
+        m_data = m_data_alloc;
+        return RT_SUCCEEDED;
+    }
+
+    void init(rowid_t* ptr) {
+        m_data = ptr;
+    }
+
+    db_int32 count() const {
+        return m_count;
+    }
+
+    void set_count(db_int32 n) {
+        m_count = n;
+    }
+
+    rowid_t* data() const {
+        return m_data;
+    }
+
+    mode_t mode() const {
+        return m_mode;
+    }
+
+    db_int32 segment() const {
+        return m_segment_id;
+    }
+
+private:
+    db_int32 m_count;
+    db_int32 m_segment_id;
+    mode_t m_mode;
+    rowid_t* m_data;
+    rowid_t* m_data_alloc;
 };
 
 
@@ -67,6 +110,10 @@ public:
 public:
     void alloc_memory(db_int32 size, mem_handle_t& handle);
 
+    void reset() {
+        m_position = m_begin;
+    }
+
 private:
     db_int8* m_begin;
     db_int8* m_end;
@@ -80,27 +127,40 @@ class mem_handle_t
 {
 public:
     mem_handle_t() {
-        m_ctx = NULL;
-        m_data = NULL;
+        init(NULL, NULL);
+    }
+
+    mem_handle_t(mem_stack_t* ctx, void* data) {
+        init(ctx, data);        
     }
 
     ~mem_handle_t() {
-        // NOTE(scott.zgeng): 
-        //  只释放属于栈的空间，如果不是，有可能是空，也可能是应用自己的空间，属于合理用法        
-        if (m_data >= m_ctx->m_buffer && m_data < m_ctx->m_end) {
-            assert(m_data > m_ctx->m_position);
-            m_ctx->m_position = m_data;
-            DB_TRACE("mem_handle free, %p", m_data);
-
-        } else {
-            DB_TRACE("mem_handle no free, %p", m_data);
-        }
+        uninit();
     }
 
     void init(mem_stack_t* ctx, void* data) {
         DB_TRACE("mem_handle init, %p", data);
         m_ctx = ctx;
         m_data = (db_int8*)data;
+    }
+
+    void uninit() {
+        // NOTE(scott.zgeng): 
+        //  只释放属于栈的空间，如果不是，有可能是空，也可能是应用自己的空间，属于合理用法        
+        if (m_data >= m_ctx->m_buffer && m_data < m_ctx->m_end) {
+            assert(m_data > m_ctx->m_position);
+            m_ctx->m_position = m_data;
+            DB_TRACE("mem_handle uninit, %p", m_data);
+        }
+        else {
+            DB_TRACE("mem_handle uninit, no free %p", m_data);
+        }
+    }
+
+    void* transfer() {
+        db_int8* data = m_data;
+        m_data = NULL;
+        return data;
     }
 
     void* ptr() const {
@@ -142,6 +202,7 @@ public:
 private:
     static expr_base_t* create_instance(Expr* expr, expr_base_t* left, expr_base_t* right);
 };
+
 
 
 
@@ -257,18 +318,18 @@ public:
         return type(); 
     }
 
-    virtual result_t calc(row_set_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
+    virtual result_t calc(row_set_t* rows, mem_stack_t* mem, mem_handle_t& result) {
 
         result_t ret;
         mem_handle_t lresult;
         mem_handle_t rresult;
 
-        ctx->alloc_memory(sizeof(RT)* SEGMENT_SIZE, result);
+        mem->alloc_memory(sizeof(RT)* SEGMENT_SIZE, result);
 
-        ret = m_left->calc(rows, ctx, lresult);
+        ret = m_left->calc(rows, mem, lresult);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
-        ret = m_right->calc(rows, ctx, rresult);
+        ret = m_right->calc(rows, mem, rresult);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
         RT* dst = (RT*)result.ptr();
@@ -276,7 +337,7 @@ public:
         T* b = (T*)rresult.ptr();
 
         binary_operator<OP_TYPE, T, RT> binary_op;
-        return binary_op(a, b, dst, ctx->row_count());
+        return binary_op(a, b, dst, rows->count());
     }
 
 private:
@@ -350,10 +411,13 @@ public:
 
 public:
     virtual result_t init(Expr* expr) {
-        m_table = table_t::find_table(expr->pTab->zName);
+        m_table = column_table_t::find_table(expr->pTab->zName);
         IF_RETURN_FAILED(m_table == NULL);
 
         m_column_id = expr->iColumn;
+
+        column_t* column = m_table->get_column(m_column_id);
+        IF_RETURN_FAILED(column == NULL || column->type() != type());        
 
         return RT_SUCCEEDED;
     }
@@ -364,20 +428,16 @@ public:
     }
 
     virtual result_t calc(row_set_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
-
-        // 如果是扫描模式，则输入SEGMENT_ID就可以获取数据
-        // 如果是随机模式，则输入ROWID 数组，获取对应数据
-
         
-        // result_ptr = table.get_from_segment(rows.segment);
-        // ctx->
-        if (rows->is_scan()) {
-            void* ptr = m_table->get_segment(rows->curr_segment());
-            IF_RETURN_FAILED(ptr == NULL);
-            result.init(ctx, ptr);
+        if (rows->mode() == row_set_t::SEGMENT_MODE) {
+            db_int32 segment_id = rows->segment(); 
+            void* values = NULL;
+            result_t ret = m_table->get_segment_values(m_column_id, segment_id, &values);
+            IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+            result.init(ctx, values);
         } else {
-            ctx->alloc_memory(sizeof(rowid_t)* SEGMENT_SIZE, result);
-            m_table->fill_value(rows, result->ptr());
+            ctx->alloc_memory(sizeof(T)* SEGMENT_SIZE, result);
+            m_table->get_random_values(rows->data(), rows->count(), result.ptr());
         }
 
         return RT_SUCCEEDED;
@@ -386,7 +446,7 @@ public:
 
 private:
     db_int32 m_column_id;
-    table_t* m_table;
+    column_table_t* m_table;
 };
 
 
@@ -427,6 +487,6 @@ private:
 
 
 
-#endif //__EXPRESSION__
+#endif //__EXPRESSION_H__
 
 
