@@ -72,6 +72,10 @@ public:
         m_count = n;
     }
 
+    void set_mode(mode_t mode) {
+        m_mode = mode;
+    }
+
     rowid_t* data() const {
         return m_data;
     }

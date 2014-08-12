@@ -254,6 +254,11 @@ result_t expr_base_t::build(Expr* expr, expr_base_t** root)
     assert(expr);
     result_t ret;
 
+    if (expr == NULL) {
+        *root = NULL;
+        return RT_SUCCEEDED;
+    }
+
     expr_base_t* left = NULL;
     if (expr->pLeft != NULL) {
         ret = build(expr->pLeft, &left);

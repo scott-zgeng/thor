@@ -105,8 +105,8 @@ private:
     expr_base_t* m_where;  // filter of where 
     cursor_t m_cursor;
 
-    row_set_t m_scan_rows;
-    rowid_t m_scan_buff[SEGMENT_SIZE];  // don't use it direct
+    //row_set_t m_scan_rows;
+    //rowid_t m_scan_buff[SEGMENT_SIZE];  // don't use it direct
 };
 
 

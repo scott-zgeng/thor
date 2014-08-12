@@ -156,7 +156,7 @@ scan_node_t::scan_node_t(int index)
 {
     m_index = index;
     m_where = NULL;
-    m_scan_rows.init(m_scan_buff);
+    
 }
 
 scan_node_t::~scan_node_t()
@@ -200,20 +200,24 @@ result_t scan_node_t::next(row_set_t* rows, mem_stack_t* mem)
     result_t ret;
     mem_handle_t result;
 
-    ret = m_cursor.next_segment(&m_scan_rows);
+    ret = m_cursor.next_segment(rows);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
-    ret = m_where->calc(&m_scan_rows, mem, result);
+    if (m_where == NULL) 
+        return RT_SUCCEEDED;        
+    
+
+    ret = m_where->calc(rows, mem, result);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
     db_bool* expr_result = (db_bool*)result.ptr();
-
-    rowid_t* in_rows = m_scan_rows.data();
+    
+    rowid_t* in_rows = rows->data();
     rowid_t* out_rows = rows->data();
 
     // 获取所有有效的结果集合，去掉不符合的行
     db_int32 count = 0;
-    for (int i = 0; i < m_scan_rows.count(); i++) {
+    for (int i = 0; i < rows->count(); i++) {
         if (expr_result[i]) {
             out_rows[count] = in_rows[i];
             count++;
