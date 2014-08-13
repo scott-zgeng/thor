@@ -17,7 +17,7 @@ static int do_command(sqlite3* db, const char* sql)
 
     sqlite3_stmt* stmt;
     const char* tail;
-    ret = sqlite3_prepare_v2(db, sql, len, &stmt, &tail);
+    ret = sqlite3_vector_prepare(db, sql, len, &stmt, &tail);
     IF_RETURN(ret, ret != SQLITE_OK);
 
     while (true) {
@@ -58,7 +58,7 @@ int main(int argc, char **argv)
     IF_RETURN(ret, ret != SQLITE_DONE);
 
     //const char sql[] = "select a.f1, count(a.f1) from test1 a, test2 b where a.f1 = b.f1 group by a.f1 order by a.f1;";
-    const char sql[] = "select f1, (f1 - 3) * 4 from test1";
+    const char sql[] = "select f1, (f1 - 3) from test1 where f1 > 5 ";
 
     sqlite3_stmt* stmt;
     const char* tail;    
@@ -74,6 +74,8 @@ int main(int argc, char **argv)
     }
 
     sqlite3_vector_finalize(stmt);
+
+    getchar();
 
     return 0;
 }

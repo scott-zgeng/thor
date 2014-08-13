@@ -7,13 +7,15 @@
 
 #include "define.h"
 
+#include "pod_vector.h"
+#include "pod_hash_map.h"
 
 
-// sqlite3StartTable
-// sqlite3EndTable
-
+struct Table;
 class row_set_t;
 class column_table_t;
+
+
 class cursor_t
 {
 public:
@@ -37,30 +39,67 @@ public:
     ~column_t();
 
 public:
-    data_type_t type() const;
+    result_t init(data_type_t type);
+    data_type_t type() const { return m_type; }
+
+private:
+    data_type_t m_type;
+    db_int32 m_size;
 };
 
+
+typedef fstring<MAX_TAB_NAME_LEN + 1> table_name_t;
 
 
 class column_table_t
 {
 public:
-    static column_table_t* find_table(const char* tab_name);
-
-public:
     column_table_t();
     ~column_table_t();
 
 public:
+    result_t init(Table* table, db_int32 table_id);
+    result_t add_column(data_type_t type);
+
     result_t init_cursor(cursor_t* cursor);
     column_t* get_column(db_int32 idx);
     result_t get_segment_values(db_int32 column_id, db_int32 segment_id, void** values);
     result_t get_random_values(rowid_t* rows, db_int32 count, void* values);
 
-
+private:
+    db_int32 m_table_id;
+    table_name_t m_table_name;
+    pod_vector<column_t*> m_columns;
+    db_int32 m_row_count;
 };
 
 
+class database_t
+{
+public:
+    typedef pod_hash_map<table_name_t, column_table_t*, 49157> table_map_t;
+
+public:
+    static database_t instance;
+    static const db_int32 MAX_TABLE_NUM = 1024;
+
+public:
+    database_t(): m_table_map(true) { 
+        memset(m_tables, 0, sizeof(m_tables));
+    }
+
+public:
+    result_t build_table(Table* table);
+    column_table_t* find_table(const char* table_name) const;
+    column_table_t* get_table(db_int32 table_id) const;
+
+private:
+    db_int32 find_idle_entry();
+
+    table_map_t m_table_map;
+    column_table_t* m_tables[MAX_TABLE_NUM];
+
+};
 
 
 #endif //__COLUMN_TABLE_H__

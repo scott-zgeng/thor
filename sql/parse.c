@@ -2215,6 +2215,7 @@ static void yy_reduce(
 #line 158 "parse.y"
     {
                  sqlite3EndTable(pParse, &yymsp[-2].minor.yy0, &yymsp[-1].minor.yy0, yymsp[0].minor.yy186, 0);
+                 sqlite3CreateColumnTable(pParse);
     }
 #line 2219 "parse.c"
         break;
@@ -2223,6 +2224,7 @@ static void yy_reduce(
     {
                  sqlite3EndTable(pParse, 0, 0, 0, yymsp[0].minor.yy3);
                  sqlite3SelectDelete(pParse->db, yymsp[0].minor.yy3);
+                 sqlite3CreateColumnTable(pParse);
     }
 #line 2227 "parse.c"
         break;

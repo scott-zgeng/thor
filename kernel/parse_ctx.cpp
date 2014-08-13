@@ -1,12 +1,23 @@
 // parse_ctx.cpp by scott.zgeng@gmail.com 2014.07.11
 
+
+#include <string.h>
 #include <assert.h>
-
-
 
 #include "parse_ctx.h"
 #include "expression.h"
 #include "exec_node.h"
+#include "column_table.h"
+
+
+
+int sqlite3CreateColumnTable(Parse* pParse)
+{
+    if (!pParse->columnStorage) return SQLITE_OK;
+
+    database_t::instance.build_table(pParse->pNewTable);
+    return SQLITE_OK;
+}
 
 
 int sqlite3SelectCreatePlan(Parse* pParse, Select* pSelete)
@@ -81,6 +92,14 @@ int sqlite3VectorColumnType(void* root, int index)
 {
     project_node_t* root_node = (project_node_t*)root;    
     return root_node->column_type(index);
+}
+
+
+void strncpy_ex(char* dst, const char* src, size_t n) 
+{
+    // TODO(scott.zgeng): 这个函数需要测试一下实际效果
+    strncpy_s(dst, n, src, n);
+    dst[n] = 0;
 }
 
 

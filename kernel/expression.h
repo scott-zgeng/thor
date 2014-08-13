@@ -270,6 +270,9 @@ struct binary_primitive<OP_TYPE, T, RT> \
 }
 
 
+BINARY_PRIMITIVE(TK_AND, &&);
+BINARY_PRIMITIVE(TK_OR, ||);
+
 BINARY_PRIMITIVE(TK_EQ, == );
 BINARY_PRIMITIVE(TK_NE, != );
 BINARY_PRIMITIVE(TK_GT, > );
@@ -415,7 +418,7 @@ public:
 
 public:
     virtual result_t init(Expr* expr) {
-        m_table = column_table_t::find_table(expr->pTab->zName);
+        m_table = database_t::instance.find_table(expr->pTab->zName);
         IF_RETURN_FAILED(m_table == NULL);
 
         m_column_id = expr->iColumn;

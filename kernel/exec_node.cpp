@@ -173,7 +173,7 @@ result_t scan_node_t::init(Parse* parse, Select* select)
 
     SrcList::SrcList_item* src = &select->pSrc->a[m_index];
 
-    column_table_t* table = column_table_t::find_table(src->zName);
+    column_table_t* table = database_t::instance.find_table(src->zName);    
     IF_RETURN_FAILED(table == NULL);
 
     ret = table->init_cursor(&m_cursor);
@@ -224,6 +224,7 @@ result_t scan_node_t::next(row_set_t* rows, mem_stack_t* mem)
         }
     }
 
+    rows->set_mode(row_set_t::RANDOM_MODE);
     rows->set_count(count);
     return RT_SUCCEEDED;
 }

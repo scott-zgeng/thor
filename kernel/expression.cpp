@@ -110,6 +110,11 @@ static expr_base_t* create_expression_binary(Expr* expr, expr_base_t* left, expr
 
     switch (expr->op)
     {
+    case TK_AND:
+        return create_expression_logic_impl<TK_AND>(type, left, right);
+    case TK_OR:
+        return create_expression_logic_impl<TK_OR>(type, left, right);
+
     case TK_NE:
         return create_expression_logic_impl<TK_NE>(type, left, right);
     case TK_EQ:
@@ -186,6 +191,9 @@ data_type_t convert_type(int op_type, data_type_t left, data_type_t right)
 
     switch (op_type)
     {
+    case TK_AND:
+    case TK_OR:
+
     case TK_NE:
     case TK_EQ:
     case TK_GT:

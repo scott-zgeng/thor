@@ -8,6 +8,40 @@
 #include <string.h>
 #include <assert.h>
 
+#include "fstring.h"
+
+
+/*
+    good hash table primes
+
+    lwr    upr    %err      prime
+    2 5    2 6    10.416667 53
+    2 6    2 7    1.041667  97
+    2 7    2 8    0.520833  193
+    2 8    2 9    1.302083  389
+    2 9    2 10   0.130208  769
+    2 10   2 11   0.455729  1543
+    2 11   2 12   0.227865  3079
+    2 12   2 13   0.113932  6151
+    2 13   2 14   0.008138  12289
+    2 14   2 15   0.069173  24593
+    2 15   2 16   0.010173  49157
+    2 16   2 17   0.013224  98317
+    2 17   2 18   0.002543  196613
+    2 18   2 19   0.006358  393241
+    2 19   2 20   0.000127  786433
+    2 20   2 21   0.000318  1572869
+    2 21   2 22   0.000350  3145739
+    2 22   2 23   0.000207  6291469
+    2 23   2 24   0.000040  12582917
+    2 24   2 25   0.000075  25165843
+    2 25   2 26   0.000010  50331653
+    2 26   2 27   0.000023  100663319
+    2 27   2 28   0.000009  201326611
+    2 28   2 29   0.000001  402653189
+    2 29   2 30   0.000011  805306457
+    2 30   2 31   0.000000  1610612741
+*/
 
 
 template<typename K>
@@ -81,8 +115,17 @@ struct equal_function<char*> {
 };
 
 
+template<size_t SIZE>
+struct equal_function<fstring<SIZE> > {
+    bool operator() (const fstring<SIZE>& a, const fstring<SIZE>& b) {
+        return (a == b);
+    }
+};
+
+
 class map_allocator
 {
+public:
     static void* alloc_bucket(size_t sz) {
         return malloc(sz);
     }
@@ -165,7 +208,7 @@ public:
             return (*m_curr)->m_key;
         }
 
-        const V& value const {
+        const V& value() const {
             assert(m_curr != NULL && *m_curr != NULL);
             return (*m_curr)->m_value;
         }
@@ -292,6 +335,27 @@ public:
         return true;
     }
 
+    bool erase(const iterator& it) {
+        assert(it.m_curr != NULL && *(it.m_curr) != NULL);
+        erase_inner(it.m_curr);
+    }
+
+    void clear() {
+        for (node_pointer* base = m_buckets; base < m_end.m_base; base++) {
+            while (*base != NULL) {
+                erase_inner(base);
+            }
+        }
+
+        assert(m_size == 0);
+        if (m_buckets != m_init_buff) {
+            m_allocator.free_bucket(m_buckets);
+            m_buckets = m_init_buff;
+            m_bucket_num = INIT_SIZE;
+            memset(m_init_buff, 0, sizeof(m_init_buff));
+        }
+    }
+
 private:
     pod_hash_map(const pod_hash_map& map) {
         assert(false);
@@ -333,8 +397,8 @@ protected:
             return false;
 
         ptr->m_hash = hash;
-        ptr->m_key = key;
-        ptr->m_value = value;
+        memcpy(&ptr->m_key, &key, sizeof(K));
+        memcpy(&ptr->m_value, &value, sizeof(V));
         ptr->m_next = *base;
         *base = ptr;
         m_size++;

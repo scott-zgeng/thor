@@ -13,7 +13,7 @@ extern "C" {
 
 #include "define.h"
 
-
+void strncpy_ex(char* dst, const char* src, size_t n);
 
 
 

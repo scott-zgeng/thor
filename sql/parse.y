@@ -157,10 +157,12 @@ temp(A) ::= TEMP.  {A = 1;}
 temp(A) ::= .      {A = 0;}
 create_table_args ::= LP columnlist conslist_opt(X) RP(E) table_options(F). {
   sqlite3EndTable(pParse,&X,&E,F,0);
+  sqlite3CreateColumnTable(pParse);
 }
 create_table_args ::= AS select(S). {
   sqlite3EndTable(pParse,0,0,0,S);
   sqlite3SelectDelete(pParse->db, S);
+  sqlite3CreateColumnTable(pParse);
 }
 %type table_options {u8}
 table_options(A) ::= .    {A = 0;}
