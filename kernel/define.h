@@ -24,8 +24,10 @@ enum data_type_t {
 // 和上面的data_type是对应的
 typedef bool db_bool;
 typedef char db_char;
+typedef unsigned char db_byte;
+
 typedef char db_int8;
-typedef unsigned db_uint8;
+typedef unsigned char db_uint8;
 typedef short db_int16;
 typedef unsigned short db_uint16;
 typedef int db_int32;
@@ -66,7 +68,7 @@ const static result_t RT_FAILED = { -1 };
 
 
 #define IF_RETURN(code, condition) \
-do { if (condition) { DB_TRACE("if_return"); return (code); } } while (0)
+do { if (UNLIKELY(condition)) { DB_TRACE("if_return"); return (code); } } while (0)
 
 #define IF_RETURN_FAILED(condition) IF_RETURN(RT_FAILED, condition)
 
@@ -84,6 +86,15 @@ static const db_int32 MAX_TAB_NAME_LEN = 63;
 
 static const db_int32 INVALID_INT32 = (-1);
 static const db_int64 INVALID_INT64 = (-1);
+
+
+#ifdef _WIN32
+#define  LIKELY(condition)      (condition)
+#define  UNLIKELY(condition)    (condition)
+#else
+#define  LIKELY(condition)      __builtin_expect((condition), 1)
+#define  UNLIKELY(condition)    __builtin_expect((condition), 0)
+#endif
 
 #endif //__DEFINE_H__
 
