@@ -25,6 +25,7 @@ enum data_type_t {
 typedef bool db_bool;
 typedef char db_char;
 typedef unsigned char db_byte;
+typedef size_t db_size;
 
 typedef char db_int8;
 typedef unsigned char db_uint8;

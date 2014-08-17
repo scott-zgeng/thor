@@ -241,7 +241,10 @@
 #include <assert.h>
 
 
+
 #include "mem_pool.h"
+#include "bitmap.h"
+
 
 
 mem_pool::mem_pool()
@@ -258,7 +261,7 @@ mem_pool::~mem_pool()
 }
 
 
-result_t mem_pool::init(db_int64 pool_size)
+result_t mem_pool::init(db_size pool_size)
 {
     IF_RETURN_FAILED(pool_size % MAX_PAGE_SIZE != 0);
     
@@ -267,15 +270,20 @@ result_t mem_pool::init(db_int64 pool_size)
 
         
     // 计算能存放最小PAGE的上限
-    db_int64 page_num_limit = pool_size % MIN_PAGE_SIZE;
+    db_size page_num_limit = pool_size % MIN_PAGE_SIZE;
 
     // 一个最小页面占用一个BIT，存放完全二叉树的
     // 计算用于存放标记空闲状态的完全二叉树的BITMAP的内存大小，
-    db_int64 bitmap_size = (page_num_limit + 7) / 8 * 2;
+    db_size bitmap_size = (page_num_limit + 7) / 8 * 2;
     m_bitmap = (db_byte*)malloc(bitmap_size);
-    IF_RETURN_FAILED(m_data == NULL);
 
-
+    // TODO(scott.zgeng@gmail.com): 先简单写，后面改为自动指针   
+    if (m_bitmap == NULL) {
+        free(m_data);
+        return RT_FAILED;
+    }
+    
+    return RT_SUCCEEDED;
 }
 
 void mem_pool::uninit()
@@ -310,91 +318,121 @@ db_uint32 calc_power_of_2(db_uint32 x)
 }
 
 
-void* mem_pool::alloc(db_uint32 size)
+void* mem_pool::alloc(db_size size)
 {
-    assert(MIN_PAGE_SIZE <= size && size << MAX_PAGE_SIZE);
-
-    db_int32 pow2 = calc_power_of_2(size);
-    void* p = alloc_inner(pow2);    
-    set_bitmap(p, pow2);
-    return p;
+    assert(MIN_PAGE_SIZE <= size && size <= MAX_PAGE_SIZE);
+    
+    db_int32 level = calc_power_of_2(size) - MIN_PAGE_BITS;
+    return alloc_inner(level);
 }
 
 
-void* mem_pool::alloc_inner(db_uint32 pow2)
+void* mem_pool::alloc_inner(db_uint32 level)
 {
-    if (pow2 > MAX_BIT) return NULL;
+    if (level > MAX_LEVEL) return NULL;
 
-    page_head_t* first = m_free_entry + pow2 - MIN_BIT;
-
-    // 如果对应的空闲链表是空的，则需要从上一级的空闲链表中分裂
-    if (first->next != NULL) {
-        page_head_t* temp = first->next;
-        if (temp->next != NULL) {
-            temp->next->perv = first;
-        }
-        first->next = temp->next;
+    page_head_t* first = m_free_entry + level;
+    
+    page_head_t* temp = first->next;
+    if (temp != NULL) {
+        unlink_from_pool(temp); 
+        set_state(temp, level, MEM_ALLOC);
         return temp;
     } 
 
-    // first->next == NULL
-    page_head_t* temp = (page_head_t*)alloc_inner(pow2 + 1);
-    if (temp == NULL) return NULL;
-    
-    temp->next = first->next;
-    temp->perv = first;
-    if (first->next != NULL) {
-        first->next->perv = temp;
-    }
-    first->next = temp;
+    // 如果对应的空闲链表是空的，则需要从上一级申请一个大PAGE
+    db_byte* parent = (db_byte*)alloc_inner(level + 1);
+    if (parent == NULL) return NULL;
 
-    return (db_byte*)temp + (1 << pow2);    
+    set_state(parent, level + 1, MEM_SPLIT);
+    // 将前面一个PAGE挂到空闲链表
+    link_to_pool(parent, first);    
+    
+    // 将后面一个page返回
+    temp = (page_head_t*)parent + (1 << level) * MIN_PAGE_SIZE;
+    set_state(temp, level, MEM_ALLOC);
+    return temp;
 }
 
 
 
-class bitmap_t
+void mem_pool::set_state(void* ptr, db_uint32 level, state_t state)
 {
-public:
-    inline static void set(db_byte* bitmap, db_int32 idx) {
-        bitmap[idx >> 3] |= MASK[idx & 0x07];
-    }
+    // 计算最小PAGE所对应的id
+    db_uint32 page_no = get_page_no(ptr);
 
-    inline static void clear(db_byte* bitmap, db_int32 idx) {
-        bitmap[idx >> 3] &= MASK[idx & 0x07];
-    }
+    // 找到PAGE对应BITMAP的入口地址
+    db_byte* base = get_bitmap_base(page_no);
 
-    inline static bool check(db_byte* bitmap, db_int32 idx) {
-        bitmap[idx >> 3] & MASK[idx & 0x07];
-    }
-
-private:
-    static const db_byte MASK[];    
-};
-
-
-const db_byte bitmap_t::MASK[] =    { 0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01 };
-const db_byte bitmap_t::UMASK[] =   { 0x7F, 0xBF, 0xDF, 0xEF, 0xF7, 0xFB, 0xFD, 0xFE };
-
-
-void mem_pool::set_bitmap(void* ptr, db_uint32 pow)
-{
-    // 计算最小PAGE所对应的序号
-    db_uint32 page_idx = ((db_byte*)ptr - m_data) >> MIN_BIT;
-
-    // 计算这个PAGE在哪一组BITMAP
-    db_uint32 unit_idx = (page_idx >> BITMAP_BIT);
-
-    // 找到这组BITMAP的入口地址
-    db_byte* bitmap = m_bitmap + unit_idx * BITMAP_UNIT_SIZE;
-    db_uint32 offset = page_idx & BITMAP_MASK;
-
-    bitmap_t::set(bitmap, offset);
+    // 计算在二叉树的实际位置
+    db_uint32 offset = page_no & PAGE_MASK;
+    db_uint32 index = (offset >> level) + (1 << (MAX_LEVEL - level));
+     
+    bitmap<2>::set(base, index, state);
 }
 
 
 void mem_pool::free(void* ptr)
 {
+    // 计算最小PAGE所对应的序号
+    db_uint32 page_no = get_page_no(ptr);
+
+    // 找到PAGE对应BITMAP的入口地址
+    db_byte* base = get_bitmap_base(page_no);
+    db_uint32 offset = page_no & PAGE_MASK;    
+
+    // 找出指针申请的长度
+    db_uint32 level = 0;
+    db_uint32 index = 0;
+    while (true) {
+        db_uint32 index = (offset >> level) + (1 << (MAX_LEVEL - level));
+        state_t state = (state_t)bitmap<2>::get(base, index);
+
+        if (state == MEM_ALLOC)
+            break;
+
+        level++;
+    }
+
+
+    free_inner(ptr, level);
+
+
+
+
+
+
+
+    // 如果是未使用状态，则将兄弟节点从链表中释放，调用上一级的
+    
+
+    //page_head_t* temp = (page_head_t*)ptr;
+
+    //temp
+
+
+
+}
+
+void mem_pool::free_inner(db_byte* base, void* ptr, db_uint32 level, db_uint32 offset)
+{
+    page_head_t* first = m_free_entry + level;
+
+    // 检查对应的兄弟节点是否处于未使用状态    
+    db_uint32 index = (offset >> level) + (1 << (MAX_LEVEL - level));
+
+    db_uint32 buddy = ((index >> 1) << 2) + 1 - index;    
+    state_t state = (state_t)bitmap<2>::get(base, buddy);
+
+    if (state != MEM_FREE)
+        return;
+      
+    void* buddy = (index & 0x01) ? (db_byte*)ptr - (1 << level) : (db_byte*)ptr + (1 << level);
+
+    unlink_from_pool(buddy);
+
+
+    free_inner();
 
 }
 
