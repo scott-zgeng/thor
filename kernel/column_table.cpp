@@ -6,6 +6,9 @@
 #include "smart_pointer.h"
 #include "parse_ctx.h"
 
+#include "mem_pool.h"
+
+
 //-----------------------------------------------------------------------------
 // cursor_t
 //-----------------------------------------------------------------------------
@@ -55,6 +58,32 @@ column_t::~column_t()
 
 result_t column_t::init(data_type_t type) {
     m_type = type;        
+
+    // for test
+    result_t ret;
+    mem_pool pool;
+    ret = pool.init(SEGMENT_SIZE * 16);
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+    db_size size; 
+    void* ptr;
+
+    size = SEGMENT_SIZE * 16;
+    ptr = pool.alloc(size);
+    IF_RETURN_FAILED(ptr == NULL);
+    pool.free(ptr);
+
+    size = SEGMENT_SIZE * 8;
+    ptr = pool.alloc(size);
+    IF_RETURN_FAILED(ptr == NULL);
+    pool.free(ptr);
+
+    size = SEGMENT_SIZE * 1;
+    ptr = pool.alloc(size);
+    IF_RETURN_FAILED(ptr == NULL);
+    pool.free(ptr);
+    // for test end
+
     return RT_SUCCEEDED;
 }
 

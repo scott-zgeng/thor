@@ -236,15 +236,32 @@
 //
 //
 
+
+
+
+
+
+
+
+
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
-
-
 #include "mem_pool.h"
-#include "bitmap.h"
 
+
+//db_uint32 next_power_of_2(db_uint32 x)
+//{
+//    --x;
+//    x |= x>>1;
+//    x |= x>>2;
+//    x |= x>>4;
+//    x |= x>>8;
+//    x |= x>>16;
+//    ++x;
+//    return x;
+//}
 
 
 mem_pool::mem_pool()
@@ -265,44 +282,63 @@ result_t mem_pool::init(db_size pool_size)
 {
     IF_RETURN_FAILED(pool_size % MAX_PAGE_SIZE != 0);
     
+    // 计算存放 MAX_PAGE 能存放多少个
+    db_size page_num = pool_size / MAX_PAGE_SIZE;
+    IF_RETURN_FAILED(page_num < 1);
+
     m_data = (db_byte*)malloc(pool_size);
     IF_RETURN_FAILED(m_data == NULL);
 
-        
-    // 计算能存放最小PAGE的上限
-    db_size page_num_limit = pool_size % MIN_PAGE_SIZE;
-
-    // 一个最小页面占用一个BIT，存放完全二叉树的
-    // 计算用于存放标记空闲状态的完全二叉树的BITMAP的内存大小，
-    db_size bitmap_size = (page_num_limit + 7) / 8 * 2;
+    // 一个 MAX_PAGE 对应一个BITMAP
+    db_size bitmap_size = page_num * BITMAP_UNIT_SIZE;
     m_bitmap = (db_byte*)malloc(bitmap_size);
 
     // TODO(scott.zgeng@gmail.com): 先简单写，后面改为自动指针   
     if (m_bitmap == NULL) {
         free(m_data);
+        m_data = NULL;
         return RT_FAILED;
     }
     
+    // 清除BITMAP状态
+    memset(m_bitmap, 0, bitmap_size);
+
+    page_head_t* entry = m_free_entry + MAX_LEVEL;
+    page_head_t* curr = (page_head_t*)m_data;
+
+    curr->perv = entry;
+    entry->next = curr;
+    
+    page_head_t* prev;
+    
+    for (db_byte* ptr = m_data + MAX_PAGE_SIZE; ptr < m_data + pool_size; ptr += MAX_PAGE_SIZE) {
+        curr = (page_head_t*)ptr;
+        prev = (page_head_t*)(ptr - MAX_PAGE_SIZE);
+
+        curr->perv = prev;
+        prev->next = curr;
+    }
+
+    curr = (page_head_t*)(m_data + pool_size - MAX_PAGE_SIZE);
+    curr->next = NULL;
+
     return RT_SUCCEEDED;
 }
 
 void mem_pool::uninit()
 {
+    if (m_data != NULL) {
+        free(m_data);
+        m_data = NULL;
+    }
 
+    if (m_bitmap != NULL) {
+        free(m_bitmap);
+        m_bitmap = NULL;
+    }
+
+    memset(m_free_entry, 0, sizeof(m_free_entry));
 }
-
-
-//db_uint32 next_power_of_2(db_uint32 x)
-//{
-//    --x;
-//    x |= x>>1;
-//    x |= x>>2;
-//    x |= x>>4;
-//    x |= x>>8;
-//    x |= x>>16;
-//    ++x;
-//    return x;
-//}
 
 
 
@@ -323,17 +359,18 @@ void* mem_pool::alloc(db_size size)
     assert(MIN_PAGE_SIZE <= size && size <= MAX_PAGE_SIZE);
     
     db_int32 level = calc_power_of_2(size) - MIN_PAGE_BITS;
+
     return alloc_inner(level);
 }
 
 
-void* mem_pool::alloc_inner(db_uint32 level)
+mem_pool::page_head_t* mem_pool::alloc_inner(db_uint32 level)
 {
     if (level > MAX_LEVEL) return NULL;
 
-    page_head_t* first = m_free_entry + level;
-    
-    page_head_t* temp = first->next;
+    // 如果空闲链表中有空闲PAGE，则直接将空闲的分配出去
+    page_head_t* entry = m_free_entry + level;
+    page_head_t* temp = entry->next;
     if (temp != NULL) {
         unlink_from_pool(temp); 
         set_state(temp, level, MEM_ALLOC);
@@ -341,35 +378,18 @@ void* mem_pool::alloc_inner(db_uint32 level)
     } 
 
     // 如果对应的空闲链表是空的，则需要从上一级申请一个大PAGE
-    db_byte* parent = (db_byte*)alloc_inner(level + 1);
+    page_head_t* parent = alloc_inner(level + 1);
     if (parent == NULL) return NULL;
 
-    set_state(parent, level + 1, MEM_SPLIT);
     // 将前面一个PAGE挂到空闲链表
-    link_to_pool(parent, first);    
+    link_to_pool(parent, level);
     
     // 将后面一个page返回
-    temp = (page_head_t*)parent + (1 << level) * MIN_PAGE_SIZE;
+    temp = (page_head_t*)((db_byte*)parent + (1 << level) * MIN_PAGE_SIZE);
     set_state(temp, level, MEM_ALLOC);
     return temp;
 }
 
-
-
-void mem_pool::set_state(void* ptr, db_uint32 level, state_t state)
-{
-    // 计算最小PAGE所对应的id
-    db_uint32 page_no = get_page_no(ptr);
-
-    // 找到PAGE对应BITMAP的入口地址
-    db_byte* base = get_bitmap_base(page_no);
-
-    // 计算在二叉树的实际位置
-    db_uint32 offset = page_no & PAGE_MASK;
-    db_uint32 index = (offset >> level) + (1 << (MAX_LEVEL - level));
-     
-    bitmap<2>::set(base, index, state);
-}
 
 
 void mem_pool::free(void* ptr)
@@ -379,60 +399,47 @@ void mem_pool::free(void* ptr)
 
     // 找到PAGE对应BITMAP的入口地址
     db_byte* base = get_bitmap_base(page_no);
-    db_uint32 offset = page_no & PAGE_MASK;    
+    db_uint32 page_idx = page_no & PAGE_MASK;    
 
     // 找出指针申请的长度
     db_uint32 level = 0;
-    db_uint32 index = 0;
-    while (true) {
-        db_uint32 index = (offset >> level) + (1 << (MAX_LEVEL - level));
-        state_t state = (state_t)bitmap<2>::get(base, index);
+    db_uint32 tree_idx = page_idx + (1 << MAX_LEVEL);
 
+    while (true) {        
+        state_t state = (state_t)bitmap<BITMAP_BIT>::get(base, tree_idx);
         if (state == MEM_ALLOC)
             break;
 
+        tree_idx = tree_idx >> 1;
         level++;
     }
 
-
-    free_inner(ptr, level);
-
-
-
-
-
-
-
-    // 如果是未使用状态，则将兄弟节点从链表中释放，调用上一级的
-    
-
-    //page_head_t* temp = (page_head_t*)ptr;
-
-    //temp
-
-
-
+    free_inner((db_byte*)ptr, level);
+    return;
 }
 
-void mem_pool::free_inner(db_byte* base, void* ptr, db_uint32 level, db_uint32 offset)
+void mem_pool::free_inner(db_byte* ptr, db_uint32 level)
 {
-    page_head_t* first = m_free_entry + level;
+    set_state(ptr, level, MEM_FREE);
 
-    // 检查对应的兄弟节点是否处于未使用状态    
-    db_uint32 index = (offset >> level) + (1 << (MAX_LEVEL - level));
-
-    db_uint32 buddy = ((index >> 1) << 2) + 1 - index;    
-    state_t state = (state_t)bitmap<2>::get(base, buddy);
-
-    if (state != MEM_FREE)
+    // 如果是已经最大页面了，直接放到链表即可
+    if (level == MAX_LEVEL) {
+        link_to_pool(ptr, level);        
         return;
-      
-    void* buddy = (index & 0x01) ? (db_byte*)ptr - (1 << level) : (db_byte*)ptr + (1 << level);
+    }
 
-    unlink_from_pool(buddy);
+    db_byte* buddy_ptr = get_buddy(ptr, level);
+    state_t state = get_state(buddy_ptr, level);
 
+    if (state != MEM_FREE) {
+        link_to_pool(ptr, level);        
+        return;
+    }
 
-    free_inner();
-
+    // buddy is free
+    unlink_from_pool(buddy_ptr);
+    db_byte* parent_ptr = ptr < buddy_ptr ? ptr : buddy_ptr;
+    free_inner(parent_ptr, level + 1);
+    return;
 }
 
