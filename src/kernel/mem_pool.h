@@ -46,8 +46,8 @@ public:
     result_t init(db_size pool_size);
     void uninit();
 
-    void* alloc(db_size size);
-    void free(void* ptr);
+    void* alloc_page(db_size size);
+    void free_page(void* ptr);
 
 private:
     struct page_head_t {

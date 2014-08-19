@@ -40,7 +40,7 @@ typedef double db_double;
 typedef char* db_string;
 
 
-typedef unsigned long long rowid_t;
+typedef db_uint32 rowid_t;
 
 static const rowid_t ROWID_INVALID = (-1);
 static const rowid_t ROWID_SEGMENT = (-2);

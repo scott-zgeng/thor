@@ -33,19 +33,61 @@ private:
 };
 
 
+class column_table_t;
+class column_base_t
+{
+public:
+    virtual ~column_base_t() = 0;
+
+    virtual result_t init() = 0;
+    virtual data_type_t type() = 0;
+
+    virtual result_t insert();
+    
+
+    column_table_t* m_table;
+};
+
+
 class column_t
 {
+
+public:
+    static const db_uint32 LV0_ROW_BITS = 10;
+    static const db_uint32 LV1_ROW_BITS = 10;
+    static const db_uint32 LV2_ROW_BITS = 10;
+
+    static const db_uint32 LV1_ROW_MASK = (1 << (LV1_ROW_BITS + LV2_ROW_BITS)) - (1 << LV2_ROW_BITS);
+    static const db_uint32 ROOT_SIZE = (1 << LV0_ROW_BITS);
+    static const rowid_t MAX_ROWID = (1 << (LV0_ROW_BITS + LV1_ROW_BITS + LV2_ROW_BITS)) - 1;
+
 public:
     column_t();
     ~column_t();
 
 public:
     result_t init(data_type_t type);
+    result_t insert(void* ptr);
+
     data_type_t type() const { return m_type; }
+
+
+private:
+    void* get_page(rowid_t rowid) {
+        assert(rowid <= MAX_ROWID);
+
+        db_uint32 lv0_idx = rowid >> (LV1_ROW_BITS + LV2_ROW_BITS);
+        void** entry = m_address[lv0_idx];
+        assert(entry != NULL);
+        db_uint32 lv1_idx = (rowid & LV1_ROW_MASK) >> LV2_ROW_BITS;
+        return entry[lv1_idx];
+    }
 
 private:
     data_type_t m_type;
     db_int32 m_size;
+
+    void** m_address[ROOT_SIZE];
 };
 
 

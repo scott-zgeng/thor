@@ -9,50 +9,6 @@
 #include "mem_pool.h"
 
 
-result_t test_mem_pool()
-{
-    // for test
-    result_t ret;
-    mem_pool pool;
-    ret = pool.init(SEGMENT_SIZE * 48);
-    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
-
-    void* ptr_16 = pool.alloc(SEGMENT_SIZE * 16);
-    IF_RETURN_FAILED(ptr_16 == NULL);
-
-    void* ptr_8 = pool.alloc(SEGMENT_SIZE * 8);
-    IF_RETURN_FAILED(ptr_8 == NULL);
-
-    void* ptr_4 = pool.alloc(SEGMENT_SIZE * 4);
-    IF_RETURN_FAILED(ptr_4 == NULL);
-
-    void* ptr_8_2 = pool.alloc(SEGMENT_SIZE * 8);
-    IF_RETURN_FAILED(ptr_8_2 == NULL);
-
-    void* ptr_4_2 = pool.alloc(SEGMENT_SIZE * 4);
-    IF_RETURN_FAILED(ptr_4_2 == NULL);
-
-    void* ptr_1 = pool.alloc(SEGMENT_SIZE);
-    IF_RETURN_FAILED(ptr_1 == NULL);
-
-    void* ptr_2 = pool.alloc(SEGMENT_SIZE * 2);
-    IF_RETURN_FAILED(ptr_2 == NULL);
-
-    pool.free(ptr_4);
-    pool.free(ptr_8_2);
-
-    void* ptr_2_2 = pool.alloc(SEGMENT_SIZE * 2);
-    IF_RETURN_FAILED(ptr_2_2 == NULL);
-
-    pool.free(ptr_8);
-    pool.free(ptr_4_2);
-    pool.free(ptr_1);
-    pool.free(ptr_2);
-
-    pool.free(ptr_2_2);
-
-    return RT_SUCCEEDED;
-}
 
 
 
@@ -230,7 +186,10 @@ database_t database_t::instance;
 result_t database_t::init() 
 {
     result_t ret;
-    db_size mem_size = 1024 * 1024 * 50;
+
+    // TODO(scott.zgeng): 大小先随便写一个，后面动态根据配置，或SQL来配置
+    db_size mem_size = 1024 * 1024 * 100; 
+
     ret = m_mem_pool.init(mem_size);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 

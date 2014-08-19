@@ -56,22 +56,21 @@ result_t mem_pool::init(db_size pool_size)
     // 计算存放 MAX_PAGE 能存放多少个
     db_size page_num = pool_size / MAX_PAGE_SIZE;
     IF_RETURN_FAILED(page_num < 1);
-
-    m_bitmap_num = page_num;
-
-    m_data = (db_byte*)malloc(pool_size);
-    IF_RETURN_FAILED(m_data == NULL);
-
+    
     // 一个 MAX_PAGE 对应一个BITMAP
     db_size bitmap_size = page_num * BITMAP_SIZE;
-    m_bitmap = (db_byte*)malloc(bitmap_size);
+    m_bitmap = (db_byte*)::malloc(bitmap_size);
+    IF_RETURN_FAILED(m_bitmap == NULL);
 
+    m_data = (db_byte*)::malloc(pool_size);
     // TODO(scott.zgeng@gmail.com): 先简单写，后面改为自动指针   
-    if (m_bitmap == NULL) {
-        free(m_data);
-        m_data = NULL;
+    if (m_data == NULL) {
+        ::free(m_bitmap);
+        m_bitmap = NULL;
         return RT_FAILED;
     }
+
+    m_bitmap_num = page_num;
     
     // 清除BITMAP状态
     memset(m_bitmap, 0, bitmap_size);
@@ -102,12 +101,12 @@ result_t mem_pool::init(db_size pool_size)
 void mem_pool::uninit()
 {
     if (m_data != NULL) {
-        free(m_data);
+        ::free(m_data);
         m_data = NULL;
     }
 
     if (m_bitmap != NULL) {
-        free(m_bitmap);
+        ::free(m_bitmap);
         m_bitmap = NULL;
     }
 
@@ -118,7 +117,7 @@ void mem_pool::uninit()
 
 
 
-void* mem_pool::alloc(db_size size)
+void* mem_pool::alloc_page(db_size size)
 {
     assert(MIN_PAGE_SIZE <= size && size <= MAX_PAGE_SIZE);    
     db_int32 level = calc_power_of_2(size) - MIN_PAGE_BITS;
@@ -152,7 +151,7 @@ mem_pool::page_head_t* mem_pool::alloc_inner(db_uint32 level)
 }
 
 
-void mem_pool::free(void* ptr)
+void mem_pool::free_page(void* ptr)
 {    
     db_uint32 level = get_page_level(ptr);    
     free_inner((db_byte*)ptr, level);
