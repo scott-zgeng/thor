@@ -9,6 +9,53 @@
 #include "mem_pool.h"
 
 
+result_t test_mem_pool()
+{
+    // for test
+    result_t ret;
+    mem_pool pool;
+    ret = pool.init(SEGMENT_SIZE * 48);
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+    void* ptr_16 = pool.alloc(SEGMENT_SIZE * 16);
+    IF_RETURN_FAILED(ptr_16 == NULL);
+
+    void* ptr_8 = pool.alloc(SEGMENT_SIZE * 8);
+    IF_RETURN_FAILED(ptr_8 == NULL);
+
+    void* ptr_4 = pool.alloc(SEGMENT_SIZE * 4);
+    IF_RETURN_FAILED(ptr_4 == NULL);
+
+    void* ptr_8_2 = pool.alloc(SEGMENT_SIZE * 8);
+    IF_RETURN_FAILED(ptr_8_2 == NULL);
+
+    void* ptr_4_2 = pool.alloc(SEGMENT_SIZE * 4);
+    IF_RETURN_FAILED(ptr_4_2 == NULL);
+
+    void* ptr_1 = pool.alloc(SEGMENT_SIZE);
+    IF_RETURN_FAILED(ptr_1 == NULL);
+
+    void* ptr_2 = pool.alloc(SEGMENT_SIZE * 2);
+    IF_RETURN_FAILED(ptr_2 == NULL);
+
+    pool.free(ptr_4);
+    pool.free(ptr_8_2);
+
+    void* ptr_2_2 = pool.alloc(SEGMENT_SIZE * 2);
+    IF_RETURN_FAILED(ptr_2_2 == NULL);
+
+    pool.free(ptr_8);
+    pool.free(ptr_4_2);
+    pool.free(ptr_1);
+    pool.free(ptr_2);
+
+    pool.free(ptr_2_2);
+
+    return RT_SUCCEEDED;
+}
+
+
+
 //-----------------------------------------------------------------------------
 // cursor_t
 //-----------------------------------------------------------------------------
@@ -59,30 +106,7 @@ column_t::~column_t()
 result_t column_t::init(data_type_t type) {
     m_type = type;        
 
-    // for test
-    result_t ret;
-    mem_pool pool;
-    ret = pool.init(SEGMENT_SIZE * 16);
-    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
-    db_size size; 
-    void* ptr;
-
-    size = SEGMENT_SIZE * 16;
-    ptr = pool.alloc(size);
-    IF_RETURN_FAILED(ptr == NULL);
-    pool.free(ptr);
-
-    size = SEGMENT_SIZE * 8;
-    ptr = pool.alloc(size);
-    IF_RETURN_FAILED(ptr == NULL);
-    pool.free(ptr);
-
-    size = SEGMENT_SIZE * 1;
-    ptr = pool.alloc(size);
-    IF_RETURN_FAILED(ptr == NULL);
-    pool.free(ptr);
-    // for test end
 
     return RT_SUCCEEDED;
 }
@@ -202,6 +226,16 @@ result_t column_table_t::get_random_values(rowid_t* rows, db_int32 count, void* 
 // database_t
 //-----------------------------------------------------------------------------
 database_t database_t::instance;
+
+result_t database_t::init() 
+{
+    result_t ret;
+    db_size mem_size = 1024 * 1024 * 50;
+    ret = m_mem_pool.init(mem_size);
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+    return RT_SUCCEEDED;
+}
 
 
 db_int32 database_t::find_idle_entry() 

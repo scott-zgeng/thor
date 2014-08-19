@@ -3112,6 +3112,7 @@ int sqlite3VectorColumnInt(void* root, int index);
 long long sqlite3VectorColumnBigInt(void* root, int index);
 const char* sqlite3VectorColumnString(void* root, int index);
 int sqlite3VectorColumnType(void* root, int index);
+int sqlite3VectorDBInit();
 // added by scott.zgeng end
 
 Table *sqlite3SrcListLookup(Parse*, SrcList*);

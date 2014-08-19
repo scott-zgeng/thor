@@ -259,6 +259,7 @@ int sqlite3_initialize(void){
     }
 #endif
 
+    rc = sqlite3VectorDBInit();
     return rc;
 }
 

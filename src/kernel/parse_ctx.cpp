@@ -103,3 +103,15 @@ void strncpy_ex(char* dst, const char* src, size_t n)
 }
 
 
+
+int sqlite3VectorDBInit()
+{
+    result_t ret;
+    ret = database_t::instance.init();
+
+    if (ret != RT_SUCCEEDED)
+        return SQLITE_ERROR;
+
+    return SQLITE_OK;
+}
+

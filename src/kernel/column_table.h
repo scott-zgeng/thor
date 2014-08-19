@@ -9,6 +9,7 @@
 
 #include "pod_vector.h"
 #include "pod_hash_map.h"
+#include "mem_pool.h"
 
 
 struct Table;
@@ -89,6 +90,7 @@ public:
     }
 
 public:
+    result_t init();
     result_t build_table(Table* table);
     column_table_t* find_table(const char* table_name) const;
     column_table_t* get_table(db_int32 table_id) const;
@@ -99,6 +101,7 @@ private:
     table_map_t m_table_map;
     column_table_t* m_tables[MAX_TABLE_NUM];
 
+    mem_pool m_mem_pool;
 };
 
 

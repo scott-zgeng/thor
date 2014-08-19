@@ -32,7 +32,7 @@ static int do_command(sqlite3* db, const char* sql)
     return SQLITE_DONE;
 }
 
-int main(int argc, char **argv)
+int test_main()
 {
     int ret;
     sqlite3* db;
