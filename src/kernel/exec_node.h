@@ -72,7 +72,7 @@ public:
     }
 
     data_type_t column_type(db_int32 idx) {
-        return m_expr_columns[idx]->type();
+        return m_expr_columns[idx]->data_type();
     }
 
 private:

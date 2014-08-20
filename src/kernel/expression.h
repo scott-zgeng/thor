@@ -13,6 +13,7 @@ extern "C" {
 
 #include "define.h"
 #include "variant.h"
+#include "column.h"
 #include "column_table.h"
 
 
@@ -198,7 +199,7 @@ public:
         return false; 
     }
 
-    virtual data_type_t type() = 0;
+    virtual data_type_t data_type() = 0;
 
     virtual result_t calc(row_set_t* rows, mem_stack_t* ctx, mem_handle_t& result) = 0;
 
@@ -228,7 +229,7 @@ public:
     virtual ~unary_expr_t() {
     }
 
-    virtual data_type_t type() { 
+    virtual data_type_t data_type() { 
         variant_type<RT> type; 
         return type(); 
     }
@@ -320,7 +321,7 @@ public:
     virtual ~binary_expr_t() {
     }
 
-    virtual data_type_t type() { 
+    virtual data_type_t data_type() { 
         variant_type<RT> type; 
         return type(); 
     }
@@ -373,7 +374,7 @@ public:
         return m_children->has_null(); 
     }
 
-    virtual data_type_t type() { 
+    virtual data_type_t data_type() { 
         variant_type<RT> type; 
         return type(); 
     }
@@ -423,13 +424,13 @@ public:
 
         m_column_id = expr->iColumn;
 
-        column_t* column = m_table->get_column(m_column_id);
-        IF_RETURN_FAILED(column == NULL || column->type() != type());        
+        column_base_t* column = m_table->get_column(m_column_id);
+        IF_RETURN_FAILED(column == NULL || column->data_type() != data_type());        
 
         return RT_SUCCEEDED;
     }
 
-    virtual data_type_t type() { 
+    virtual data_type_t data_type() { 
         variant_type<T> type; 
         return type(); 
     }
@@ -477,7 +478,7 @@ public:
         return RT_SUCCEEDED;
     }
 
-    virtual data_type_t type() { 
+    virtual data_type_t data_type() { 
         variant_type<T> type; 
         return type(); 
     }

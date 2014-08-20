@@ -105,8 +105,8 @@ static expr_base_t* create_expression_arith_impl(data_type_t type, expr_base_t* 
 
 static expr_base_t* create_expression_binary(Expr* expr, expr_base_t* left, expr_base_t* right)
 {
-    assert(left->type() == right->type());
-    data_type_t type = left->type();
+    assert(left->data_type() == right->data_type());
+    data_type_t type = left->data_type();
 
     switch (expr->op)
     {
@@ -280,8 +280,8 @@ result_t expr_base_t::build(Expr* expr, expr_base_t** root)
     }
 
     if (left != NULL && right != NULL) {
-        data_type_t left_type = left->type();
-        data_type_t right_type = right->type();
+        data_type_t left_type = left->data_type();
+        data_type_t right_type = right->data_type();
 
         data_type_t ret_type = convert_type(expr->op, left_type, right_type);
         IF_RETURN_FAILED(ret_type == DB_UNKNOWN);
