@@ -16,6 +16,10 @@
 //-----------------------------------------------------------------------------
 cursor_t::cursor_t()
 {
+    m_curr_segment_id = 0;
+    m_segment_count = 0;
+    m_row_count = 0;
+    m_table = NULL;
 }
 
 cursor_t::~cursor_t()
@@ -25,22 +29,27 @@ cursor_t::~cursor_t()
 
 result_t cursor_t::next_segment(row_set_t* rows)
 {
-    // FOR TEST
-    if (m_segment_id > 0) {
-        return RT_FAILED;
+    if (m_curr_segment_id >= m_segment_count) {
+        rows->set_count(0);
+        return RT_SUCCEEDED;
+    }
+    
+    rows->set_mode(row_set_t::SEGMENT_MODE);
+    db_int32 row_count = SEGMENT_SIZE;
+    if (m_curr_segment_id + 1 == m_segment_count) {
+        row_count = m_row_count - m_curr_segment_id * SEGMENT_SIZE;
     }
 
-    rows->set_mode(row_set_t::SEGMENT_MODE);
-    rows->set_count(10);
+    rows->set_count(row_count);
     rowid_t* row_list = rows->data();
 
-    for (db_int32 i = 0; i < 10; i++) {
-        row_list[i] = i;
+    rowid_t temp_row = m_curr_segment_id * SEGMENT_SIZE;
+    for (db_int32 i = 0; i < row_count; i++) {
+        row_list[i] = temp_row;
+        temp_row++;
     }
 
-    m_segment_id++;
-    // FOR TEST END
-
+    m_curr_segment_id++;    
     return RT_SUCCEEDED;
 }
 
@@ -93,7 +102,7 @@ result_t column_table_t::add_column(data_type_t type)
     smart_pointer<column_base_t> new_column = column_base_t::create_column(type);        
     IF_RETURN_FAILED(new_column.ptr() == NULL);
 
-    result_t ret = new_column->init(this, 0);
+    result_t ret = new_column->init(get_mem_pool(), 0);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
     bool is_succ = m_columns.push_back(new_column.ptr());
@@ -113,49 +122,10 @@ column_table_t::~column_table_t()
 }
 
 result_t column_table_t::init_cursor(cursor_t* cursor)
-{
-    // for test
-    cursor->m_segment_id = 0;
+{    
+    cursor->m_curr_segment_id = 0;
+    cursor->m_table = this;
+    cursor->m_segment_count = get_segment_count();
     return RT_SUCCEEDED;
 }
  
-column_base_t* column_table_t::get_column(db_int32 idx)
-{
-    assert(idx < m_columns.size());
-    return m_columns[idx];    
-}
-
-
-result_t column_table_t::get_segment_values(db_int32 column_id, db_int32 segment_id, void** values, db_int32* count)
-{
-    assert(column_id < m_columns.size());
-    column_base_t* col = m_columns[column_id];
-    
-    
-
-
-    // for test
-    static int col_values[SEGMENT_SIZE] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, };
-    if (segment_id > 0)
-        return RT_FAILED;
-
-    *values = col_values;
-    return RT_SUCCEEDED;
-}
-
- 
-result_t column_table_t::get_random_values(rowid_t* rows, db_int32 count, void* values)
-{
-    assert(count <= SEGMENT_SIZE);
-
-    // for test
-    static int col_values[SEGMENT_SIZE] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, };    
-    db_int32* int_val = (db_int32*)values;
-    for (int i = 0; i < count; i++) {
-        rowid_t curr_row = rows[i];
-        int_val[i] = col_values[curr_row];
-    }
-
-    return RT_SUCCEEDED;
-}
-

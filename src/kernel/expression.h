@@ -440,12 +440,13 @@ public:
         if (rows->mode() == row_set_t::SEGMENT_MODE) {
             db_int32 segment_id = rows->segment(); 
             void* values = NULL;
+            db_int32 row_count = 0;
             result_t ret = m_table->get_segment_values(m_column_id, segment_id, &values);
             IF_RETURN_FAILED(ret != RT_SUCCEEDED);
             result.init(ctx, values);
         } else {
             ctx->alloc_memory(sizeof(T)* SEGMENT_SIZE, result);
-            m_table->get_random_values(rows->data(), rows->count(), result.ptr());
+            m_table->get_random_values(m_column_id, rows->data(), rows->count(), result.ptr());
         }
 
         return RT_SUCCEEDED;

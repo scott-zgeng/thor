@@ -115,3 +115,18 @@ int sqlite3VectorDBInit()
     return SQLITE_OK;
 }
 
+
+void sqlite3VectorInsert(Parse *pParse, SrcList *pTabList, Select *pSelect, IdList *pColumn, int onError)
+{
+    if (!pParse->columnStorage) 
+        return;
+
+
+    onError = 2;
+
+
+
+}
+
+
+

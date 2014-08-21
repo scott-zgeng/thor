@@ -27,6 +27,3 @@ column_base_t* column_base_t::create_column(data_type_t type)
     }
 }
 
-
-
-

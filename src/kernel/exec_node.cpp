@@ -134,6 +134,9 @@ result_t project_node_t::next()
 
     ret = m_children->next(&m_sub_rows, &m_mem);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+    if (m_sub_rows.count() == 0)
+        return RT_SUCCEEDED;
     
     for (db_uint32 i = 0; i < m_expr_columns.size(); i++) {
 
@@ -203,6 +206,9 @@ result_t scan_node_t::next(row_set_t* rows, mem_stack_t* mem)
     ret = m_cursor.next_segment(rows);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
+    if (rows->count() == 0)
+        return RT_SUCCEEDED;
+
     if (m_where == NULL) 
         return RT_SUCCEEDED;        
     
@@ -265,3 +271,7 @@ result_t join_node_t::next(row_set_t* rows, mem_stack_t* mem)
 {
     return RT_FAILED;
 }
+
+
+
+

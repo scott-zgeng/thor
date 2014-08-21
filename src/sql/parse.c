@@ -2915,7 +2915,8 @@ static void yy_reduce(
 #line 741 "parse.y"
     {
                   sqlite3WithPush(pParse, yymsp[-5].minor.yy59, 1);
-                  sqlite3Insert(pParse, yymsp[-2].minor.yy65, yymsp[0].minor.yy3, yymsp[-1].minor.yy408, yymsp[-4].minor.yy186);
+                  sqlite3VectorInsert(pParse, yymsp[-2].minor.yy65, yymsp[0].minor.yy3, yymsp[-1].minor.yy408, yymsp[-4].minor.yy186);
+                  sqlite3Insert(pParse, yymsp[-2].minor.yy65, yymsp[0].minor.yy3, yymsp[-1].minor.yy408, yymsp[-4].minor.yy186);                  
     }
 #line 2911 "parse.c"
         break;
@@ -2923,7 +2924,8 @@ static void yy_reduce(
 #line 746 "parse.y"
     {
                   sqlite3WithPush(pParse, yymsp[-6].minor.yy59, 1);
-                  sqlite3Insert(pParse, yymsp[-3].minor.yy65, 0, yymsp[-2].minor.yy408, yymsp[-5].minor.yy186);
+                  sqlite3VectorInsert(pParse, yymsp[-3].minor.yy65, 0, yymsp[-2].minor.yy408, yymsp[-5].minor.yy186);
+                  sqlite3Insert(pParse, yymsp[-3].minor.yy65, 0, yymsp[-2].minor.yy408, yymsp[-5].minor.yy186);                  
     }
 #line 2919 "parse.c"
         break;

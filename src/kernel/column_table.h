@@ -8,6 +8,7 @@
 #include "define.h"
 #include "pod_vector.h"
 #include "database.h"
+#include "column.h"
 
 
 
@@ -26,12 +27,14 @@ public:
     result_t next_segment(row_set_t* rows);
 
 private:
-    db_int32 m_segment_id;
+    db_int32 m_curr_segment_id;
+    db_int32 m_segment_count;
+    db_int32 m_row_count;
+    column_table_t* m_table;
 };
 
 
 struct Table;
-class column_base_t;
 class database_t;
 class column_table_t
 {
@@ -44,11 +47,44 @@ public:
     result_t add_column(data_type_t type);
 
     result_t init_cursor(cursor_t* cursor);
-    column_base_t* get_column(db_int32 idx);
-    result_t get_segment_values(db_int32 column_id, db_int32 segment_id, void** values, db_int32* count);
-    result_t get_random_values(rowid_t* rows, db_int32 count, void* values);
 
-    mem_pool* get_mem_pool() { return m_database->get_mem_pool(); }
+    column_base_t* get_column(db_uint32 column_id) {
+        assert(column_id < m_columns.size());
+        return m_columns[column_id];
+    }
+
+
+    result_t get_segment_values(db_uint32 column_id, db_int32 segment_id, void** ptr) {
+        assert(column_id < m_columns.size());
+        column_base_t* column = m_columns[column_id];
+        void* segment = column->get_segment(segment_id);
+        IF_RETURN_FAILED(segment == NULL);
+        *ptr = segment;
+
+        return RT_SUCCEEDED;
+    }
+
+
+    result_t get_random_values(db_uint32 column_id, rowid_t* rows, db_int32 count, void* ptr) {
+        assert(column_id < m_columns.size());
+        column_base_t* column = m_columns[column_id];
+        column->batch_get_rows_value(rows, count, ptr);
+        return RT_SUCCEEDED;
+    }
+
+
+    mem_pool* get_mem_pool() { 
+        return m_database->get_mem_pool(); 
+    }
+
+    db_uint32 get_segment_count() {
+        return m_columns[0]->get_segment_count();
+    }
+
+    db_uint32 get_row_count() {
+        return m_columns[0]->get_row_count();
+    }
+
 
 private:
     db_int32 m_table_id;
