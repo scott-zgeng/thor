@@ -367,7 +367,7 @@ struct Vdbe {
     u8 *aOnceFlag;          /* Flags for OP_Once */
     AuxData *pAuxData;      /* Linked list of auxdata allocations */
 
-    void* pRootNode;        // used to new plan tree, added by scott.zgeng
+    void* stmtHandle;        // used to new plan tree, added by scott.zgeng
 };
 
 /*

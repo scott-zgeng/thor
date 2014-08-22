@@ -105,8 +105,6 @@ result_t project_node_t::init(Parse* parse, Select* select)
     
     m_expr_values.resize(expr_list->nExpr);
 
-    m_curr_idx = -1;
-
     return RT_SUCCEEDED;
 }
 

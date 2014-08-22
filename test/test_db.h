@@ -66,10 +66,11 @@ TEST(test_db, case1)
 
 
     while (sqlite3_vector_step(stmt) == SQLITE_ROW) {
-        int int_value = sqlite3_vector_column_int(stmt, 0);
-        printf("ROW %d", int_value);
-        long long long_value = sqlite3_vector_column_bigint(stmt, 1);
-        printf(", %lld  \n", long_value);
+        db_int32 row_count = sqlite3_vector_row_count(stmt);
+        for (db_int32 i = 0; i < row_count; i++) {
+            int int_value = sqlite3_vector_column_int(stmt, 0, i);
+            printf("ROW %d\n", int_value);
+        }
     }
 
     sqlite3_vector_finalize(stmt);

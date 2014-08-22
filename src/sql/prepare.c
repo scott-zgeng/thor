@@ -839,48 +839,13 @@ int sqlite3_vector_prepare(sqlite3 *db, const char *zSql, int nBytes, sqlite3_st
     return rc;
 }
 
-
-
-int sqlite3_vector_step(sqlite3_stmt* stmt)
-{
-    Vdbe* v = (Vdbe*)stmt;
-    return sqlite3VectorStep(v->pRootNode);    
-}
-
-
 int sqlite3_vector_finalize(sqlite3_stmt* stmt)
 {
     Vdbe* v = (Vdbe*)stmt;
 
-    sqlite3VectorFinalize(v->pRootNode);    
+    sqlite3VectorFinalize(v->stmtHandle);
     return sqlite3_finalize(stmt);
 }
-
-int sqlite3_vector_column_int(sqlite3_stmt* stmt, int index)
-{
-    Vdbe* v = (Vdbe*)stmt;
-    return sqlite3VectorColumnInt(v->pRootNode, index);
-}
-
-long long sqlite3_vector_column_bigint(sqlite3_stmt* stmt, int index)
-{
-    Vdbe* v = (Vdbe*)stmt;
-    return sqlite3VectorColumnBigInt(v->pRootNode, index);
-}
-
-const char* sqlite3_vector_column_string(sqlite3_stmt* stmt, int index)
-{
-    Vdbe* v = (Vdbe*)stmt;
-    return sqlite3VectorColumnString(v->pRootNode, index);
-}
-
-int sqlite3_vector_column_type(sqlite3_stmt* stmt, int index)
-{
-    Vdbe* v = (Vdbe*)stmt;
-    return sqlite3VectorColumnType(v->pRootNode, index);
-}
-
-
 
 
 #ifndef SQLITE_OMIT_UTF16

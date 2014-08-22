@@ -81,10 +81,6 @@ private:
     mem_stack_t m_mem;
     row_set_t m_sub_rows;
     pod_vector<void*, DEFAULT_EXPR_NUM> m_expr_values;
-
-public:
-    // 下面的变量需要提出去
-    db_int32 m_curr_idx;
 };
 
 

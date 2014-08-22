@@ -55,9 +55,8 @@ struct result_t
 };
 
 
-const static result_t RT_SUCCEEDED = { 0 };
-const static result_t RT_FAILED = { -1 };
-
+const static result_t RT_SUCCEEDED      = { 0 };
+const static result_t RT_FAILED         = { -1 };
 
 
 #ifndef DB_OMIT_TRACE

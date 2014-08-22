@@ -53,6 +53,9 @@ public:
         return m_columns[column_id];
     }
 
+    db_uint32 get_column_count() {
+        return m_columns.size();
+    }
 
     result_t get_segment_values(db_uint32 column_id, db_int32 segment_id, void** ptr) {
         assert(column_id < m_columns.size());
