@@ -144,7 +144,7 @@ public:
     }
 
     void init(mem_stack_t* ctx, void* data) {
-        DB_TRACE("mem_handle init, %p", data);
+        //DB_TRACE("mem_handle init, %p", data);
         m_ctx = ctx;
         m_data = (db_int8*)data;
     }
@@ -155,10 +155,10 @@ public:
         if (m_data >= m_ctx->m_buffer && m_data < m_ctx->m_end) {
             assert(m_data > m_ctx->m_position);
             m_ctx->m_position = m_data;
-            DB_TRACE("mem_handle uninit, %p", m_data);
+            //DB_TRACE("mem_handle uninit, %p", m_data);
         }
         else {
-            DB_TRACE("mem_handle uninit, no free %p", m_data);
+            //DB_TRACE("mem_handle uninit, no free %p", m_data);
         }
     }
 
@@ -208,6 +208,7 @@ private:
     static expr_base_t* create_instance(Expr* expr, expr_base_t* left, expr_base_t* right);
 };
 
+expr_base_t* create_convert_expr(data_type_t type, data_type_t rt_type, expr_base_t* children);
 
 
 

@@ -10,14 +10,28 @@
 
 
 
+class bitmap_t
+{
+public:
+    bitmap_t(db_byte* stream) {
+        m_bitmap = stream;
+    }
+    
 
+    void set();
+    void clean();
+    bool get();
+
+private:
+    db_byte* m_bitmap;
+};
 
 //const db_byte bitmap_t::MASK[] = { 0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01 };
 //const db_byte bitmap_t::UMASK[] = { 0x7F, 0xBF, 0xDF, 0xEF, 0xF7, 0xFB, 0xFD, 0xFE };
 
 
 template<size_t SIZE>
-class bitmap
+class packed_integer
 {
 public:
     static void set(db_byte* base, db_int32 idx, db_int32 val);
@@ -26,7 +40,7 @@ public:
 
 
 template<>
-class bitmap<1>
+class packed_integer<1>
 {
 private:
     struct item {
@@ -79,7 +93,7 @@ public:
 
 
 template<>
-class bitmap<2>
+class packed_integer<2>
 {
 private:
     struct item {
@@ -118,7 +132,7 @@ public:
 
 
 template<>
-class bitmap<4>
+class packed_integer<4>
 {
 private:
     struct item {
@@ -148,6 +162,11 @@ public:
         }
     }
 };
+
+
+typedef packed_integer<1> int1;
+typedef packed_integer<2> int2;
+typedef packed_integer<4> int4;
 
 
 #endif //__BITMAP_H__

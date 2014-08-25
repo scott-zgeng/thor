@@ -85,6 +85,12 @@ result_t insert_stmt_t::prepare(Parse *pParse, SrcList *pTabList, Select *pSelec
         ret = expr_base_t::build(insert_values->a[i].pExpr, &expr);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
+        if (expr->data_type() != m_table->get_column(i)->data_type()) {
+            expr_base_t* conv_expr = create_convert_expr(expr->data_type(), m_table->get_column(i)->data_type(), expr);
+            IF_RETURN_FAILED(conv_expr == NULL);
+            expr = conv_expr;
+        }
+
         bool is_succ = m_insert_values.push_back(expr);
         IF_RETURN_FAILED(!is_succ);
     }
@@ -102,6 +108,9 @@ db_int32 insert_stmt_t::next()
 
         expr->calc(NULL, &m_mem, handle);
         column_base_t* column = m_table->get_column(i);
+
+        assert(column->data_type() == expr->data_type());
+
         ret = column->insert(handle.ptr(), 1);
         if (ret != RT_SUCCEEDED)
             return SQLITE_ERROR;

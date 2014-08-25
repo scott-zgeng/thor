@@ -84,14 +84,14 @@ private:
     void mem_pool::set_state(void* ptr, db_uint32 level, state_t state) {
         db_byte* base = get_bitmap_base(ptr);
         db_uint32 index = get_bitmap_index(ptr, level);
-        bitmap<BITMAP_BIT>::set(base, index, state);
+        packed_integer<BITMAP_BIT>::set(base, index, state);
     }
 
 
     state_t mem_pool::get_state(void* ptr, db_uint32 level) {
         db_byte* base = get_bitmap_base(ptr);
         db_uint32 index = get_bitmap_index(ptr, level);
-        return (state_t)bitmap<BITMAP_BIT>::get(base, index);
+        return (state_t)packed_integer<BITMAP_BIT>::get(base, index);
     }
 
 
@@ -102,7 +102,7 @@ private:
         db_uint32 index = get_bitmap_index(ptr, 0);
 
         while (true) {
-            state_t state = (state_t)bitmap<BITMAP_BIT>::get(base, index);
+            state_t state = (state_t)packed_integer<BITMAP_BIT>::get(base, index);
             if (state == MEM_ALLOC)
                 break;
             index = index >> 1;

@@ -79,8 +79,11 @@ static data_type_t get_data_type(Column* column)
 }
 
 
-result_t column_table_t::init(Table* table, db_int32 table_id)
+result_t column_table_t::init(database_t* db, Table* table, db_int32 table_id)
 {    
+    assert(db != NULL);
+
+    m_database = db;
     m_table_name = table->zName;    
     m_table_id = table_id;
  
@@ -115,6 +118,9 @@ result_t column_table_t::add_column(data_type_t type)
 
 column_table_t::column_table_t()
 {
+    m_table_id = -1;
+    m_row_count = 0;
+    m_database = NULL;
 }
 
 column_table_t::~column_table_t()
@@ -126,6 +132,7 @@ result_t column_table_t::init_cursor(cursor_t* cursor)
     cursor->m_curr_segment_id = 0;
     cursor->m_table = this;
     cursor->m_segment_count = get_segment_count();
+    cursor->m_row_count = get_row_count();
     return RT_SUCCEEDED;
 }
  

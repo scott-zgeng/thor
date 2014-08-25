@@ -18,6 +18,7 @@ struct segment_item_t
 {
     static const db_uint32 SEGMENT_HIGH_BITS = 10;
     static const db_uint32 SEGMENT_LOW_BITS = 10;
+    static const db_uint32 SEGMENT_LOW_SIZE = 1 << SEGMENT_LOW_BITS;
     static const db_uint32 SEGMENT_BITS = SEGMENT_LOW_BITS + SEGMENT_HIGH_BITS;
     static const db_uint32 SEGMENT_LOW_MASK = (1 << SEGMENT_LOW_BITS) - 1;
 
@@ -137,7 +138,7 @@ public:
 
         } else {
             T* segment = (T*)get_segment(last_segment_id);
-            memcpy(segment, values, sizeof(T)* num);
+            memcpy(segment + offset, values, sizeof(T)* num);
         }
 
         m_row_count += num;
@@ -195,10 +196,12 @@ private:
         segment_item_t s(m_segment_count);
 
         if (m_address[s.s_high] == NULL) {
-            m_address[s.s_high] = (T**)m_mem_pool->alloc_page(sizeof(void*)* SEGMENT_SIZE);
-            if (m_address[s.s_high] == NULL) {
-                return false;
-            }
+            T** new_low_segment = (T**)m_mem_pool->alloc_page(sizeof(void*)* SEGMENT_SIZE);
+            if (new_low_segment == NULL) 
+                return false;            
+
+            memset(new_low_segment, 0, sizeof(void*)* segment_item_t::SEGMENT_LOW_SIZE);
+            m_address[s.s_high] = new_low_segment;
         }
         
         assert(m_address[s.s_high][s.s_low] == NULL);

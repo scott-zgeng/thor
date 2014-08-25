@@ -745,6 +745,7 @@ cmd ::= with(W) insert_cmd(R) INTO fullname(X) inscollist_opt(F) select(S). {
   sqlite3WithPush(pParse, W, 1);
   sqlite3VectorInsert(pParse, X, S, F, R);
   sqlite3Insert(pParse, X, S, F, R);
+  sqlite3VectorInsertEnd(pParse, S);
   
 }
 cmd ::= with(W) insert_cmd(R) INTO fullname(X) inscollist_opt(F) DEFAULT VALUES.
@@ -752,6 +753,7 @@ cmd ::= with(W) insert_cmd(R) INTO fullname(X) inscollist_opt(F) DEFAULT VALUES.
   sqlite3WithPush(pParse, W, 1);
   sqlite3VectorInsert(pParse, X, 0, F, R);
   sqlite3Insert(pParse, X, 0, F, R);
+  sqlite3VectorInsertEnd(pParse, 0);
   
 }
 

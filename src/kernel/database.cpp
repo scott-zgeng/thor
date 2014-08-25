@@ -48,7 +48,7 @@ result_t database_t::build_table(Table* table)
     bool is_succ = new_table.create_instance();
     IF_RETURN_FAILED(!is_succ);
 
-    result_t ret = new_table->init(table, table_id);
+    result_t ret = new_table->init(this, table, table_id);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
     is_succ = m_table_map.insert(table_name, new_table.ptr());

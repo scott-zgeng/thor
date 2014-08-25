@@ -43,7 +43,7 @@ public:
     ~column_table_t();
 
 public:
-    result_t init(Table* table, db_int32 table_id);
+    result_t init(database_t* db, Table* table, db_int32 table_id);
     result_t add_column(data_type_t type);
 
     result_t init_cursor(cursor_t* cursor);

@@ -66,9 +66,16 @@ int sqlite3VectorInsert(Parse *pParse, SrcList *pTabList, Select *pSelect, IdLis
         return SQLITE_ERROR;
     }
 
-    pParse->pVdbe->stmtHandle = stmt;
+    pParse->stmtHandle = stmt;    
     return SQLITE_OK;
 }
+
+
+void sqlite3VectorInsertEnd(Parse *pParse, Select *pSelect)
+{    
+    pParse->pVdbe->stmtHandle = pParse->stmtHandle;
+}
+
 
 
 void sqlite3VectorFinalize(void* stmtHandle)
