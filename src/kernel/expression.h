@@ -381,7 +381,7 @@ public:
     }
 
     virtual result_t calc(row_set_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
-        assert(sizeof(T) <= sizeof(RT > ));
+        assert(sizeof(T) <= sizeof(RT));
 
         ctx->alloc_memory(sizeof(RT)* SEGMENT_SIZE, result);
 

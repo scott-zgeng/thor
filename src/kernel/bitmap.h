@@ -13,21 +13,29 @@
 class bitmap_t
 {
 public:
-    bitmap_t(db_byte* stream) {
-        m_bitmap = stream;
+    bitmap_t(db_byte* ptr) {
+        m_bitmap = ptr;
     }
     
+    void set(db_uint32 idx) {
+        static const db_byte MASK[] = { 0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01 };        
+        m_bitmap[idx >> 3] |= MASK[idx & 0xFF];
+    }
 
-    void set();
-    void clean();
-    bool get();
+    void clean(db_uint32 idx) {
+        static const db_byte MASK[] = { 0x7F, 0xBF, 0xDF, 0xEF, 0xF7, 0xFB, 0xFD, 0xFE };
+        m_bitmap[idx >> 3] &= MASK[idx & 0xFF];
+    }
+
+    db_byte get(db_uint32 idx) {
+        static const db_byte MASK[] = { 0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01 };
+        return (m_bitmap[idx >> 3] &= MASK[idx & 0xFF]);
+    }
 
 private:
     db_byte* m_bitmap;
 };
 
-//const db_byte bitmap_t::MASK[] = { 0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01 };
-//const db_byte bitmap_t::UMASK[] = { 0x7F, 0xBF, 0xDF, 0xEF, 0xF7, 0xFB, 0xFD, 0xFE };
 
 
 template<size_t SIZE>
@@ -164,9 +172,9 @@ public:
 };
 
 
-typedef packed_integer<1> int1;
-typedef packed_integer<2> int2;
-typedef packed_integer<4> int4;
+typedef packed_integer<1> db_int1;
+typedef packed_integer<2> db_int2;
+typedef packed_integer<4> db_int4;
 
 
 #endif //__BITMAP_H__

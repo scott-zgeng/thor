@@ -31,7 +31,7 @@ struct segment_item_t
     }
 
     db_uint16 s_high;   // segment high bits
-    db_uint16 s_low;    // segment high bits
+    db_uint16 s_low;    // segment low bits
 };
 
 
@@ -57,7 +57,7 @@ struct row_item_t
     }
 
     db_uint16 s_high;   // segment high bits
-    db_uint16 s_low;    // segment high bits
+    db_uint16 s_low;    // segment low bits
     db_uint16 offset;   // offset in the segment  
 };
 
@@ -82,7 +82,7 @@ public:
 };
 
 
-
+// TODO(scott.zgeng): 部分函数可以优化成非虚函数
 template<typename T>
 class column_t : public column_base_t
 {
