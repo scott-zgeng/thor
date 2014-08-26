@@ -27,14 +27,14 @@ cursor_t::~cursor_t()
 }
 
 
-result_t cursor_t::next_segment(row_set_t* rows)
+result_t cursor_t::next_segment(rowset_t* rows)
 {
     if (m_curr_segment_id >= m_segment_count) {
         rows->set_count(0);
         return RT_SUCCEEDED;
     }
     
-    rows->set_mode(row_set_t::SEGMENT_MODE);
+    rows->set_mode(rowset_t::SCAN_MODE);
     db_int32 row_count = SEGMENT_SIZE;
     if (m_curr_segment_id + 1 == m_segment_count) {
         row_count = m_row_count - m_curr_segment_id * SEGMENT_SIZE;

@@ -13,12 +13,16 @@
 class database_t;
 class statement_t
 {
-public:    
-    virtual ~statement_t() {}    
+public:
+    virtual ~statement_t() {}
+public:
     virtual db_int32 next() = 0;
+    virtual void uninit() = 0;
 
+public:
     database_t* get_database() { return m_database; }
-protected:
+
+protected:    
     database_t* m_database;
 };
 
@@ -36,7 +40,8 @@ public:
     select_stmt_t(database_t* db);
     virtual ~select_stmt_t();
 public:
-    db_int32 next();
+    virtual db_int32 next();
+    virtual void uninit();
 
 public:
     result_t prepare(Parse *pParse, Select *pSelect);
@@ -56,6 +61,7 @@ public:
     virtual ~insert_stmt_t();
 public:    
     virtual db_int32 next();
+    virtual void uninit();
 
 public:
     result_t prepare(Parse *pParse, SrcList *pTabList, Select *pSelect, IdList *pColumn, int onError);

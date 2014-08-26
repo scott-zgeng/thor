@@ -80,7 +80,10 @@ void sqlite3VectorInsertEnd(Parse *pParse, Select *pSelect)
 
 void sqlite3VectorFinalize(void* stmtHandle)
 {
-
+    assert(stmtHandle != NULL);
+    statement_t* stmt = (statement_t*)stmtHandle;        
+    stmt->uninit();
+    delete stmt;    
 }
 
 

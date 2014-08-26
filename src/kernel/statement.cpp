@@ -18,7 +18,19 @@ select_stmt_t::select_stmt_t(database_t* db)
 
 select_stmt_t::~select_stmt_t()
 {
+    uninit();
 }
+
+
+void select_stmt_t::uninit()
+{
+    if (m_root != NULL) {
+        m_root->uninit();
+        delete m_root;
+        m_root = NULL;
+    }
+}
+
 
 
 result_t select_stmt_t::prepare(Parse *pParse, Select *pSelect)
@@ -49,6 +61,7 @@ db_int32 select_stmt_t::next()
 
 
 
+
 //-----------------------------------------------------------------------------
 // insert_stmt_t
 //-----------------------------------------------------------------------------
@@ -61,9 +74,14 @@ insert_stmt_t::insert_stmt_t(database_t* db)
 
 insert_stmt_t::~insert_stmt_t()
 {
+    uninit();
 }
 
 
+void insert_stmt_t::uninit()
+{
+
+}
 
 result_t insert_stmt_t::prepare(Parse *pParse, SrcList *pTabList, Select *pSelect, IdList *pColumn, int onError)
 {

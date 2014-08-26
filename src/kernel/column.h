@@ -12,54 +12,7 @@
 #include "variant.h"
 #include "mem_pool.h"
 
-
-
-struct segment_item_t
-{
-    static const db_uint32 SEGMENT_HIGH_BITS = 10;
-    static const db_uint32 SEGMENT_LOW_BITS = 10;
-    static const db_uint32 SEGMENT_LOW_SIZE = 1 << SEGMENT_LOW_BITS;
-    static const db_uint32 SEGMENT_BITS = SEGMENT_LOW_BITS + SEGMENT_HIGH_BITS;
-    static const db_uint32 SEGMENT_LOW_MASK = (1 << SEGMENT_LOW_BITS) - 1;
-
-    static const db_uint32 MAX_SEGMENT_COUNT = 1 << SEGMENT_BITS;
-    static const db_uint32 MAX_SEGMENT_ID = MAX_SEGMENT_COUNT - 1;
-
-    segment_item_t(db_uint32 segment_id) {
-        s_high = segment_id >> SEGMENT_LOW_BITS;
-        s_low = segment_id & SEGMENT_LOW_MASK;
-    }
-
-    db_uint16 s_high;   // segment high bits
-    db_uint16 s_low;    // segment low bits
-};
-
-
-
-struct row_item_t
-{
-    static const db_uint32 SEGMENT_HIGH_BITS = segment_item_t::SEGMENT_HIGH_BITS;
-    static const db_uint32 SEGMENT_LOW_BITS = segment_item_t::SEGMENT_LOW_BITS;
-    static const db_uint32 ROW_OFFSET_BITS = 10;
-
-    static const db_uint32 SEGMENT_LOW_MASK = (1 << (SEGMENT_LOW_BITS + ROW_OFFSET_BITS)) - (1 << ROW_OFFSET_BITS);
-    static const db_uint32 ROW_OFFSET_MASK = (1 << ROW_OFFSET_BITS) - 1;
-
-    static const db_uint32 MAX_ROW_COUNT = 1 << (SEGMENT_HIGH_BITS + SEGMENT_LOW_BITS + ROW_OFFSET_BITS);
-    static const rowid_t MAX_ROWID = MAX_ROW_COUNT - 1;
-
-    row_item_t(rowid_t rowid) {
-        COMPILE_ASSERT(SEGMENT_SIZE == (1 << ROW_OFFSET_BITS));
-
-        s_high = rowid >> (SEGMENT_LOW_BITS + ROW_OFFSET_BITS);
-        s_low = (rowid & SEGMENT_LOW_MASK) >> ROW_OFFSET_BITS;
-        offset = rowid & ROW_OFFSET_MASK;    
-    }
-
-    db_uint16 s_high;   // segment high bits
-    db_uint16 s_low;    // segment low bits
-    db_uint16 offset;   // offset in the segment  
-};
+#include "rowset.h"
 
 
 class column_base_t
@@ -70,6 +23,7 @@ public:
 public:
     virtual ~column_base_t() {}
 
+public:
     virtual result_t init(mem_pool* pool, db_int32 data_len) = 0;
     virtual void uninit() = 0;
     virtual result_t insert(void* values, db_int32 num) = 0;
@@ -87,11 +41,12 @@ template<typename T>
 class column_t : public column_base_t
 {
 public:
-    column_t() {        
+    column_t() {     
         m_mem_pool = NULL;
         m_data_len = 0;
         m_row_count = 0;
         m_capacity = 0;
+        m_segment_count = 0;
         memset(m_address, 0, sizeof(m_address));      
     }
 
@@ -102,12 +57,9 @@ public:
 public:
     virtual result_t init(mem_pool* pool, db_int32 data_len) {
         assert(pool != NULL);
-        
+
         m_mem_pool = pool;
         m_data_len = data_len;
-        m_row_count = 0;
-        m_capacity = 0;
-        m_segment_count = 0;
         return RT_SUCCEEDED;
     }
 

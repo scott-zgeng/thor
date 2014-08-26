@@ -258,8 +258,7 @@ expr_base_t* create_convert_expr(data_type_t type, data_type_t rt_type, expr_bas
 
 
 result_t expr_base_t::build(Expr* expr, expr_base_t** root)
-{
-    assert(expr);
+{    
     result_t ret;
 
     if (expr == NULL) {

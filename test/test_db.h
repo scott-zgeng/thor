@@ -68,7 +68,7 @@ void test_func()
     ret = do_ddl_command(db, "create table test2 (f1 int);");
     EXPECT_TRUE(ret == SQLITE_DONE);
 
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 2000; i++) {
         char buff[1024];
         sprintf_s(buff, 1023, "insert into test1 values (%d);", i);
         ret = do_dml_command(db, buff);
@@ -87,7 +87,7 @@ void test_func()
 
 
     //const char sql[] = "select a.f1, count(a.f1) from test1 a, test2 b where a.f1 = b.f1 group by a.f1 order by a.f1;";
-    const char sql[] = "select f1, (f1 + 2) from test1 where f1 + 3 < 20 or f1 > 90";
+    const char sql[] = "select f1, (f1 + 2) from test1 where f1 < 1024";
 
     sqlite3_stmt* stmt;
     const char* tail;
@@ -98,6 +98,7 @@ void test_func()
     do {
         db_int32 rc = sqlite3_vector_step(stmt);
         db_int32 row_count = sqlite3_vector_row_count(stmt);
+        
         for (db_int32 i = 0; i < row_count; i++) {
             int int_value = sqlite3_vector_column_int(stmt, 0, i);
             printf("[%d] ROW = %d", i, int_value);
@@ -106,6 +107,7 @@ void test_func()
             printf(" %lld\n", long_value);
         }
 
+        printf("row_count = %d\n", row_count);
         if (rc != SQLITE_ROW) break;
 
     } while (true);

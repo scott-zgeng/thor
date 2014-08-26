@@ -95,8 +95,8 @@ static const db_int64 INVALID_INT64 = (-1);
 #define  LIKELY(condition)      (condition)
 #define  UNLIKELY(condition)    (condition)
 #else
-#define  LIKELY(condition)      __builtin_expect((condition), 1)
-#define  UNLIKELY(condition)    __builtin_expect((condition), 0)
+#define  LIKELY(condition)      (__builtin_expect((condition), 1))
+#define  UNLIKELY(condition)    (__builtin_expect((condition), 0))
 #endif
 
 #endif //__DEFINE_H__

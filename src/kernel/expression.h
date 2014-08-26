@@ -15,87 +15,7 @@ extern "C" {
 #include "variant.h"
 #include "column.h"
 #include "column_table.h"
-
-
-// row_set提供的功能： 
-//   有多少行数据
-//   如果获取行的数据
-class row_set_t
-{
-public:
-    enum mode_t {
-        SEGMENT_MODE = 0, 
-        RANDOM_MODE,
-    };
-
-    row_set_t() {
-        m_count = 0;
-        m_segment_id = 0;
-        m_mode = SEGMENT_MODE;
-        m_data = NULL;
-        m_data_alloc = NULL;
-    }
-
-    row_set_t(rowid_t* ptr) {
-        m_count = 0;
-        m_segment_id = 0;
-        m_mode = SEGMENT_MODE;
-        m_data = ptr;
-        m_data_alloc = NULL;
-    }
-
-    ~row_set_t() {        
-        if (m_data_alloc != NULL) {
-            free(m_data_alloc);
-        }
-    }
-
-    result_t init(db_int32 column_num) {
-        assert(m_data_alloc == NULL);
-
-        m_data_alloc = (rowid_t*)malloc(column_num * SEGMENT_SIZE * sizeof(rowid_t));
-        if (NULL == m_data_alloc)
-            return RT_FAILED;
-
-        m_data = m_data_alloc;
-        return RT_SUCCEEDED;
-    }
-
-    void init(rowid_t* ptr) {
-        m_data = ptr;
-    }
-
-    db_int32 count() const {
-        return m_count;
-    }
-
-    void set_count(db_int32 n) {
-        m_count = n;
-    }
-
-    void set_mode(mode_t mode) {
-        m_mode = mode;
-    }
-
-    rowid_t* data() const {
-        return m_data;
-    }
-
-    mode_t mode() const {
-        return m_mode;
-    }
-
-    db_int32 segment() const {
-        return m_segment_id;
-    }
-
-private:
-    db_int32 m_count;
-    db_int32 m_segment_id;
-    mode_t m_mode;
-    rowid_t* m_data;
-    rowid_t* m_data_alloc;
-};
+#include "rowset.h"
 
 
 class mem_stack_t
@@ -201,7 +121,7 @@ public:
 
     virtual data_type_t data_type() = 0;
 
-    virtual result_t calc(row_set_t* rows, mem_stack_t* ctx, mem_handle_t& result) = 0;
+    virtual result_t calc(rowset_t* rows, mem_stack_t* ctx, mem_handle_t& result) = 0;
 
 
 private:
@@ -235,7 +155,7 @@ public:
         return type(); 
     }
 
-    virtual result_t calc(row_set_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
+    virtual result_t calc(rowset_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
 
         ctx->alloc_memory(sizeof(RT)* SEGMENT_SIZE, result);
 
@@ -327,7 +247,7 @@ public:
         return type(); 
     }
 
-    virtual result_t calc(row_set_t* rows, mem_stack_t* mem, mem_handle_t& result) {
+    virtual result_t calc(rowset_t* rows, mem_stack_t* mem, mem_handle_t& result) {
 
         result_t ret;
         mem_handle_t lresult;
@@ -380,7 +300,7 @@ public:
         return type(); 
     }
 
-    virtual result_t calc(row_set_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
+    virtual result_t calc(rowset_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
         assert(sizeof(T) <= sizeof(RT));
 
         ctx->alloc_memory(sizeof(RT)* SEGMENT_SIZE, result);
@@ -436,9 +356,9 @@ public:
         return type(); 
     }
 
-    virtual result_t calc(row_set_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
+    virtual result_t calc(rowset_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
         
-        if (rows->mode() == row_set_t::SEGMENT_MODE) {
+        if (rows->mode() == rowset_t::SCAN_MODE) {
             db_int32 segment_id = rows->segment(); 
             void* values = NULL;
             db_int32 row_count = 0;
@@ -485,7 +405,7 @@ public:
         return type(); 
     }
     
-    virtual result_t calc(row_set_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
+    virtual result_t calc(rowset_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
         result.init(ctx, m_value);
         return RT_SUCCEEDED;
     }

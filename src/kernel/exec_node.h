@@ -23,7 +23,7 @@ public:
 public:
     virtual result_t init(Parse* parse, Select* select) = 0;
     virtual void uninit() = 0;
-    virtual result_t next(row_set_t* rows, mem_stack_t* mem) = 0;
+    virtual result_t next(rowset_t* rows, mem_stack_t* mem) = 0;
     virtual db_int32 rowid_size() = 0;
 };
 
@@ -59,7 +59,7 @@ public:
 public:
     virtual result_t init(Parse* parse, Select* select);
     virtual void uninit();
-    virtual result_t next(row_set_t* rows, mem_stack_t* mem);
+    virtual result_t next(rowset_t* rows, mem_stack_t* mem);
     virtual db_int32 rowid_size();
 
     result_t next();
@@ -79,9 +79,13 @@ private:
     node_base_t* m_children;
     pod_vector<expr_base_t*, DEFAULT_EXPR_NUM> m_expr_columns;
     mem_stack_t m_mem;
-    row_set_t m_sub_rows;
+    rowset_t m_sub_rows;
     pod_vector<void*, DEFAULT_EXPR_NUM> m_expr_values;
 };
+
+
+
+
 
 
 class scan_node_t : public node_base_t
@@ -93,13 +97,17 @@ public:
 public:
     virtual result_t init(Parse* parse, Select* select);
     virtual void uninit();
-    virtual result_t next(row_set_t* rows, mem_stack_t* mem);
+    virtual result_t next(rowset_t* rowset, mem_stack_t* mem);
     virtual db_int32 rowid_size();
 
 private:
     db_int32 m_index;
-    expr_base_t* m_where;  // filter of where 
+    expr_base_t* m_where;  // where condition
     cursor_t m_cursor;
+    rowid_t m_rows[SEGMENT_SIZE]; 
+    rowset_t m_rowset;
+    db_bool m_eof;
+    
 };
 
 
@@ -115,13 +123,15 @@ public:
 public:
     virtual result_t init(Parse* parse, Select* select);
     virtual void uninit();
-    virtual result_t next(row_set_t* rows, mem_stack_t* mem);
+    virtual result_t next(rowset_t* rows, mem_stack_t* mem);
     virtual db_int32 rowid_size();
 
 private:
     node_base_t* m_left;
     node_base_t* m_right;
 };
+
+
 
 
 
