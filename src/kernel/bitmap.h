@@ -13,27 +13,20 @@
 class bitmap_t
 {
 public:
-    bitmap_t(db_byte* ptr) {
-        m_bitmap = ptr;
-    }
-    
-    void set(db_uint32 idx) {
+    static void set(db_byte* data, db_uint32 idx) {
         static const db_byte MASK[] = { 0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01 };        
-        m_bitmap[idx >> 3] |= MASK[idx & 0x07];
+        data[idx >> 3] |= MASK[idx & 0x07];
     }
 
-    void clean(db_uint32 idx) {
+    static void clean(db_byte* data, db_uint32 idx) {
         static const db_byte MASK[] = { 0x7F, 0xBF, 0xDF, 0xEF, 0xF7, 0xFB, 0xFD, 0xFE };
-        m_bitmap[idx >> 3] &= MASK[idx & 0x07];
+        data[idx >> 3] &= MASK[idx & 0x07];
     }
 
-    db_bool get(db_uint32 idx) {
+    static db_bool get(db_byte* data, db_uint32 idx) {
         static const db_byte MASK[] = { 0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01 };
-        return (m_bitmap[idx >> 3] &= MASK[idx & 0x07]) != 0;
+        return (data[idx >> 3] & MASK[idx & 0x07]) != 0;
     }
-
-private:
-    db_byte* m_bitmap;
 };
 
 

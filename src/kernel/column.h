@@ -24,7 +24,7 @@ public:
     virtual ~column_base_t() {}
 
 public:
-    virtual result_t init(mem_pool* pool, db_int32 data_len) = 0;
+    virtual result_t init(mem_pool_t* pool, db_int32 data_len) = 0;
     virtual void uninit() = 0;
     virtual result_t insert(void* values, db_int32 num) = 0;
     virtual data_type_t data_type() const = 0;
@@ -55,7 +55,7 @@ public:
     }
 
 public:
-    virtual result_t init(mem_pool* pool, db_int32 data_len) {
+    virtual result_t init(mem_pool_t* pool, db_int32 data_len) {
         assert(pool != NULL);
 
         m_mem_pool = pool;
@@ -171,7 +171,7 @@ private:
 private: 
     static const db_uint32 ENTRY_SIZE = (1 << row_item_t::SEGMENT_HIGH_BITS);
     
-    mem_pool* m_mem_pool;
+    mem_pool_t* m_mem_pool;
 
     db_uint32 m_data_len;
     db_uint32 m_row_count;

@@ -87,54 +87,5 @@ private:
 
 
 
-
-class scan_node_t : public node_base_t
-{
-public:
-    scan_node_t(int index);
-    virtual ~scan_node_t();
-
-public:
-    virtual result_t init(Parse* parse, Select* select);
-    virtual void uninit();
-    virtual result_t next(rowset_t* rowset, mem_stack_t* mem);
-    virtual db_int32 rowid_size();
-
-private:
-    db_int32 m_index;
-    expr_base_t* m_where;  // where condition
-    cursor_t m_cursor;
-    rowid_t m_rows[SEGMENT_SIZE]; 
-    rowset_t m_rowset;
-    db_bool m_eof;
-    
-};
-
-
-
-
-
-class join_node_t : public node_base_t
-{
-public:
-    join_node_t(node_base_t* left, node_base_t* right);
-    virtual ~join_node_t();
-
-public:
-    virtual result_t init(Parse* parse, Select* select);
-    virtual void uninit();
-    virtual result_t next(rowset_t* rows, mem_stack_t* mem);
-    virtual db_int32 rowid_size();
-
-private:
-    node_base_t* m_left;
-    node_base_t* m_right;
-};
-
-
-
-
-
-
 #endif //__EXEC_NODE_H__
 

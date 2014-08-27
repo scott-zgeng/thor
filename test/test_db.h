@@ -87,7 +87,7 @@ void test_func()
 
 
     //const char sql[] = "select a.f1, count(a.f1) from test1 a, test2 b where a.f1 = b.f1 group by a.f1 order by a.f1;";
-    const char sql[] = "select f1, (f1 + 2) from test1 where f1 < 1024";
+    const char sql[] = "select f1, (f1 + 2) from test1 where f1 > 20 and f1 <= 1044";
 
     sqlite3_stmt* stmt;
     const char* tail;

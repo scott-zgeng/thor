@@ -10,11 +10,87 @@
 #include "bitmap.h"
 
 
+
+
+class mem_dlist
+{
+private:
+    struct page_head_t {
+        page_head_t* prev;
+        page_head_t* next;
+    };
+
+public:
+    mem_dlist() {
+        detach();        
+    }
+
+    ~mem_dlist() {        
+    }
+
+    void link(void* ptr) {
+        assert(ptr != NULL);
+        page_head_t* temp = (page_head_t*)ptr;
+
+        temp->next = m_entry.next;
+        temp->prev = &m_entry;
+        if (m_entry.next != NULL) {
+            m_entry.next->prev = temp;
+        }
+        m_entry.next = temp;
+        m_count++;
+    }
+
+    void unlink(void* ptr) {
+        assert(ptr != NULL);
+        page_head_t* temp = (page_head_t*)ptr;
+
+        temp->prev->next = temp->next;
+        if (temp->next != NULL) {
+            temp->next->prev = temp->prev;
+        }
+        m_count--;
+    }
+
+    void detach() {
+        m_count = 0;
+        m_entry.next = NULL;
+        m_entry.prev = NULL;
+    }
+
+    void* pop_head() {        
+        void* p = m_entry.next;
+        if (p != NULL) {
+            unlink(p);
+        }
+        return p;
+    }
+
+    void push_head(void* ptr) {
+        return link(ptr);
+    }
+
+    void* begin() {
+        return m_entry.next;
+    }
+
+    db_uint32 size() {
+        return m_count;
+    }
+
+protected:
+    page_head_t m_entry;
+    db_uint32 m_count;
+};
+
+
+
+
 // TODO(scott.zgeng): 
 //  目前还需要地址对齐
 //  如果有性能问题，可参考：消除嵌套循环，传入参数改为LEVEL，BITMAP操作优化，延时COMBINE
 
-class mem_pool
+class mem_pool_t
 {
 public:     
     static const db_uint32 MAX_LEVEL = 4;    
@@ -27,20 +103,14 @@ public:
     static const db_uint32 PAGE_MASK = (1 << MAX_LEVEL) - 1;
 
     // 每一个最小页面占用 1bit 来表示这个页面的状态
-    static const db_uint32 BITMAP_BIT = 1;
     // 用最小页面组成和合并的最大页面的状态，可以用一个完全二叉树表示，所以需要(2 * n - 1) 个状态信息
-    static const db_uint32 BITMAP_SIZE = (1 << MAX_LEVEL) * 2 * BITMAP_BIT / 8;
+    static const db_uint32 BITMAP_BYTES = (1 << MAX_LEVEL) * 2 / 8;
 
     static const db_uint32 ENTRY_SIZE = (MAX_LEVEL + 1);
 
-    enum state_t {
-        MEM_FREE = 0,
-        MEM_ALLOC = 1,        
-    };
-
 public:
-    mem_pool();
-    ~mem_pool();
+    mem_pool_t();
+    ~mem_pool_t();
 
 public:
     result_t init(db_size pool_size);
@@ -50,19 +120,13 @@ public:
     void free_page(void* ptr);
 
 private:
-    struct page_head_t {
-        page_head_t* perv;
-        page_head_t* next;
-    };
-
-    page_head_t* alloc_inner(db_uint32 level);
-
+    void* alloc_inner(db_uint32 level);
     void free_inner(db_byte* ptr, db_uint32 level);
 
     // 找到PAGE对应BITMAP的入口地址
     db_byte* get_bitmap_base(void* ptr) {
         db_uint32 offset = (db_byte*)ptr - m_data;
-        return m_bitmap + (offset >> MAX_PAGE_BITS) * BITMAP_SIZE;
+        return m_bitmap + (offset >> MAX_PAGE_BITS) * BITMAP_BYTES;
     }
 
     // 计算PAGE在二叉树的实际位置
@@ -81,17 +145,23 @@ private:
         return (index & 0x01) ? ptr - page_size(level) : ptr + page_size(level);        
     }
 
-    void mem_pool::set_state(void* ptr, db_uint32 level, state_t state) {
+    void mem_pool_t::set_bitmap(void* ptr, db_uint32 level) {
         db_byte* base = get_bitmap_base(ptr);
         db_uint32 index = get_bitmap_index(ptr, level);
-        packed_integer<BITMAP_BIT>::set(base, index, state);
+        bitmap_t::set(base, index);        
     }
 
 
-    state_t mem_pool::get_state(void* ptr, db_uint32 level) {
+    void mem_pool_t::clean_bitmap(void* ptr, db_uint32 level) {
         db_byte* base = get_bitmap_base(ptr);
         db_uint32 index = get_bitmap_index(ptr, level);
-        return (state_t)packed_integer<BITMAP_BIT>::get(base, index);
+        bitmap_t::clean(base, index);                
+    }
+
+    db_bool mem_pool_t::get_bitmap(void* ptr, db_uint32 level) {
+        db_byte* base = get_bitmap_base(ptr);
+        db_uint32 index = get_bitmap_index(ptr, level);
+        return bitmap_t::get(base, index);        
     }
 
 
@@ -102,9 +172,8 @@ private:
         db_uint32 index = get_bitmap_index(ptr, 0);
 
         while (true) {
-            state_t state = (state_t)packed_integer<BITMAP_BIT>::get(base, index);
-            if (state == MEM_ALLOC)
-                break;
+            db_bool is_used = bitmap_t::get(base, index);            
+            if (is_used) break;
             index = index >> 1;
             level++;
         }
@@ -112,36 +181,113 @@ private:
         return level;
     }
 
-
-    void unlink_from_pool(void* ptr) {
-        page_head_t* temp = (page_head_t*)ptr;
-
-        temp->perv->next = temp->next;
-        if (temp->next != NULL) {
-            temp->next->perv = temp->perv;
-        }
-    }
-
-    void link_to_pool(void* ptr, db_uint32 level) {
-        page_head_t* entry = m_free_entry + level;
-
-        page_head_t* temp = (page_head_t*)ptr;
-
-        temp->next = entry->next;
-        temp->perv = entry;
-        if (entry->next != NULL) {
-            entry->next->perv = temp;
-        }
-        entry->next = temp;     
-    }
-
-
 private:
     db_uint32 m_bitmap_num;
     db_byte* m_bitmap;
     db_byte* m_data;
-    page_head_t m_free_entry[ENTRY_SIZE];
+    mem_dlist m_free_lists[ENTRY_SIZE];
 };
 
 
+
+
+class mem_stack_t
+{
+public:
+    friend class mem_handle_t;
+
+    mem_stack_t() {
+        m_begin = m_buffer;
+        m_end = m_begin + sizeof(m_buffer);
+        m_position = m_begin;
+    }
+
+    mem_stack_t::~mem_stack_t() {
+    }
+
+public:
+    void alloc_memory(db_int32 size, mem_handle_t& handle);
+
+    void reset() {
+        m_position = m_begin;
+    }
+
+private:
+    db_int8* m_begin;
+    db_int8* m_end;
+    db_int8* m_position;
+
+    db_int8 m_buffer[SEGMENT_SIZE * 1024 * 2];
+};
+
+
+class mem_handle_t
+{
+public:
+    mem_handle_t() {
+        init(NULL, NULL);
+    }
+
+    mem_handle_t(mem_stack_t* ctx, void* data) {
+        init(ctx, data);
+    }
+
+    ~mem_handle_t() {
+        uninit();
+    }
+
+    void init(mem_stack_t* ctx, void* data) {
+        //DB_TRACE("mem_handle init, %p", data);
+        m_ctx = ctx;
+        m_data = (db_int8*)data;
+    }
+
+    void uninit() {
+        // NOTE(scott.zgeng): 
+        //  只释放属于栈的空间，如果不是，有可能是空，也可能是应用自己的空间，属于合理用法        
+        if (m_data >= m_ctx->m_buffer && m_data < m_ctx->m_end) {
+            //DB_TRACE("mem_handle uninit, %p", m_data);
+            assert(m_data > m_ctx->m_position);
+            m_ctx->m_position = m_data;            
+        }        
+    }
+
+    void* transfer() {
+        db_int8* data = m_data;
+        m_data = NULL;
+        return data;
+    }
+
+    void* ptr() const {
+        return m_data;
+    }
+
+private:
+    mem_stack_t* m_ctx;
+    db_int8* m_data;
+
+};
+
+
+class mem_region_t
+{
+public:
+    mem_region_t(mem_pool_t* pool);
+    ~mem_region_t();
+
+public:
+    void* alloc(db_size size);
+    void release();
+
+private:
+    //struct page_head_t {
+    //    page_head_t
+    //}
+
+};
+
+
+
 #endif //__MEM_POOL_H__
+
+

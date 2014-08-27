@@ -6,6 +6,45 @@
 #include "../src/kernel/mem_pool.h"
 
 
+TEST(bitmap, case1)
+{
+
+    db_byte bitmap[1] = { 0, };
+
+    db_bool is_used;
+    bitmap_t::set(bitmap, 3);
+    bitmap_t::set(bitmap, 4);
+    bitmap_t::set(bitmap, 7);
+
+    is_used = bitmap_t::get(bitmap, 3);
+    EXPECT_TRUE(is_used);
+
+    is_used = bitmap_t::get(bitmap, 2);
+    EXPECT_TRUE(!is_used);
+
+    is_used = bitmap_t::get(bitmap, 4);
+    EXPECT_TRUE(is_used);
+
+    is_used = bitmap_t::get(bitmap, 7);
+    EXPECT_TRUE(is_used);
+
+    bitmap_t::clean(bitmap, 4);
+    bitmap_t::clean(bitmap, 3);
+    bitmap_t::clean(bitmap, 2);
+
+    is_used = bitmap_t::get(bitmap, 3);
+    EXPECT_TRUE(!is_used);
+
+    is_used = bitmap_t::get(bitmap, 2);
+    EXPECT_TRUE(!is_used);
+
+    is_used = bitmap_t::get(bitmap, 4);
+    EXPECT_TRUE(!is_used);
+
+    is_used = bitmap_t::get(bitmap, 7);
+    EXPECT_TRUE(is_used);
+}
+
 
 
 TEST(test_mem_pool, case1)
@@ -13,8 +52,8 @@ TEST(test_mem_pool, case1)
     // for test
     result_t ret;
     
-    mem_pool one;
-    mem_pool* pool = &one;
+    mem_pool_t the_pool;
+    mem_pool_t* pool = &the_pool;
 
     DB_TRACE("POOL INIT");
     ret = pool->init(1024 * 48);

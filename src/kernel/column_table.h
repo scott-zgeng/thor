@@ -76,7 +76,7 @@ public:
     }
 
 
-    mem_pool* get_mem_pool() { 
+    mem_pool_t* get_mem_pool() { 
         return m_database->get_mem_pool(); 
     }
 

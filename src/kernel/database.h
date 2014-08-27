@@ -36,7 +36,7 @@ public:
     column_table_t* find_table(const char* table_name) const;
     column_table_t* get_table(db_int32 table_id) const;
 
-    mem_pool* get_mem_pool() { 
+    mem_pool_t* get_mem_pool() { 
         return &m_mem_pool; 
     }
 
@@ -46,7 +46,7 @@ private:
     table_map_t m_table_map;
     column_table_t* m_tables[MAX_TABLE_NUM];
 
-    mem_pool m_mem_pool;
+    mem_pool_t m_mem_pool;
 };
 
 
