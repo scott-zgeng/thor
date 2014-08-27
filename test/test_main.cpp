@@ -3,7 +3,7 @@
 
 
 #include "test_mem_pool.h" 
-//#include "test_db.h"
+#include "test_db.h"
  
 
 int main(int argc, char* argv[])

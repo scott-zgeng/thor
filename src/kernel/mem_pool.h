@@ -145,20 +145,20 @@ private:
         return (index & 0x01) ? ptr - page_size(level) : ptr + page_size(level);        
     }
 
-    void mem_pool_t::set_bitmap(void* ptr, db_uint32 level) {
+    void set_bitmap(void* ptr, db_uint32 level) {
         db_byte* base = get_bitmap_base(ptr);
         db_uint32 index = get_bitmap_index(ptr, level);
         bitmap_t::set(base, index);        
     }
 
 
-    void mem_pool_t::clean_bitmap(void* ptr, db_uint32 level) {
+    void clean_bitmap(void* ptr, db_uint32 level) {
         db_byte* base = get_bitmap_base(ptr);
         db_uint32 index = get_bitmap_index(ptr, level);
         bitmap_t::clean(base, index);                
     }
 
-    db_bool mem_pool_t::get_bitmap(void* ptr, db_uint32 level) {
+    db_bool get_bitmap(void* ptr, db_uint32 level) {
         db_byte* base = get_bitmap_base(ptr);
         db_uint32 index = get_bitmap_index(ptr, level);
         return bitmap_t::get(base, index);        

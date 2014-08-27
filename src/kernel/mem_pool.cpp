@@ -105,16 +105,8 @@ void mem_pool_t::uninit()
 
 
 
-void* mem_pool_t::alloc_page(db_size size)
-{
-    assert(MIN_PAGE_SIZE <= size && size <= MAX_PAGE_SIZE);    
-    db_int32 level = calc_power_of_2(size) - MIN_PAGE_BITS;
-    return alloc_inner(level);
-}
 
-
-
-void* mem_pool_t::alloc_inner(db_uint32 level)
+inline void* mem_pool_t::alloc_inner(db_uint32 level)
 {
     db_byte* page = NULL;    
     db_uint32 max_level = level;
@@ -139,36 +131,43 @@ void* mem_pool_t::alloc_inner(db_uint32 level)
 }
 
 
-void mem_pool_t::free_page(void* ptr)
-{    
-    db_uint32 level = get_page_level(ptr);    
-    free_inner((db_byte*)ptr, level);
+void* mem_pool_t::alloc_page(db_size size)
+{
+    assert(MIN_PAGE_SIZE <= size && size <= MAX_PAGE_SIZE);
+    db_int32 level = calc_power_of_2(size) - MIN_PAGE_BITS;
+    return alloc_inner(level);
+}
+
+
+
+inline void mem_pool_t::free_inner(db_byte* ptr, db_uint32 level)
+{
+    db_byte* page = ptr;
+    for (db_uint32 n = level; n < MAX_LEVEL; n++) {
+        clean_bitmap(page, n);
+
+        // release the page to free list, when buddy page in use.
+        db_byte* buddy_page = get_buddy(page, n);
+        if (get_bitmap(buddy_page, n)) {
+            m_free_lists[n].link(page);
+            return;
+        }
+
+        // when buddy is free
+        m_free_lists[n].unlink(buddy_page);
+        page = page < buddy_page ? page : buddy_page;
+    }
+
+    clean_bitmap(page, MAX_LEVEL);
+    m_free_lists[MAX_LEVEL].link(page);
     return;
 }
 
 
-void mem_pool_t::free_inner(db_byte* ptr, db_uint32 level)
+void mem_pool_t::free_page(void* ptr)
 {
-    clean_bitmap(ptr, level);
-
-    // 如果是已经最大页面了，直接放到链表即可
-    if (level == MAX_LEVEL) {
-        m_free_lists[level].link(ptr);
-        return;
-    }
-
-    db_byte* buddy_ptr = get_buddy(ptr, level);   
-    
-    // 如果buddy使用中，则直接将释放页回归到空闲链表
-    if (get_bitmap(buddy_ptr, level)) {
-        m_free_lists[level].link(ptr);        
-        return;
-    }
-
-    // when buddy is free
-    m_free_lists[level].unlink(buddy_ptr);
-    db_byte* parent_ptr = ptr < buddy_ptr ? ptr : buddy_ptr;
-    free_inner(parent_ptr, level + 1);
+    db_uint32 level = get_page_level(ptr);
+    free_inner((db_byte*)ptr, level);
     return;
 }
 
