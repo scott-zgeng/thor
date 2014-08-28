@@ -35,7 +35,7 @@ void select_stmt_t::uninit()
 
 result_t select_stmt_t::prepare(Parse *pParse, Select *pSelect)
 {
-    node_generator_t generator(pParse, pSelect);
+    node_generator_t generator(m_database, pParse, pSelect);
         
     node_base_t* root = NULL;
     result_t ret = generator.build(&root);
@@ -89,6 +89,8 @@ result_t insert_stmt_t::prepare(Parse *pParse, SrcList *pTabList, Select *pSelec
     char* name = pTabList->a[0].zName;
     assert(name != NULL);
 
+    expr_factory_t factory(m_database);
+
     m_table = m_database->find_table(name);
     IF_RETURN_FAILED(m_table == NULL);
 
@@ -100,11 +102,11 @@ result_t insert_stmt_t::prepare(Parse *pParse, SrcList *pTabList, Select *pSelec
     expr_base_t* expr;
     result_t ret;
     for (db_int32 i = 0; i < insert_values->nExpr; i++) {
-        ret = expr_base_t::build(insert_values->a[i].pExpr, &expr);
+        ret = factory.build(insert_values->a[i].pExpr, &expr);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
         if (expr->data_type() != m_table->get_column(i)->data_type()) {
-            expr_base_t* conv_expr = create_convert_expr(expr->data_type(), m_table->get_column(i)->data_type(), expr);
+            expr_base_t* conv_expr = factory.create_convert_expr(expr->data_type(), m_table->get_column(i)->data_type(), expr);
             IF_RETURN_FAILED(conv_expr == NULL);
             expr = conv_expr;
         }

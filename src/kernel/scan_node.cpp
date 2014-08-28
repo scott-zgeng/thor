@@ -26,7 +26,9 @@ result_t scan_node_t::init(Parse* parse, Select* select)
 {
     result_t ret;
 
-    ret = expr_base_t::build(select->pWhere, &m_where);
+    expr_factory_t factory(m_database);
+
+    ret = factory.build(select->pWhere, &m_where);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
     SrcList::SrcList_item* src = &select->pSrc->a[m_index];

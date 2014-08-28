@@ -12,13 +12,6 @@
 
 
 
-void strncpy_ex(char* dst, const char* src, size_t n)
-{
-    // TODO(scott.zgeng): 这个函数需要测试一下实际效果
-    strncpy_s(dst, n, src, n);
-    dst[n] = 0;
-}
-
 
 
 int sqlite3VectorCreateTable(Parse* pParse)
@@ -115,6 +108,15 @@ int sqlite3_vector_row_count(sqlite3_stmt* stmt)
     return root_node->count();
 }
 
+int sqlite3_vector_column_count(sqlite3_stmt* stmt)
+{
+    Vdbe* v = (Vdbe*)stmt;
+    select_stmt_t* select_stmt = (select_stmt_t*)v->stmtHandle;
+    project_node_t* root_node = select_stmt->root();
+    return root_node->column_count();
+
+}
+
 
 int sqlite3_vector_column_int(sqlite3_stmt* stmt, int col_idx, int row_idx)
 {
@@ -138,7 +140,11 @@ long long sqlite3_vector_column_bigint(sqlite3_stmt* stmt, int col_idx, int row_
 
 const char* sqlite3_vector_column_string(sqlite3_stmt* stmt, int col_idx, int row_idx)
 {
-    return NULL;
+    Vdbe* v = (Vdbe*)stmt;
+    select_stmt_t* select_stmt = (select_stmt_t*)v->stmtHandle;
+    project_node_t* root_node = select_stmt->root();
+    db_string* val = (db_string*)root_node->column_data(col_idx);
+    return val[row_idx];
 }
 
 

@@ -19,20 +19,24 @@ extern "C" {
 class node_base_t
 {
 public:
+    friend class node_generator_t;
     virtual ~node_base_t() {}
 public:
     virtual result_t init(Parse* parse, Select* select) = 0;
     virtual void uninit() = 0;
     virtual result_t next(rowset_t* rows, mem_stack_t* mem) = 0;
     virtual db_int32 rowid_size() = 0;
+protected:
+    database_t* m_database; // 后续可以放到构造函数中
 };
+
 
 
 class expr_base_t;
 class node_generator_t
 {
 public:
-    node_generator_t(Parse* parse, Select* select);
+    node_generator_t(database_t* db, Parse* parse, Select* select);
     ~node_generator_t();
 
 public:
@@ -44,6 +48,7 @@ private:
 private:
     Parse* m_parse;
     Select* m_select;
+    database_t* m_database;
 };
 
 
@@ -65,6 +70,10 @@ public:
     result_t next();
     db_int32 count() const { 
         return m_sub_rows.count();
+    }
+
+    db_uint32 column_count() const {
+        return m_expr_columns.size();
     }
 
     void* column_data(db_int32 idx) {

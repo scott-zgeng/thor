@@ -62,7 +62,6 @@ result_t cursor_t::next_segment(rowset_t* rows)
 static data_type_t get_data_type(Column* column)
 {
     if (column->affinity == SQLITE_AFF_INTEGER) {
-
         if (strcmp(column->zType, "tinyint") == 0)
             return DB_INT8;
         else if (strcmp(column->zType, "smallint") == 0)
@@ -73,9 +72,13 @@ static data_type_t get_data_type(Column* column)
             return DB_INT64;
         else
             return DB_UNKNOWN;
-    } 
-    
-    return DB_UNKNOWN;
+
+    } else if (column->affinity == SQLITE_AFF_TEXT) {
+        return DB_STRING;
+
+    } else {
+        return DB_UNKNOWN;
+    }
 }
 
 
@@ -89,10 +92,11 @@ result_t column_table_t::init(database_t* db, Table* table, db_int32 table_id)
  
     for (db_int32 i = 0; i < table->nCol; i++) {
         Column* col = table->aCol + i;
-        data_type_t type = get_data_type(col);        
+        data_type_t type = get_data_type(col);
         IF_RETURN_FAILED(type == DB_UNKNOWN);
 
-        result_t ret = add_column(type);
+        db_uint32 data_len = col->szEst * 4;
+        result_t ret = add_column(type, data_len);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
     }
 
@@ -100,12 +104,12 @@ result_t column_table_t::init(database_t* db, Table* table, db_int32 table_id)
 }
 
 
-result_t column_table_t::add_column(data_type_t type)
+result_t column_table_t::add_column(data_type_t type, db_uint32 len)
 {
     smart_pointer<column_base_t> new_column = column_base_t::create_column(type);        
     IF_RETURN_FAILED(new_column.ptr() == NULL);
 
-    result_t ret = new_column->init(get_mem_pool(), 0);
+    result_t ret = new_column->init(get_mem_pool(), len);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
     bool is_succ = m_columns.push_back(new_column.ptr());

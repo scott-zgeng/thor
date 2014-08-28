@@ -13,7 +13,14 @@ extern "C" {
 
 #include "define.h"
 
-void strncpy_ex(char* dst, const char* src, size_t n);
+
+inline void strncpy_ex(char* dst, const char* src, size_t n)
+{
+    // TODO(scott.zgeng): 这个函数需要测试一下实际效果
+    // strncpy_s已经考虑了BUFFER的长度，包括结束符
+    strncpy_s(dst, n, src, n);
+}
+
 
 
 

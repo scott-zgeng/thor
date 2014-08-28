@@ -20,14 +20,9 @@ extern "C" {
 
 
 
+
 class expr_base_t
 {
-public:
-    // 需要增加一个优化表达式的函数
-    //static result_t optimize(Expr* expr, expr_base_t** root);
-
-    static result_t build(Expr* expr, expr_base_t** root);
-
 public:
     virtual ~expr_base_t() {
     }
@@ -41,15 +36,8 @@ public:
     }
 
     virtual data_type_t data_type() = 0;
-
     virtual result_t calc(rowset_t* rows, mem_stack_t* ctx, mem_handle_t& result) = 0;
-
-
-private:
-    static expr_base_t* create_instance(Expr* expr, expr_base_t* left, expr_base_t* right);
 };
-
-expr_base_t* create_convert_expr(data_type_t type, data_type_t rt_type, expr_base_t* children);
 
 
 
@@ -105,8 +93,7 @@ struct binary_primitive
 
 #define BINARY_PRIMITIVE(OP_TYPE, SYMBOL)  \
 template<typename T, typename RT> \
-struct binary_primitive<OP_TYPE, T, RT> \
-{\
+struct binary_primitive<OP_TYPE, T, RT> { \
     RT operator() (T a, T b) { \
         return a SYMBOL b; \
     } \
@@ -116,12 +103,12 @@ struct binary_primitive<OP_TYPE, T, RT> \
 BINARY_PRIMITIVE(TK_AND, &&);
 BINARY_PRIMITIVE(TK_OR, ||);
 
-BINARY_PRIMITIVE(TK_EQ, == );
-BINARY_PRIMITIVE(TK_NE, != );
-BINARY_PRIMITIVE(TK_GT, > );
-BINARY_PRIMITIVE(TK_GE, >= );
-BINARY_PRIMITIVE(TK_LT, < );
-BINARY_PRIMITIVE(TK_LE, <= );
+BINARY_PRIMITIVE(TK_EQ, ==);
+BINARY_PRIMITIVE(TK_NE, !=);
+BINARY_PRIMITIVE(TK_GT, >);
+BINARY_PRIMITIVE(TK_GE, >=);
+BINARY_PRIMITIVE(TK_LT, <);
+BINARY_PRIMITIVE(TK_LE, <=);
 
 BINARY_PRIMITIVE(TK_PLUS, +);
 BINARY_PRIMITIVE(TK_MINUS, -);
@@ -130,7 +117,24 @@ BINARY_PRIMITIVE(TK_SLASH, /);
 
 
 
-// NOTE(scott.zgeng): 没有使用操作符重载，觉得没太大必要
+#define STRING_BINARY_PRIMITIVE(OP_TYPE, SYMBOL)  \
+template<> \
+struct binary_primitive<OP_TYPE, db_string, db_int8> {\
+    db_int8 operator() (db_string a, db_string b) {\
+        return (strcmp(a, b) SYMBOL 0); \
+    } \
+}
+
+
+STRING_BINARY_PRIMITIVE(TK_EQ, ==);
+STRING_BINARY_PRIMITIVE(TK_NE, !=);
+STRING_BINARY_PRIMITIVE(TK_GT, >);
+STRING_BINARY_PRIMITIVE(TK_GE, >=);
+STRING_BINARY_PRIMITIVE(TK_LT, <);
+STRING_BINARY_PRIMITIVE(TK_LE, <=);
+
+
+
 template<int OP_TYPE, typename T, typename RT>
 struct binary_operator
 {
@@ -333,6 +337,72 @@ public:
 
 private:
     T m_value[SEGMENT_SIZE];    
+};
+
+class expr_string_t : public expr_base_t
+{
+public:
+    expr_string_t() {
+
+    }
+
+    virtual ~expr_string_t() {
+
+    }
+
+    virtual result_t init(Expr* expr) {        
+        strncpy_ex(m_string, expr->u.zToken, sizeof(m_value));
+        for (db_int32 i = 0; i < SEGMENT_SIZE; i++) {
+            m_value[i] = m_string;
+        }
+
+        return RT_SUCCEEDED;
+    }
+
+    virtual data_type_t data_type() {
+        return DB_STRING;
+    }
+
+    virtual result_t calc(rowset_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
+        result.init(ctx, m_value);
+        return RT_SUCCEEDED;
+    }
+
+private:
+    db_char m_string[256];
+    db_char* m_value[SEGMENT_SIZE];
+};
+
+
+class expr_factory_t
+{
+public:
+    expr_factory_t(database_t* db) {
+        m_database = db;
+    }
+
+public:
+    // 需要增加一个优化表达式的函数
+    //result_t optimize(Expr* expr, expr_base_t** root);
+
+    result_t build(Expr* expr, expr_base_t** root);
+    expr_base_t* create_convert_expr(data_type_t type, data_type_t rt_type, expr_base_t* children);    
+
+private:
+    expr_base_t* create_instance(Expr* expr, expr_base_t* left, expr_base_t* right);    
+    template<typename T> expr_base_t* create_convert_expr_impl(data_type_t rt_type, expr_base_t* children);
+    expr_base_t* create_expression_binary(Expr* expr, expr_base_t* left, expr_base_t* right);
+    template<int OP_TYPE> expr_base_t* create_expression_arith_impl(data_type_t type, expr_base_t* left, expr_base_t* right);
+    template<int OP_TYPE> expr_base_t* create_expression_logic_impl(data_type_t type, expr_base_t* left, expr_base_t* right);
+    expr_base_t* create_expression_integer(Expr* expr);
+    expr_base_t* create_expression_column(Expr* expr);
+
+private:
+    data_type_t get_table_column_type(const char* name, db_int32 column_id);    
+    data_type_t convert_type(int op_type, data_type_t left, data_type_t right);
+
+private:
+    database_t* m_database;
 };
 
 

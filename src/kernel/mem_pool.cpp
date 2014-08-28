@@ -118,12 +118,10 @@ inline void* mem_pool_t::alloc_inner(db_uint32 level)
 
     if (page == NULL) return NULL;
     
-    db_uint32 page_size = MIN_PAGE_SIZE << max_level;
     for (db_uint32 n = max_level; n > level; n--) {
         set_bitmap(page, n);
-        m_free_lists[n-1].link(page);
-        page_size = page_size >> 1;
-        page += page_size;
+        m_free_lists[n-1].link(page);        
+        page += (MIN_PAGE_SIZE << (n-1));
     }
     
     set_bitmap(page, level);    
@@ -138,6 +136,10 @@ void* mem_pool_t::alloc_page(db_size size)
     return alloc_inner(level);
 }
 
+void* mem_pool_t::alloc_max_page() 
+{
+    return alloc_inner(MAX_LEVEL);
+}
 
 
 inline void mem_pool_t::free_inner(db_byte* ptr, db_uint32 level)

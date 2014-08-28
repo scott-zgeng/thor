@@ -6,33 +6,20 @@
 
 
 
-
-
-
-void mem_stack_t::alloc_memory(db_int32 size, mem_handle_t& handle)
+data_type_t expr_factory_t::get_table_column_type(const char* name, db_int32 column_id)
 {
-    // NOTE(scott.zgeng): BUFFER的大小完全可以根据已知的表达式，得到最大需要空间大小
-    assert(m_position + size <= m_end);
-
-    handle.init(this, m_position);
-    m_position += size;
-}
-
-//-----------------------------------------------------------------------------
-// expr_base_t
-//-----------------------------------------------------------------------------
-
-
-data_type_t get_table_column_type(db_int32 table_id, db_int32 column_id)
-{
-    return DB_INT32;
+    column_table_t* table = m_database->find_table(name);
+    if (table == NULL) return DB_UNKNOWN;
+    column_base_t* column = table->get_column(column_id);
+    if (column == NULL) return DB_UNKNOWN;
+    return column->data_type();
 }
 
 
-
-static expr_base_t* create_expression_column(Expr* expr)
-{
-    data_type_t type = get_table_column_type(0, 0);
+expr_base_t* expr_factory_t::create_expression_column(Expr* expr)
+{    
+    assert(expr->pTab->zName != NULL);
+    data_type_t type = get_table_column_type(expr->pTab->zName, expr->iColumn);
 
     switch (type)        
     {
@@ -44,12 +31,14 @@ static expr_base_t* create_expression_column(Expr* expr)
         return new expr_column_t<db_int32>();
     case DB_INT64:
         return new expr_column_t<db_int64>();
+    case DB_STRING:
+        return new expr_column_t<db_string>();
     default:
         return NULL;
     }
 }
 
-static expr_base_t* create_expression_integer(Expr* expr)
+expr_base_t* expr_factory_t::create_expression_integer(Expr* expr)
 {
     db_int64 value = expr->u.iValue;
 
@@ -65,7 +54,7 @@ static expr_base_t* create_expression_integer(Expr* expr)
 
 
 template<int OP_TYPE>
-static expr_base_t* create_expression_logic_impl(data_type_t type, expr_base_t* left, expr_base_t* right)
+expr_base_t* expr_factory_t::create_expression_logic_impl(data_type_t type, expr_base_t* left, expr_base_t* right)
 {
     switch (type)
     {    
@@ -89,7 +78,7 @@ static expr_base_t* create_expression_logic_impl(data_type_t type, expr_base_t* 
 }
 
 template<int OP_TYPE>
-static expr_base_t* create_expression_arith_impl(data_type_t type, expr_base_t* left, expr_base_t* right)
+expr_base_t* expr_factory_t::create_expression_arith_impl(data_type_t type, expr_base_t* left, expr_base_t* right)
 {
     switch (type)
     {
@@ -103,7 +92,7 @@ static expr_base_t* create_expression_arith_impl(data_type_t type, expr_base_t* 
 }
 
 
-static expr_base_t* create_expression_binary(Expr* expr, expr_base_t* left, expr_base_t* right)
+expr_base_t* expr_factory_t::create_expression_binary(Expr* expr, expr_base_t* left, expr_base_t* right)
 {
     assert(left->data_type() == right->data_type());
     data_type_t type = left->data_type();
@@ -145,7 +134,7 @@ static expr_base_t* create_expression_binary(Expr* expr, expr_base_t* left, expr
 
 
 
-expr_base_t* expr_base_t::create_instance(Expr* expr, expr_base_t* left, expr_base_t* right)
+expr_base_t* expr_factory_t::create_instance(Expr* expr, expr_base_t* left, expr_base_t* right)
 {
     switch (expr->op)
     {
@@ -153,6 +142,8 @@ expr_base_t* expr_base_t::create_instance(Expr* expr, expr_base_t* left, expr_ba
         return create_expression_column(expr);
     case TK_INTEGER:
         return create_expression_integer(expr); 
+    case TK_STRING:
+        return new expr_string_t();
     default:
         return create_expression_binary(expr, left, right);
     }
@@ -161,7 +152,7 @@ expr_base_t* expr_base_t::create_instance(Expr* expr, expr_base_t* left, expr_ba
 
 
 
-data_type_t convert_type(int op_type, data_type_t left, data_type_t right)
+data_type_t expr_factory_t::convert_type(int op_type, data_type_t left, data_type_t right)
 {
     // NOTE(scott.zgeng): 逻辑运算转为能覆盖两者范围的数据类型
     const static data_type_t s_logic_matrix[DB_MAX_TYPE][DB_MAX_TYPE] = {
@@ -215,7 +206,7 @@ data_type_t convert_type(int op_type, data_type_t left, data_type_t right)
 
 
 template<typename T>
-expr_base_t* create_convert_expr_impl(data_type_t rt_type, expr_base_t* children)
+expr_base_t* expr_factory_t::create_convert_expr_impl(data_type_t rt_type, expr_base_t* children)
 {
     switch (rt_type)
     {
@@ -235,7 +226,7 @@ expr_base_t* create_convert_expr_impl(data_type_t rt_type, expr_base_t* children
     }
 }
 
-expr_base_t* create_convert_expr(data_type_t type, data_type_t rt_type, expr_base_t* children)
+expr_base_t* expr_factory_t::create_convert_expr(data_type_t type, data_type_t rt_type, expr_base_t* children)
 {    
     switch (type)
     {    
@@ -257,7 +248,7 @@ expr_base_t* create_convert_expr(data_type_t type, data_type_t rt_type, expr_bas
 
 
 
-result_t expr_base_t::build(Expr* expr, expr_base_t** root)
+result_t expr_factory_t::build(Expr* expr, expr_base_t** root)
 {    
     result_t ret;
 

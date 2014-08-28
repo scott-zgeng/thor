@@ -10,8 +10,9 @@
 //-----------------------------------------------------------------------------
 // node_generator_t
 //-----------------------------------------------------------------------------
-node_generator_t::node_generator_t(Parse* parse, Select* select)
+node_generator_t::node_generator_t(database_t* db, Parse* parse, Select* select)
 {
+    m_database = db;
     m_parse = parse;
     m_select = select;
 }
@@ -55,6 +56,8 @@ result_t node_generator_t::build(node_base_t** root_node)
         scan_nodes[i] = new scan_node_t(i);
         IF_RETURN_FAILED(scan_nodes[i] == NULL);
 
+        scan_nodes[i]->m_database = m_database;
+
         ret = scan_nodes[i]->init(m_parse, m_select);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
     }
@@ -66,8 +69,11 @@ result_t node_generator_t::build(node_base_t** root_node)
     node_base_t* project_node = new project_node_t(root);
     IF_RETURN_FAILED(project_node == NULL);
 
+    project_node->m_database = m_database;
+
     ret = project_node->init(m_parse, m_select);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
 
     *root_node = project_node;
     return RT_SUCCEEDED;
@@ -92,11 +98,11 @@ project_node_t::~project_node_t()
 result_t project_node_t::init(Parse* parse, Select* select)
 {
     ExprList* expr_list = select->pEList;
-
+    expr_factory_t factory(m_database);
     result_t ret;
     for (db_int32 i = 0; i < expr_list->nExpr; i++) {
         expr_base_t* expr = NULL;
-        ret = expr_base_t::build(expr_list->a[i].pExpr, &expr);
+        ret = factory.build(expr_list->a[i].pExpr, &expr);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
         m_expr_columns.push_back(expr);

@@ -12,6 +12,8 @@
 
 
 
+
+
 class mem_dlist
 {
 private:
@@ -19,6 +21,8 @@ private:
         page_head_t* prev;
         page_head_t* next;
     };
+public:
+    static const db_uint32 HEAD_SIZE = sizeof(page_head_t);
 
 public:
     mem_dlist() {
@@ -70,12 +74,16 @@ public:
         return link(ptr);
     }
 
-    void* begin() {
+    void* begin() const {
         return m_entry.next;
     }
 
-    db_uint32 size() {
+    db_uint32 size() const {
         return m_count;
+    }
+
+    void* page_data(void* ptr) const {
+        return (db_byte*)ptr + sizeof(page_head_t);
     }
 
 protected:
@@ -117,7 +125,9 @@ public:
     void uninit();
 
     void* alloc_page(db_size size);
+    void* alloc_max_page();
     void free_page(void* ptr);
+    
 
 private:
     void* alloc_inner(db_uint32 level);
@@ -269,21 +279,85 @@ private:
 };
 
 
+// NOTE(scott.zgeng): 因为使用了mem_handle_t实现，所以放在此处
+inline void mem_stack_t::alloc_memory(db_int32 size, mem_handle_t& handle)
+{
+    // NOTE(scott.zgeng): BUFFER的大小完全可以根据已知的表达式，得到最大需要空间大小
+    assert(m_position + size <= m_end);
+
+    handle.init(this, m_position);
+    m_position += size;
+}
+
+
+
 class mem_region_t
 {
 public:
-    mem_region_t(mem_pool_t* pool);
-    ~mem_region_t();
+    static const db_uint32 MAX_ALLOC_SIZE = mem_pool_t::MAX_PAGE_SIZE - mem_dlist::HEAD_SIZE;
 
 public:
-    void* alloc(db_size size);
-    void release();
+    mem_region_t() {
+        m_capacity = 0;
+        m_pool = NULL;
+        m_data = NULL;
+    }
+
+    ~mem_region_t() {
+        release();
+    }
+
+public:
+    void init(mem_pool_t* pool) {
+        m_pool = pool;
+    }
+
+    void* alloc(db_size n) {
+        if (!ensure_capacity(n))
+            return NULL;
+
+        void* ptr = m_data;
+        m_data += n;
+        m_capacity -= n;
+        return ptr;
+    }
+
+
+    void release() {
+
+        while (true) {
+            void * ptr = m_list.pop_head();
+            if (ptr == NULL) break;        
+            m_pool->free_page(ptr);
+        }
+
+        m_capacity = 0;        
+        m_data = NULL;
+    }
 
 private:
-    //struct page_head_t {
-    //    page_head_t
-    //}
+    bool ensure_capacity(db_uint32 n) {
+        assert(n <= MAX_ALLOC_SIZE);
 
+        if (n <= m_capacity)
+            return true;
+
+        void* page = m_pool->alloc_max_page();
+        if UNLIKELY(page == NULL)
+            return false;
+
+        m_list.push_head(page);
+        m_data = (db_byte*)m_list.page_data(page);
+        m_capacity = MAX_ALLOC_SIZE;       
+        return true;
+    }
+
+private:
+    mem_dlist m_list;    
+    db_uint32 m_capacity;
+    mem_pool_t* m_pool;
+    db_byte* m_data;
+    
 };
 
 

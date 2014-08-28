@@ -21,7 +21,7 @@ column_base_t* column_base_t::create_column(data_type_t type)
     case DB_DOUBLE:
         return new column_t<db_double>();
     case DB_STRING:
-        return new column_t<db_string>();
+        return new varchar_column_t();
     default:
         return NULL;
     }
