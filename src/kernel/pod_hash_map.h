@@ -126,16 +126,22 @@ struct equal_function<fstring<SIZE> > {
 class map_allocator
 {
 public:
-    static void* alloc_bucket(size_t sz) {
+    void init(void* param) {
+    }
+
+    void uninit() {
+    }
+
+    void* alloc_bucket(size_t sz) {
         return malloc(sz);
     }
-    static void free_bucket(void* p) {
+    void free_bucket(void* p) {
         free(p);
     }
-    static void* alloc_node(size_t sz) {
+    void* alloc_node(size_t sz) {
         return malloc(sz);
     }
-    static void free_node(void* p) {
+    void free_node(void* p) {
         free(p);
     }
 };
@@ -251,11 +257,15 @@ public:
     };
     
     pod_hash_map() {
-        init(false);
+        init(false, NULL);
     }
 
     pod_hash_map(bool fixed) {
-        init(fixed);
+        init(fixed, NULL);
+    }
+
+    pod_hash_map(bool fixed, void* alloc_param) {
+        init(fixed, alloc_param);
     }
 
     ~pod_hash_map() {
@@ -354,6 +364,8 @@ public:
             m_bucket_num = INIT_SIZE;
             memset(m_init_buff, 0, sizeof(m_init_buff));
         }
+
+        m_allocator.uninit();
     }
 
 private:
@@ -366,7 +378,8 @@ private:
     }
 
 protected:
-    void init(bool fixed) {
+    void init(bool fixed, void* alloc_param) {
+        m_allocator.init(alloc_param);
         m_fixed = fixed;
         memset(m_init_buff, 0, sizeof(m_init_buff));
         m_buckets = m_init_buff;

@@ -8,8 +8,9 @@
 //-----------------------------------------------------------------------------
 // scan_node_t
 //-----------------------------------------------------------------------------
-scan_node_t::scan_node_t(int index)
+scan_node_t::scan_node_t(database_t* db, int index)
 {
+    m_database = db;
     m_index = index;
     m_where = NULL;
     m_eof = false;

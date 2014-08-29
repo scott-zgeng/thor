@@ -75,11 +75,12 @@ void test_func()
         EXPECT_TRUE(ret == SQLITE_DONE);    
     }
 
-
-
+    
     //const char sql[] = "select a.f1, count(a.f1) from test1 a, test2 b where a.f1 = b.f1 group by a.f1 order by a.f1;";
     //const char sql[] = "select f1, (f1 + 2), f2 from test1 where f1 > 1 and f1 <= 1044 and f2 <> 'test12' and f3 < 3";
-    const char sql[] = "select f1, (f1 + 2), f2 from test1 where f2 <> 'hello world, 0' and f1 < 15 ";
+    //const char sql[] = "select f1, (f1 + 2), f2, f3 + 3 from test1 where f2 <> 'hello world, 0' and f1 < 15 and f1 > 10 and f3 > 12";
+
+    const char sql[] = "select f1, max(f3), min(f3), avg(f3), count(*), count(f3), sum(f3),  sum(f3) from test1 where f1 > 2 group by f1 order by f1";
 
     sqlite3_stmt* stmt;
     const char* tail;
