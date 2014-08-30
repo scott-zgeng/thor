@@ -217,6 +217,7 @@ public:
 
 public:
     void alloc_memory(db_int32 size, mem_handle_t& handle);
+    void spin_memory(mem_handle_t& handle);
 
     void reset() {
         m_position = m_begin;
@@ -288,6 +289,13 @@ inline void mem_stack_t::alloc_memory(db_int32 size, mem_handle_t& handle)
     handle.init(this, m_position);
     m_position += size;
 }
+
+// NOTE(scott.zgeng): 因为使用了mem_handle_t实现，所以放在此处
+inline void mem_stack_t::spin_memory(mem_handle_t& handle)
+{
+    handle.init(this, m_position);    
+}
+
 
 
 

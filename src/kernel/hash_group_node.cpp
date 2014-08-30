@@ -8,6 +8,7 @@ hash_group_node_t::hash_group_node_t(database_t* db, node_base_t* children) : m_
 {
     m_children = children;
     m_database = db;
+    m_first = true;
 }
 
 hash_group_node_t::~hash_group_node_t()
@@ -18,56 +19,162 @@ hash_group_node_t::~hash_group_node_t()
 
 result_t hash_group_node_t::init(Parse* parse, Select* select)
 {
-    expr_factory_t factory(m_database);
-
-    //if (epxr->op == TK_AGG_COLUMN) 表示group by 后的列
-    //if (epxr->op == TK_AGG_FUNCTION) 表示group by 的聚合函数列
-    //iAgg  /* Which entry in pAggInfo->aCol[] or ->aFunc[] */
-    //x->pList  /* op = IN, EXISTS, SELECT, CASE, FUNCTION, BETWEEN */    
-    //pAggInfo   /* Used by TK_AGG_COLUMN and TK_AGG_FUNCTION */
-
     // NOTE(scott.zgeng): 目前计划有最大支持列数限制，如果有必要可以去掉
     IF_RETURN_FAILED(select->pEList->nExpr > MAX_AGGR_COLUMNS);
 
     result_t ret;
-    expr_base_t* expr;
-
+    expr_factory_t factory(m_database);    
     for (db_int32 i = 0; i < select->pEList->nExpr; i++) {        
-        Expr* org_expr = select->pEList->a[i].pExpr;
-
-        //IF_RETURN_FAILED(org_expr->op != TK_AGG_COLUMN && org_expr->op != TK_AGG_FUNCTION);
-
-
-        ret = factory.build(select->pEList->a[i].pExpr, &expr);
+        ret = add_aggr_sub_expr(factory, select->pEList->a[i].pExpr);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
-
-        bool is_succ = m_aggr_columns.push_back(expr);
-        IF_RETURN_FAILED(!is_succ);
     }
 
     for (db_int32 i = 0; i < select->pGroupBy->nExpr; i++) {
-        ret = factory.build(select->pGroupBy->a[i].pExpr, &expr);
+        group_item_t item;
+        item.values = NULL;
+        ret = factory.build(select->pGroupBy->a[i].pExpr, &item.expr);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
-        bool is_succ = m_group_columns.push_back(expr);
+        bool is_succ = m_group_columns.push_back(item);
         IF_RETURN_FAILED(!is_succ);
     }
 
+    ret = m_rowset.init(m_children->rowid_size());
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
+    m_first = true;
 
-
-
-    return RT_FAILED;
+    return RT_SUCCEEDED;
 }
+
+
+result_t hash_group_node_t::add_aggr_sub_expr(expr_factory_t& factory, Expr* pExpr)
+{
+    result_t ret;
+    
+    if (pExpr->op == TK_AGG_FUNCTION) {
+        assert(pExpr->x.pList == NULL || pExpr->x.pList->nExpr == 1);
+
+        aggr_item_t item = {NULL, AGGR_UNKNOWN, NULL};        
+        
+        if (pExpr->x.pList != NULL) {
+            ret = factory.build(pExpr->x.pList->a->pExpr, &item.expr);
+            IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+        }
+
+        item.type = get_aggr_type(pExpr->u.zToken);
+        IF_RETURN_FAILED(item.type == AGGR_UNKNOWN);
+
+        bool is_succ = m_aggr_columns.push_back(item);
+        IF_RETURN_FAILED(!is_succ);
+
+        return RT_SUCCEEDED;
+
+    } else if (pExpr->op == TK_AGG_COLUMN) {        
+        Expr clone_expr;
+        memcpy(&clone_expr, pExpr, sizeof(clone_expr));
+        clone_expr.op = TK_COLUMN;        
+        aggr_item_t item = { NULL, AGGR_COLUMN, NULL };
+
+        ret = factory.build(&clone_expr, &item.expr);
+        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+        bool is_succ = m_aggr_columns.push_back(item);
+        IF_RETURN_FAILED(!is_succ);
+
+        return RT_SUCCEEDED;
+
+    } else {}
+
+
+    if (pExpr->pLeft != NULL) {
+        ret = add_aggr_sub_expr(factory, pExpr->pLeft);
+        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+    }
+
+
+    if (pExpr->pRight != NULL) {
+        ret = add_aggr_sub_expr(factory, pExpr->pRight);
+        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+    }
+
+    return RT_SUCCEEDED;
+}
+
+
+
+hash_group_node_t::aggr_type_t hash_group_node_t::get_aggr_type(const char* token)
+{
+    assert(token != NULL);
+
+    if (strcmp(token, "count") == 0)
+        return AGGR_COUNT;
+    else if (strcmp(token, "min") == 0)
+        return AGGR_MIN;
+    else if (strcmp(token, "max") == 0)
+        return AGGR_MAX;
+    else if (strcmp(token, "sum") == 0)
+        return AGGR_SUM;
+    else if (strcmp(token, "avg") == 0)
+        return AGGR_AVG;
+    else
+        return AGGR_UNKNOWN;
+}
+
 
 void hash_group_node_t::uninit()
 {
 
 }
 
+
+result_t hash_group_node_t::build(mem_stack_t* mem)
+{
+    result_t ret;
+
+    while (true) {
+        ret = m_children->next(&m_rowset, mem);
+        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+        if (m_rowset.count() == 0) break;
+
+        mem_handle_t spin_handle;
+        mem->spin_memory(spin_handle);
+
+        for (db_uint32 i = 0; i < m_group_columns.size(); i++) {
+            mem_handle_t handle;
+            group_item_t& item = m_group_columns[i];
+            ret = item.expr->calc(&m_rowset, mem, handle);
+            IF_RETURN_FAILED(ret != RT_SUCCEEDED); 
+
+            item.values = handle.transfer();            
+        }
+
+        for (db_uint32 i = 0; i < m_aggr_columns.size(); i++) {
+            mem_handle_t handle;
+            aggr_item_t& item = m_aggr_columns[i];
+            ret = item.expr->calc(&m_rowset, mem, handle);
+            IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+            item.values = handle.transfer();
+        }
+
+
+        if (m_rowset.count() < SEGMENT_SIZE) break;
+    }
+
+    return RT_SUCCEEDED;
+}
+
 result_t hash_group_node_t::next(rowset_t* rows, mem_stack_t* mem)
 {
-    ////for ()
+    result_t ret;
+    if UNLIKELY(m_first) {
+        ret = build(mem);
+        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+    }
+        
+
 
     //m_aggr_table.
     return RT_FAILED;

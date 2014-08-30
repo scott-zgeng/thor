@@ -104,11 +104,12 @@ public:
 public:
     enum aggr_type_t {
         AGGR_UNKNOWN = 0,
-        AGGR_COUNT = 1,
-        AGGR_MIN = 2,
-        AGGR_MAX = 3,
-        AGGR_SUM = 4,
-        AGGR_AVG = 5,
+        AGGR_COLUMN = 1,
+        AGGR_COUNT = 2,        
+        AGGR_SUM = 3,
+        AGGR_AVG = 4,
+        AGGR_MIN = 5,
+        AGGR_MAX = 6,
     };
 
 public:
@@ -121,14 +122,32 @@ public:
     virtual result_t next(rowset_t* rows, mem_stack_t* mem);
     virtual db_int32 rowid_size();
 
+private:
+    result_t add_aggr_sub_expr(expr_factory_t& factory, Expr* expr);
+    aggr_type_t get_aggr_type(const char* token);
+    result_t build(mem_stack_t* mem);
+
 private:   
+    struct group_item_t {
+        expr_base_t* expr;
+        void* values;
+    };
+
+    struct aggr_item_t {
+        expr_base_t* expr;
+        aggr_type_t type;
+        void* values;
+    };
+
     node_base_t* m_children;
     database_t* m_database;
     aggr_table_t m_aggr_table;
 
-    pod_vector<expr_base_t*, MAX_GROUP_COLUMNS> m_group_columns;
-    pod_vector<expr_base_t*, MAX_AGGR_COLUMNS> m_aggr_columns;
-
+    pod_vector<group_item_t, MAX_GROUP_COLUMNS> m_group_columns;
+    pod_vector<aggr_item_t, MAX_AGGR_COLUMNS> m_aggr_columns;
+    
+    db_bool m_first;
+    rowset_t m_rowset;
 };
 
 

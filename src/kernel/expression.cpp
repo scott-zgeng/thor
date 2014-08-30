@@ -138,6 +138,7 @@ expr_base_t* expr_factory_t::create_instance(Expr* expr, expr_base_t* left, expr
 {
     switch (expr->op)
     {
+    case TK_AGG_COLUMN:
     case TK_COLUMN:
         return create_expression_column(expr);
     case TK_INTEGER:

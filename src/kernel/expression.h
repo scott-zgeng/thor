@@ -386,6 +386,7 @@ public:
     //result_t optimize(Expr* expr, expr_base_t** root);
 
     result_t build(Expr* expr, expr_base_t** root);
+
     expr_base_t* create_convert_expr(data_type_t type, data_type_t rt_type, expr_base_t* children);    
 
 private:
