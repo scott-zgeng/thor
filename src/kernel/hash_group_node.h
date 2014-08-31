@@ -11,87 +11,69 @@
 
 
 
-struct group_key_t
-{
-    void* row_addr;
-};
-
-struct aggr_row_t
-{
-    void* row_addr;
-};
-
-
-class combine_group_columns_t
-{
-
-};
-
-
-class combine_aggr_columns_t
-{
-
-};
-
-
-
-class database_t;
-class aggr_table_allocator
+class row_table_t
 {
 public:
-    void init(void* param) {
-        database_t* db = (database_t*)param;
-        m_mem_region.init(db->get_mem_pool());
-    }
+    row_table_t();
+    virtual ~row_table_t();
 
-    void uninit() {
-        m_mem_region.release();
+public:
+    result_t init(database_t* db);
+    result_t add_column(data_type_t type, db_uint32 len);
+
+
+
+
+private:
+    mem_region_t m_mem_region;
+    pod_vector<db_uint32, 16> m_field_pos;
+    db_uint32 m_row_len;
+};
+
+
+
+
+template<db_uint32 INIT_SIZE>
+class nsm_columns_t
+{
+public:
+    nsm_columns_t();
+    ~nsm_columns_t();
+
+public:    
+    result_t add_column(expr_base_t* expr) {
+        expr->data_type();  
+
     }
     
-    void* alloc_bucket(size_t sz) {
-        return malloc(sz);
-    }
 
-    void free_bucket(void* p) {
-        free(p);
-    }
 
-    void* alloc_node(size_t sz) {
-        return m_mem_region.alloc(sz);        
-    }
 
-    void free_node(void* p) {        
-    }
-private:
-    mem_region_t m_mem_region;
 };
-
-
-
-class aggr_table_t
-{ 
-public:
-    typedef pod_hash_map<group_key_t, aggr_row_t, 12289, aggr_table_allocator> hash_table_t;
-
-public:
-    aggr_table_t(database_t* db) : m_hash_table(true, db) {
-        m_mem_region.init(db->get_mem_pool());
-    }
-
-
-    result_t insert_update() {
-
-    }
-
-
-    void insert();
-    void update();
-
-
-private:
-    hash_table_t m_hash_table;
-    mem_region_t m_mem_region;
-};
+//
+//
+//class aggr_table_t
+//{ 
+//
+//public:
+//    aggr_table_t(database_t* db) :  {
+//        m_mem_region.init(db->get_mem_pool());
+//    }
+//
+//
+//    result_t insert_update() {
+//
+//    }
+//
+//
+//    void insert();
+//    void update();
+//
+//
+//private:
+//   
+//    mem_region_t m_mem_region;
+//};
 
 
 
@@ -105,11 +87,11 @@ public:
     enum aggr_type_t {
         AGGR_UNKNOWN = 0,
         AGGR_COLUMN = 1,
-        AGGR_COUNT = 2,        
-        AGGR_SUM = 3,
-        AGGR_AVG = 4,
-        AGGR_MIN = 5,
-        AGGR_MAX = 6,
+        AGGR_FUNC_COUNT = 2,        
+        AGGR_FUNC_SUM = 3,
+        AGGR_FUNC_AVG = 4,
+        AGGR_FUNC_MIN = 5,
+        AGGR_FUNC_MAX = 6,
     };
 
 public:
@@ -141,7 +123,7 @@ private:
 
     node_base_t* m_children;
     database_t* m_database;
-    aggr_table_t m_aggr_table;
+    //aggr_table_t m_aggr_table;
 
     pod_vector<group_item_t, MAX_GROUP_COLUMNS> m_group_columns;
     pod_vector<aggr_item_t, MAX_AGGR_COLUMNS> m_aggr_columns;
