@@ -29,7 +29,6 @@ public:
 };
 
 
-
 class expr_base_t;
 class node_generator_t
 {

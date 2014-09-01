@@ -29,34 +29,52 @@ db_uint32 calc_data_len(data_type_t type)
     }
 }
 
-
-
-row_table_t::row_table_t()
-{
-    m_row_len = 0;
-}
-
-row_table_t::~row_table_t()
-{
-    m_mem_region.release();
-}
-
-
-result_t row_table_t::init(database_t* db)
-{
-    m_mem_region.init(db->get_mem_pool());
-    return RT_SUCCEEDED;
-}
-
-
-result_t row_table_t::add_column(data_type_t type, db_uint32 len)
-{
-    m_field_pos.push_back(m_row_len);    
-    m_row_len += len;
-
-    return RT_SUCCEEDED;
-}
-
+//
+//
+//row_table_t::row_table_t()
+//{
+//    m_row_len = 0;
+//    m_alloc_ptr = NULL;
+//}
+//
+//row_table_t::~row_table_t()
+//{
+//    m_mem_region.release();
+//}
+//
+//
+//result_t row_table_t::init(database_t* db)
+//{
+//    m_mem_region.init(db->get_mem_pool());
+//    return RT_SUCCEEDED;
+//}
+//
+//
+//result_t row_table_t::add_column(data_type_t type, db_uint32 len)
+//{
+//    column_item_t item;
+//    item.column = 
+//    m_columns
+//    m_row_offsets.push_back(m_row_len);
+//    m_row_len += len;
+//
+//    return RT_SUCCEEDED;
+//}
+//
+//result_t row_table_t::prepare_insert()
+//{
+//    m_alloc_ptr = (db_byte*)m_mem_region.alloc(m_row_len);
+//    IF_RETURN_FAILED(m_alloc_ptr == NULL);
+//
+//    return RT_SUCCEEDED;
+//}
+//
+//void row_table_t::fill(db_uint32 i, void* value)
+//{
+//    m_columns[i].copy(m_alloc_ptr + m_row_offsets[i], value);
+//    
+//}
+//
 
 
 

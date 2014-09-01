@@ -11,6 +11,16 @@
 
 
 
+class row_base_t
+{
+public:
+    virtual void copy(void* dst, void* src) = 0;
+};
+
+
+
+
+template<db_uint32 INIT_SIZE>
 class row_table_t
 {
 public:
@@ -21,36 +31,58 @@ public:
     result_t init(database_t* db);
     result_t add_column(data_type_t type, db_uint32 len);
 
-
-
+    result_t prepare_insert();
+    result_t fill(db_uint32 i, void* value);
+    result_t insert();
 
 private:
+    struct column_item_t {
+        row_base_t* column;
+        db_uint32 offset;
+    };
+
     mem_region_t m_mem_region;
-    pod_vector<db_uint32, 16> m_field_pos;
-    db_uint32 m_row_len;
-};
-
-
-
-
-template<db_uint32 INIT_SIZE>
-class nsm_columns_t
-{
-public:
-    nsm_columns_t();
-    ~nsm_columns_t();
-
-public:    
-    result_t add_column(expr_base_t* expr) {
-        expr->data_type();  
-
-    }
     
+    db_uint32 m_row_len;
+    db_byte* m_alloc_ptr;
 
-
+    pod_vector<column_item_t, INIT_SIZE> m_columns;
 
 };
+
+
+
+// init()
+// insert();
+
+// for group
+// hash()
+// compare()
+
+// for aggr
+// update()
+
+
+
 //
+//template<db_uint32 INIT_SIZE>
+//class nsm_columns_t
+//{
+//public:
+//    nsm_columns_t();
+//    ~nsm_columns_t();
+//
+//public:    
+//    result_t add_column(expr_base_t* expr) {
+//        expr->data_type();  
+//
+//    }
+//    
+//
+//
+//
+//};
+////
 //
 //class aggr_table_t
 //{ 
