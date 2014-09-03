@@ -10,44 +10,41 @@
 #include "pod_hash_map.h"
 
 
-
-class row_base_t
+class row_segement_t
 {
 public:
-    virtual void copy(void* dst, void* src) = 0;
+    row_segement_t();
+    virtual ~row_segement_t();
+
+public:
+    result_t add_column(expr_base_t* expr);
+    result_t next(rowset_t* rows, mem_stack_t* mem, mem_handle_t result);
+    
+protected:
+    struct expr_item_t {
+        expr_base_t* expr;
+        db_uint32 offset;
+        db_uint32 size;
+    };
+
+    db_uint32 m_row_len;
+    pod_vector<expr_item_t, 16> m_columns;
 };
 
 
 
 
-template<db_uint32 INIT_SIZE>
-class row_table_t
+
+class group_columns_t
 {
 public:
-    row_table_t();
-    virtual ~row_table_t();
-
-public:
     result_t init(database_t* db);
-    result_t add_column(data_type_t type, db_uint32 len);
+    result_t add_column(expr_base_t* expr);
+    result_t next(rowset_t* rows, mem_stack_t* mem);
 
-    result_t prepare_insert();
-    result_t fill(db_uint32 i, void* value);
-    result_t insert();
 
 private:
-    struct column_item_t {
-        row_base_t* column;
-        db_uint32 offset;
-    };
-
-    mem_region_t m_mem_region;
-    
-    db_uint32 m_row_len;
-    db_byte* m_alloc_ptr;
-
-    pod_vector<column_item_t, INIT_SIZE> m_columns;
-
+    row_segement_t m_rows;
 };
 
 

@@ -29,59 +29,61 @@ db_uint32 calc_data_len(data_type_t type)
     }
 }
 
-//
-//
-//row_table_t::row_table_t()
-//{
-//    m_row_len = 0;
-//    m_alloc_ptr = NULL;
-//}
-//
-//row_table_t::~row_table_t()
-//{
-//    m_mem_region.release();
-//}
-//
-//
-//result_t row_table_t::init(database_t* db)
-//{
-//    m_mem_region.init(db->get_mem_pool());
-//    return RT_SUCCEEDED;
-//}
-//
-//
-//result_t row_table_t::add_column(data_type_t type, db_uint32 len)
-//{
-//    column_item_t item;
-//    item.column = 
-//    m_columns
-//    m_row_offsets.push_back(m_row_len);
-//    m_row_len += len;
-//
-//    return RT_SUCCEEDED;
-//}
-//
-//result_t row_table_t::prepare_insert()
-//{
-//    m_alloc_ptr = (db_byte*)m_mem_region.alloc(m_row_len);
-//    IF_RETURN_FAILED(m_alloc_ptr == NULL);
-//
-//    return RT_SUCCEEDED;
-//}
-//
-//void row_table_t::fill(db_uint32 i, void* value)
-//{
-//    m_columns[i].copy(m_alloc_ptr + m_row_offsets[i], value);
-//    
-//}
-//
 
 
 
+row_segement_t::row_segement_t()
+{
+    m_row_len = 0;
+}
 
 
+row_segement_t::~row_segement_t()
+{
+}
 
 
+result_t row_segement_t::add_column(expr_base_t* expr)
+{
+    assert(expr != NULL);
+
+    expr_item_t item;
+    item.expr = expr;
+    item.offset = m_row_len;
+    item.size = calc_data_len(expr->data_type());
+    m_row_len += item.size;
+
+    bool is_succ = m_columns.push_back(item);
+    IF_RETURN_FAILED(!is_succ);
+
+    return RT_SUCCEEDED;
+}
+
+result_t row_segement_t::next(rowset_t* rows, mem_stack_t* mem, mem_handle_t result)
+{
+    result_t ret;
+    
+    mem->alloc_memory(m_row_len*rows->count(), result);    
+    db_byte* row_segment = (db_byte*)result.ptr();
+
+    for (db_uint32 i = 0; i < m_columns.size(); i++) {        
+        mem_handle_t handle;
+        expr_item_t& item = m_columns[i];
+        ret = item.expr->calc(rows, mem, handle);
+        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+        db_byte* src = (db_byte*)handle.ptr();
+        db_byte* dst = row_segment + item.offset;
+        db_uint32 size = item.size;            
+
+        for (db_uint32 n = 0; n < rows->count(); n++) {
+            memcpy(dst, src, size);            
+            src += size;
+            dst += m_row_len;
+        }
+    }
+
+    return RT_SUCCEEDED;
+}
 
 
 

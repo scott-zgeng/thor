@@ -97,11 +97,11 @@ public:
         m_data = ptr;
     }
 
-    db_int32 count() const {
+    db_uint32 count() const {
         return m_count;
     }
 
-    void set_count(db_int32 n) {
+    void set_count(db_uint32 n) {
         m_count = n;
     }
 
@@ -122,7 +122,7 @@ public:
     }
 
 private:
-    db_int32 m_count;    
+    db_uint32 m_count;    
     mode_t m_mode;
     rowid_t* m_data;
     rowid_t* m_data_alloc;

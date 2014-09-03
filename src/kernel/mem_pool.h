@@ -216,6 +216,7 @@ public:
     }
 
 public:
+    // note(scott.zgeng): mem_handle_t放在参数中主要是为了方便传递参数
     void alloc_memory(db_int32 size, mem_handle_t& handle);
     void spin_memory(mem_handle_t& handle);
 

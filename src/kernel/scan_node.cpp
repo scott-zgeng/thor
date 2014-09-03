@@ -97,7 +97,7 @@ result_t scan_node_t::next(rowset_t* set, mem_stack_t* mem)
 
         db_int32 count = 0;
         // 获取所有有效的结果集合，去掉不符合的行        
-        for (int i = 0; i < m_rowset.count(); i++) {
+        for (db_uint32 i = 0; i < m_rowset.count(); i++) {
             if (expr_result[i]) {
                 out_rows[count] = in_rows[i];
                 count++;
