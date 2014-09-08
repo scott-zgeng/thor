@@ -89,7 +89,7 @@ result_t insert_stmt_t::prepare(Parse *pParse, SrcList *pTabList, Select *pSelec
     char* name = pTabList->a[0].zName;
     assert(name != NULL);
 
-    expr_factory_t factory(m_database);
+    expr_factory_t factory(m_database, SINGLE_TABLE_MODE, 1);
 
     m_table = m_database->find_table(name);
     IF_RETURN_FAILED(m_table == NULL);

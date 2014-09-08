@@ -374,13 +374,17 @@ private:
     db_char* m_value[SEGMENT_SIZE];
 };
 
-
+class node_base_t;
 class expr_factory_t
 {
 public:
-    expr_factory_t(database_t* db) {
+    expr_factory_t(database_t* db, rowset_mode_t mode, db_uint32 table_count) {
         m_database = db;
+        m_mode = mode;
+        m_table_count = table_count;
     }
+
+    expr_factory_t(database_t* db, node_base_t* node);
 
 public:
     // 需要增加一个优化表达式的函数
@@ -388,11 +392,13 @@ public:
 
     result_t build(Expr* expr, expr_base_t** root);
 
-    expr_base_t* create_cast_expr(data_type_t rt_type, expr_base_t* children);    
+    static expr_base_t* create_cast_expr(data_type_t rt_type, expr_base_t* children);    
 
 private:
+    template<typename T> static expr_base_t* create_convert_expr_impl(data_type_t rt_type, expr_base_t* children);
+
     expr_base_t* create_instance(Expr* expr, expr_base_t* left, expr_base_t* right);    
-    template<typename T> expr_base_t* create_convert_expr_impl(data_type_t rt_type, expr_base_t* children);
+    
     expr_base_t* create_expression_binary(Expr* expr, expr_base_t* left, expr_base_t* right);
     template<int OP_TYPE> expr_base_t* create_expression_arith_impl(data_type_t type, expr_base_t* left, expr_base_t* right);
     template<int OP_TYPE> expr_base_t* create_expression_logic_impl(data_type_t type, expr_base_t* left, expr_base_t* right);
@@ -405,6 +411,8 @@ private:
 
 private:
     database_t* m_database;
+    rowset_mode_t m_mode;
+    db_uint32 m_table_count;
 };
 
 

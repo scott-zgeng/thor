@@ -3,7 +3,14 @@
 
 #include <assert.h>
 #include "expression.h"
+#include "exec_node.h"
 
+expr_factory_t::expr_factory_t(database_t* db, node_base_t* node)
+{
+    m_database = db;
+    m_mode = node->rowset_mode();
+    m_table_count = node->table_count();
+}
 
 
 data_type_t expr_factory_t::get_table_column_type(const char* name, db_int32 column_id)

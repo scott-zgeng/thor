@@ -122,6 +122,8 @@ public:
         m_hash_table = NULL;
         m_database = NULL;
         m_row_count = 0;
+        m_mode = UNKNOWN_MODE;
+        m_table_count = 0;
     }
 
     ~aggr_table_t() {
@@ -131,20 +133,25 @@ public:
         }        
     }
     
-    result_t init_complete(database_t* db, db_uint32 row_count) {
-        m_database = db;
-        m_group_table.init(db->get_mem_pool(), m_group_rows.row_len());
-        m_aggr_table.init(db->get_mem_pool(), m_aggr_rows.row_len());
 
-        m_hash_region.init(db->get_mem_pool());
+    result_t init(database_t* db, rowset_mode_t mode, db_uint32 table_count, db_uint32 row_count) {
+        m_database = db;
+        m_mode = mode;
+        m_table_count = table_count;
 
         m_hash_size = 393241; // TODO(scott.zgeng): add cala hash size function
         m_hash_table = (hash_node_t**)malloc(m_hash_size * sizeof(hash_node_t*));
-        IF_RETURN_FAILED(m_hash_table == NULL);        
+        IF_RETURN_FAILED(m_hash_table == NULL);
 
-        memset(m_hash_table, 0, sizeof(hash_node_t*) * m_hash_size);
+        memset(m_hash_table, 0, sizeof(hash_node_t*)* m_hash_size);
 
         return RT_SUCCEEDED;
+    }
+
+    void init_complete() {
+        m_group_table.init(m_database->get_mem_pool(), m_group_rows.row_len());
+        m_aggr_table.init(m_database->get_mem_pool(), m_aggr_rows.row_len());
+        m_hash_region.init(m_database->get_mem_pool());
     }
 
 
@@ -168,15 +175,15 @@ public:
 
 
     expr_base_t* create_cast_expr(expr_base_t* expr, aggr_type_t aggr_type) {        
-        expr_factory_t factory(m_database);
+        
         switch (expr->data_type())
         {
         case DB_INT8:
         case DB_INT16:
         case DB_INT32:     
-            return factory.create_cast_expr(DB_INT64, expr);                        
+            return expr_factory_t::create_cast_expr(DB_INT64, expr);
         case DB_FLOAT:
-            return factory.create_cast_expr(DB_DOUBLE, expr);                        
+            return expr_factory_t::create_cast_expr(DB_DOUBLE, expr);
         case DB_INT64:
         case DB_DOUBLE:
             return expr;
@@ -341,6 +348,9 @@ private:
 
     db_uint32 m_row_count_per_page;
     db_uint32 m_row_idx;
+
+    rowset_mode_t m_mode;
+    db_uint32 m_table_count;
 
 };
 

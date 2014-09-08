@@ -257,7 +257,10 @@ result_t hash_group_node_t::init(Parse* parse, Select* select)
     IF_RETURN_FAILED(select->pEList->nExpr > MAX_AGGR_COLUMNS);
 
     result_t ret;
-    expr_factory_t factory(m_database);    
+    ret = m_aggr_table.init(m_database, m_children->rowset_mode(), m_children->table_count(), 0);
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+    
+    expr_factory_t factory(m_database, m_children);
     for (db_int32 i = 0; i < select->pEList->nExpr; i++) {        
         ret = add_aggr_sub_expr(factory, select->pEList->a[i].pExpr);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
@@ -275,9 +278,8 @@ result_t hash_group_node_t::init(Parse* parse, Select* select)
     m_sub_rowset = create_rowset(m_children->rowset_mode(), m_children->table_count());    
     IF_RETURN_FAILED(m_sub_rowset == NULL);
 
-    ret = m_aggr_table.init_complete(m_database, 0);
-    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
-
+    m_aggr_table.init_complete();
+    
     m_first = true;
     return RT_SUCCEEDED;
 }

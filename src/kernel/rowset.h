@@ -180,8 +180,6 @@ inline rowset_t* create_rowset(rowset_mode_t mode, db_uint32 table_count)
     default:
         return NULL;
     }
-
-
 }
 
 

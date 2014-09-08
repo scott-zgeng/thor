@@ -30,7 +30,7 @@ result_t scan_node_t::init(Parse* parse, Select* select)
 {
     result_t ret;
 
-    expr_factory_t factory(m_database);
+    expr_factory_t factory(m_database, this);
 
     ret = factory.build(select->pWhere, &m_where);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
