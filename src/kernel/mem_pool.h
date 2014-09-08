@@ -11,9 +11,6 @@
 
 
 
-
-
-
 class mem_dlist
 {
 private:
@@ -23,6 +20,34 @@ private:
     };
 public:
     static const db_uint32 HEAD_SIZE = sizeof(page_head_t);
+
+    class iterator
+    {
+    public:
+        iterator() {
+            m_page = NULL;
+        }
+
+        iterator(mem_dlist* list) {
+            init(list);
+        }
+
+        void init(mem_dlist* list) {
+            m_page = &list->m_entry;
+        }
+
+        void* next() {
+            m_page = m_page->next;
+            if (m_page == NULL)
+                return NULL;
+
+            return (db_byte*)m_page + HEAD_SIZE;
+        }
+
+    private:
+        page_head_t* m_page;
+    };
+
 
 public:
     mem_dlist() {
@@ -74,10 +99,6 @@ public:
         return link(ptr);
     }
 
-    void* begin() const {
-        return m_entry.next;
-    }
-
     db_uint32 size() const {
         return m_count;
     }
@@ -89,6 +110,7 @@ public:
 protected:
     page_head_t m_entry;
     db_uint32 m_count;
+    
 };
 
 
@@ -300,10 +322,33 @@ inline void mem_stack_t::spin_memory(mem_handle_t& handle)
 
 
 
+
 class mem_region_t
 {
 public:
     static const db_uint32 MAX_ALLOC_SIZE = mem_pool_t::MAX_PAGE_SIZE - mem_dlist::HEAD_SIZE;
+
+public:
+    class iterator {
+    public:
+        iterator() {
+        }
+
+        iterator(mem_region_t* region) {
+            m_iterator.init(&region->m_list);
+        }
+
+        void init(mem_region_t* region) {
+            m_iterator.init(&region->m_list);
+        }
+
+        void* next() {
+            return m_iterator.next();            
+        }
+    private:
+        mem_dlist::iterator m_iterator;
+    };
+
 
 public:
     mem_region_t() {
@@ -344,6 +389,8 @@ public:
         m_data = NULL;
     }
 
+ 
+
 private:
     bool ensure_capacity(db_uint32 n) {
         assert(n <= MAX_ALLOC_SIZE);
@@ -366,9 +413,88 @@ private:
     db_uint32 m_capacity;
     mem_pool_t* m_pool;
     db_byte* m_data;
-    
 };
 
+
+class mem_row_table_t
+{
+public:
+    class iterator
+    {
+    public:
+        iterator() {
+            m_len = 0;
+            m_left_count = 0;
+            m_row_count_per_page = 0;
+            m_row_idx = 0;
+            m_pos = NULL;
+        }
+
+        iterator(mem_row_table_t* table) {            
+            init(table);
+        }
+
+        void init(mem_row_table_t* table) {
+            m_iterator.init(&table->m_region);
+            m_len = table->m_len;
+            m_left_count = table->m_count;
+            m_row_count_per_page = mem_region_t::MAX_ALLOC_SIZE / table->m_len;
+            m_row_idx = m_row_count_per_page;
+            m_pos = NULL;
+        }
+
+        void* next() {
+            if (m_left_count == 0)
+                return NULL;
+
+            m_left_count--;
+            if (m_row_idx < m_row_count_per_page) {
+                m_pos += m_len;
+                m_row_idx++;                
+
+            } else {
+                m_pos = (db_byte*)m_iterator.next();
+                assert(m_pos != NULL);
+                m_row_idx = 0;
+            }
+
+            return m_pos;
+        }
+
+    private:        
+        mem_region_t::iterator m_iterator;
+        db_uint32 m_len;
+        db_uint32 m_left_count;
+        db_uint32 m_row_count_per_page;
+        db_uint32 m_row_idx;
+        db_byte* m_pos;
+    };
+
+    friend class iterator;
+
+    mem_row_table_t() {
+        m_len = 0;
+        m_count = 0;
+    }
+
+    void init(mem_pool_t* pool, db_uint32 len) {
+        m_region.init(pool);
+        m_len = len;
+    }
+
+    void* alloc() {
+        void* p = m_region.alloc(m_len);
+        if (p == NULL) return NULL;
+        m_count++;
+        return p;
+    }
+
+private:
+    mem_region_t m_region;    
+    db_uint32 m_len;
+    db_uint32 m_count;
+    
+};
 
 
 #endif //__MEM_POOL_H__

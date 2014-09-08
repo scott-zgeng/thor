@@ -19,12 +19,19 @@ public:
 public:
     virtual result_t init(Parse* parse, Select* select);
     virtual void uninit();
-    virtual result_t next(rowset_t* rows, mem_stack_t* mem);
-    virtual db_int32 rowid_size();
+    virtual result_t next(rowset_t* rs, mem_stack_t* mem);
+    
+    virtual rowset_mode_t rowset_mode() const {
+        return m_children->rowset_mode();
+    }
+
+    virtual db_uint32 table_count() const {
+        return m_children->table_count();
+    }
 
     result_t next();
     db_int32 count() const {
-        return m_sub_rows.count();
+        return m_sub_rowset->count;
     }
 
     db_uint32 column_count() const {
@@ -44,7 +51,7 @@ private:
     node_base_t* m_children;
     pod_vector<expr_base_t*, DEFAULT_EXPR_NUM> m_expr_columns;
     mem_stack_t m_mem;
-    rowset_t m_sub_rows;
+    rowset_t* m_sub_rowset;
     pod_vector<void*, DEFAULT_EXPR_NUM> m_expr_values;
 
 

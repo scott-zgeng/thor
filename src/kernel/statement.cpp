@@ -105,10 +105,11 @@ result_t insert_stmt_t::prepare(Parse *pParse, SrcList *pTabList, Select *pSelec
         ret = factory.build(insert_values->a[i].pExpr, &expr);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
-        if (expr->data_type() != m_table->get_column(i)->data_type()) {
-            expr_base_t* conv_expr = factory.create_convert_expr(expr->data_type(), m_table->get_column(i)->data_type(), expr);
-            IF_RETURN_FAILED(conv_expr == NULL);
-            expr = conv_expr;
+        data_type_t insert_type = m_table->get_column(i)->data_type();
+        if (expr->data_type() != insert_type) {
+            expr_base_t* cast_expr = factory.create_cast_expr(insert_type, expr);
+            IF_RETURN_FAILED(cast_expr == NULL);
+            expr = cast_expr;
         }
 
         bool is_succ = m_insert_values.push_back(expr);

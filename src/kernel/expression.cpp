@@ -227,8 +227,9 @@ expr_base_t* expr_factory_t::create_convert_expr_impl(data_type_t rt_type, expr_
     }
 }
 
-expr_base_t* expr_factory_t::create_convert_expr(data_type_t type, data_type_t rt_type, expr_base_t* children)
+expr_base_t* expr_factory_t::create_cast_expr(data_type_t rt_type, expr_base_t* children)
 {    
+    data_type_t type = children->data_type();
     switch (type)
     {    
     case DB_INT8:
@@ -278,13 +279,13 @@ result_t expr_factory_t::build(Expr* expr, expr_base_t** root)
         IF_RETURN_FAILED(ret_type == DB_UNKNOWN);
 
         if (left_type != ret_type) {
-            expr_base_t* temp = create_convert_expr(left_type, ret_type, left);
+            expr_base_t* temp = create_cast_expr(ret_type, left);
             IF_RETURN_FAILED(temp == NULL);
             left = temp;
         }
 
         if (right_type != ret_type) {
-            expr_base_t* temp = create_convert_expr(right_type, ret_type, right);            
+            expr_base_t* temp = create_cast_expr(ret_type, right);            
             IF_RETURN_FAILED(temp == NULL);
             right = temp;
         }

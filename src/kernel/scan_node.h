@@ -18,16 +18,25 @@ public:
 public:
     virtual result_t init(Parse* parse, Select* select);
     virtual void uninit();
-    virtual result_t next(rowset_t* rowset, mem_stack_t* mem);
-    virtual db_int32 rowid_size();
+    virtual result_t next(rowset_t* rs, mem_stack_t* mem);
+
+    virtual rowset_mode_t rowset_mode() const {
+        return SINGLE_TABLE_MODE;
+    }
+
+    virtual db_uint32 table_count() const {
+        return 1;
+    }
 
 private:
     db_int32 m_index;
     expr_base_t* m_where;  // where condition
-    cursor_t m_cursor;
-    rowid_t m_rows[SEGMENT_SIZE];
-    rowset_t m_rowset;
+    cursor_t m_cursor;    
+    single_rowset_t m_rowset;
     db_bool m_eof;
+
+    rowid_t* m_odd_rows;
+    db_uint32 m_odd_count;
 
     database_t* m_database;
 };

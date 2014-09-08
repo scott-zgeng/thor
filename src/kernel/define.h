@@ -88,7 +88,9 @@ static const db_int32 MAX_JOIN_TABLE = 8;
 static const db_int32 MAX_TAB_NAME_LEN = 63;
 
 static const db_int32 INVALID_INT32 = (-1);
+static const db_uint32 INVALID_UINT32 = (-1);
 static const db_int64 INVALID_INT64 = (-1);
+static const db_uint64 INVALID_UINT64 = (-1);
 
 
 #ifdef _WIN32

@@ -11,6 +11,7 @@ project_node_t::project_node_t(database_t* db, node_base_t* children)
 {
     m_database = db;         
     m_children = children;
+    m_sub_rowset = NULL;
 }
 
 project_node_t::~project_node_t()
@@ -31,7 +32,7 @@ result_t project_node_t::init(Parse* parse, Select* select)
         m_expr_columns.push_back(expr);
     }
 
-    ret = m_sub_rows.init(m_children->rowid_size());
+    //ret = m_sub_rows.init(m_children->rowid_size());
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
     m_expr_values.resize(expr_list->nExpr);
@@ -43,13 +44,9 @@ void project_node_t::uninit()
 {
 }
 
-db_int32 project_node_t::rowid_size()
-{
-    return 0;
-}
 
 
-result_t project_node_t::next(rowset_t* rows, mem_stack_t* mem)
+result_t project_node_t::next(rowset_t* rs, mem_stack_t* mem)
 {
     return RT_FAILED;
 }
@@ -61,16 +58,16 @@ result_t project_node_t::next()
 
     m_mem.reset();
 
-    ret = m_children->next(&m_sub_rows, &m_mem);
+    ret = m_children->next(m_sub_rowset, &m_mem);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
-    if (m_sub_rows.count() == 0)
+    if (m_sub_rowset->count == 0)
         return RT_SUCCEEDED;
 
     for (db_uint32 i = 0; i < m_expr_columns.size(); i++) {
 
         mem_handle_t mem_handle;
-        ret = m_expr_columns[i]->calc(&m_sub_rows, &m_mem, mem_handle);
+        ret = m_expr_columns[i]->calc(m_sub_rowset, &m_mem, mem_handle);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
         m_expr_values[i] = mem_handle.transfer();

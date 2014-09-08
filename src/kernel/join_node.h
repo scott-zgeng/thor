@@ -17,8 +17,15 @@ public:
 public:
     virtual result_t init(Parse* parse, Select* select);
     virtual void uninit();
-    virtual result_t next(rowset_t* rows, mem_stack_t* mem);
-    virtual db_int32 rowid_size();
+    virtual result_t next(rowset_t* rs, mem_stack_t* mem);
+
+    virtual rowset_mode_t rowset_mode() const {
+        return MULTI_TABLE_MODE;
+    }
+
+    virtual db_uint32 table_count() const {
+        return m_left->table_count() + m_right->table_count();
+    }
 
 private:
     node_base_t* m_left;

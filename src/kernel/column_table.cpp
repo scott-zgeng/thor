@@ -27,25 +27,25 @@ cursor_t::~cursor_t()
 }
 
 
-result_t cursor_t::next_segment(rowset_t* rows)
+result_t cursor_t::next_segment(single_rowset_t* rs)
 {
     if (m_curr_segment_id >= m_segment_count) {
-        rows->set_count(0);
+        rs->count = 0;
         return RT_SUCCEEDED;
     }
-    
-    rows->set_mode(rowset_t::SCAN_MODE);
+   
     db_int32 row_count = SEGMENT_SIZE;
     if (m_curr_segment_id + 1 == m_segment_count) {
         row_count = m_row_count - m_curr_segment_id * SEGMENT_SIZE;
     }
 
-    rows->set_count(row_count);
-    rowid_t* row_list = rows->data();
+    rs->segment_id = m_curr_segment_id;
+    rs->count = row_count;
+    rowid_t* rows = rs->rows;
 
     rowid_t temp_row = m_curr_segment_id * SEGMENT_SIZE;
     for (db_int32 i = 0; i < row_count; i++) {
-        row_list[i] = temp_row;
+        rows[i] = temp_row;
         temp_row++;
     }
 

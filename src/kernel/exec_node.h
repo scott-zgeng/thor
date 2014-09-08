@@ -23,9 +23,10 @@ public:
 public:
     virtual result_t init(Parse* parse, Select* select) = 0;
     virtual void uninit() = 0;
-    virtual result_t next(rowset_t* rows, mem_stack_t* mem) = 0;
-    virtual db_int32 rowid_size() = 0;
-
+    virtual result_t next(rowset_t* rs, mem_stack_t* mem) = 0;
+  
+    virtual rowset_mode_t rowset_mode() const = 0;
+    virtual db_uint32 table_count() const = 0;
 };
 
 

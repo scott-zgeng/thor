@@ -12,7 +12,6 @@
 
 
 
-class rowset_t;
 class column_table_t;
 
 class cursor_t
@@ -24,7 +23,7 @@ public:
     ~cursor_t();
 
 public:
-    result_t next_segment(rowset_t* rows);
+    result_t next_segment(single_rowset_t* rs);
 
 private:
     db_int32 m_curr_segment_id;

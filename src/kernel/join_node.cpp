@@ -33,13 +33,9 @@ void join_node_t::uninit()
 
 }
 
-db_int32 join_node_t::rowid_size()
-{
-    return m_left->rowid_size() + m_right->rowid_size();
-}
 
 
-result_t join_node_t::next(rowset_t* rows, mem_stack_t* mem)
+result_t join_node_t::next(rowset_t* rs, mem_stack_t* mem)
 {
     return RT_FAILED;
 }

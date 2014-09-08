@@ -31,9 +31,3 @@ result_t sort_node_t::next(rowset_t* rows, mem_stack_t* mem)
 }
 
 
-db_int32 sort_node_t::rowid_size()
-{
-    return 0;
-}
-
-

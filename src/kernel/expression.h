@@ -36,7 +36,7 @@ public:
     }
 
     virtual data_type_t data_type() = 0;
-    virtual result_t calc(rowset_t* rows, mem_stack_t* ctx, mem_handle_t& result) = 0;
+    virtual result_t calc(rowset_t* rs, mem_stack_t* mem, mem_handle_t& result) = 0;
 };
 
 
@@ -64,12 +64,12 @@ public:
         return type(); 
     }
 
-    virtual result_t calc(rowset_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
+    virtual result_t calc(rowset_t* rs, mem_stack_t* mem, mem_handle_t& result) {
 
-        ctx->alloc_memory(sizeof(RT)* SEGMENT_SIZE, result);
+        mem->alloc_memory(sizeof(RT)* SEGMENT_SIZE, result);
 
         mem_handle_t lresult;
-        result_t ret = m_children->calc(rows, ctx, lresult);
+        result_t ret = m_children->calc(rs, mem, lresult);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
         RT* dst = (RT*)result.ptr();
@@ -172,7 +172,7 @@ public:
         return type(); 
     }
 
-    virtual result_t calc(rowset_t* rows, mem_stack_t* mem, mem_handle_t& result) {
+    virtual result_t calc(rowset_t* rs, mem_stack_t* mem, mem_handle_t& result) {
 
         result_t ret;
         mem_handle_t lresult;
@@ -180,10 +180,10 @@ public:
 
         mem->alloc_memory(sizeof(RT)* SEGMENT_SIZE, result);
 
-        ret = m_left->calc(rows, mem, lresult);
+        ret = m_left->calc(rs, mem, lresult);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
-        ret = m_right->calc(rows, mem, rresult);
+        ret = m_right->calc(rs, mem, rresult);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
         RT* dst = (RT*)result.ptr();
@@ -191,7 +191,7 @@ public:
         T* b = (T*)rresult.ptr();
 
         binary_operator<OP_TYPE, T, RT> binary_op;
-        return binary_op(a, b, dst, rows->count());
+        return binary_op(a, b, dst, rs->count);
     }
 
 private:
@@ -225,13 +225,13 @@ public:
         return type(); 
     }
 
-    virtual result_t calc(rowset_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
+    virtual result_t calc(rowset_t* rs, mem_stack_t* mem, mem_handle_t& result) {
         assert(sizeof(T) <= sizeof(RT));
 
-        ctx->alloc_memory(sizeof(RT)* SEGMENT_SIZE, result);
+        mem->alloc_memory(sizeof(RT)* SEGMENT_SIZE, result);
 
         mem_handle_t lresult;
-        result_t ret = m_children->calc(rows, ctx, lresult);
+        result_t ret = m_children->calc(rs, mem, lresult);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
         RT* dst = (RT*)result.ptr();
@@ -281,18 +281,19 @@ public:
         return type(); 
     }
 
-    virtual result_t calc(rowset_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
-        
-        if (rows->mode() == rowset_t::SCAN_MODE) {
-            db_int32 segment_id = rows->segment(); 
+    virtual result_t calc(rowset_t* rs, mem_stack_t* mem, mem_handle_t& result) {        
+        assert(rs->mode == SINGLE_TABLE_MODE);
+
+        single_rowset_t* srs = (single_rowset_t*)rs;
+        if (srs->is_scan()) {
             void* values = NULL;
             db_int32 row_count = 0;
-            result_t ret = m_table->get_segment_values(m_column_id, segment_id, &values);
+            result_t ret = m_table->get_segment_values(m_column_id, srs->segment_id, &values);
             IF_RETURN_FAILED(ret != RT_SUCCEEDED);
-            result.init(ctx, values);
+            result.init(mem, values);
         } else {
-            ctx->alloc_memory(sizeof(T)* SEGMENT_SIZE, result);
-            m_table->get_random_values(m_column_id, rows->data(), rows->count(), result.ptr());
+            mem->alloc_memory(sizeof(T)* SEGMENT_SIZE, result);
+            m_table->get_random_values(m_column_id, srs->rows, srs->count, result.ptr());
         }
 
         return RT_SUCCEEDED;
@@ -330,8 +331,8 @@ public:
         return type(); 
     }
     
-    virtual result_t calc(rowset_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
-        result.init(ctx, m_value);
+    virtual result_t calc(rowset_t* rs, mem_stack_t* mem, mem_handle_t& result) {
+        result.init(mem, m_value);
         return RT_SUCCEEDED;
     }
 
@@ -363,8 +364,8 @@ public:
         return DB_STRING;
     }
 
-    virtual result_t calc(rowset_t* rows, mem_stack_t* ctx, mem_handle_t& result) {
-        result.init(ctx, m_value);
+    virtual result_t calc(rowset_t* rs, mem_stack_t* mem, mem_handle_t& result) {
+        result.init(mem, m_value);
         return RT_SUCCEEDED;
     }
 
@@ -387,7 +388,7 @@ public:
 
     result_t build(Expr* expr, expr_base_t** root);
 
-    expr_base_t* create_convert_expr(data_type_t type, data_type_t rt_type, expr_base_t* children);    
+    expr_base_t* create_cast_expr(data_type_t rt_type, expr_base_t* children);    
 
 private:
     expr_base_t* create_instance(Expr* expr, expr_base_t* left, expr_base_t* right);    

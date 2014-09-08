@@ -30,8 +30,6 @@ db_uint32 calc_data_len(data_type_t type)
 }
 
 
-
-
 row_segement_t::row_segement_t()
 {
     m_row_len = 0;
@@ -60,23 +58,24 @@ result_t row_segement_t::add_column(expr_base_t* expr)
     return RT_SUCCEEDED;
 }
 
-result_t row_segement_t::next(rowset_t* rows, mem_stack_t* mem, mem_handle_t result)
+
+result_t row_segement_t::next(rowset_t* rs, mem_stack_t* mem, mem_handle_t result)
 {
     result_t ret;
     
-    mem->alloc_memory(m_row_len*rows->count(), result);    
+    mem->alloc_memory(m_row_len * rs->count, result);    
     db_byte* row_segment = (db_byte*)result.ptr();
 
     for (db_uint32 i = 0; i < m_columns.size(); i++) {        
         mem_handle_t handle;
         expr_item_t& item = m_columns[i];
-        ret = item.expr->calc(rows, mem, handle);
+        ret = item.expr->calc(rs, mem, handle);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
         db_byte* src = (db_byte*)handle.ptr();
         db_byte* dst = row_segment + item.offset;
         db_uint32 size = item.size;            
 
-        for (db_uint32 n = 0; n < rows->count(); n++) {
+        for (db_uint32 n = 0; n < rs->count; n++) {
             memcpy(dst, src, size);            
             src += size;
             dst += m_row_len;
@@ -155,6 +154,14 @@ group_op_base_t* aggr_table_t::create_group_op(data_type_t type)
 template<typename T, aggr_type_t AT>
 struct aggr_op_t : public aggr_op_base_t 
 {
+    virtual void update(void* dst_row, void* src_row) {
+        assert(false);
+    }
+};
+
+template<typename T>
+class aggr_op_t<T, AGGR_COLUMN> : public aggr_op_base_t
+{
     virtual void update(void* dst_row, void* src_row) {}
 };
 
@@ -168,34 +175,65 @@ class aggr_op_t<db_int64, AGGR_FUNC_COUNT> : public aggr_op_base_t
 };
 
 
-//
-//template<aggr_type_t AT>
-//aggr_op_base_t* aggr_table_t::create_aggr_op_impl(data_type_t type)
-//{
-//
-//}
+
+template<aggr_type_t AT>
+aggr_op_base_t* aggr_table_t::create_min_max_aggr_op(data_type_t type)
+{
+    switch (type)
+    {
+    case DB_INT8:
+        return new aggr_op_t<db_int8, AT>();
+    case DB_INT16:
+        return new aggr_op_t<db_int16, AT>();
+    case DB_INT32:
+        return new aggr_op_t<db_int32, AT>();
+    case DB_INT64:
+        return new aggr_op_t<db_int64, AT>();
+    case DB_FLOAT:
+        return new aggr_op_t<db_float, AT>();
+    case DB_DOUBLE:
+        return new aggr_op_t<db_double, AT>();
+    case DB_STRING:
+        return new aggr_op_t<db_string, AT>();
+    default:
+        return NULL;        
+    }
+}
+
+
+template<aggr_type_t AT>
+aggr_op_base_t* aggr_table_t::create_sum_avg_aggr_op(data_type_t type)
+{
+    switch (type)
+    {
+    case DB_INT64:
+        return new aggr_op_t<db_int64, AT>();
+    case DB_DOUBLE:
+        return new aggr_op_t<db_double, AT>();
+    default:
+        return NULL;
+    }
+}
 
 aggr_op_base_t* aggr_table_t::create_aggr_op(data_type_t type, aggr_type_t aggr_type)
 {
     switch (aggr_type)
     {    
     case AGGR_COLUMN:
-        break;
+        return new aggr_op_t<void, AGGR_COLUMN>();
     case AGGR_FUNC_COUNT:
         return new aggr_op_t<db_int64, AGGR_FUNC_COUNT>();
     case AGGR_FUNC_SUM:
-        break;
+        return create_sum_avg_aggr_op<AGGR_FUNC_SUM>(type);
     case AGGR_FUNC_AVG:
-        break;
+        return create_sum_avg_aggr_op<AGGR_FUNC_AVG>(type);
     case AGGR_FUNC_MIN:
-        break;
+        return create_min_max_aggr_op<AGGR_FUNC_MIN>(type);        
     case AGGR_FUNC_MAX:
-        break;
+        return create_min_max_aggr_op<AGGR_FUNC_MAX>(type);
     default:
-        break;
-    }
-
-    return NULL;
+        return NULL;
+    }    
 }
 
 
@@ -230,15 +268,17 @@ result_t hash_group_node_t::init(Parse* parse, Select* select)
         ret = factory.build(select->pGroupBy->a[i].pExpr, &expr);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
-        ret = m_aggr_table.add_group_column(expr);
+        ret = m_aggr_table.add_group_column(expr); 
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
     }
 
-    ret = m_rowset.init(m_children->rowid_size());
+    m_sub_rowset = create_rowset(m_children->rowset_mode(), m_children->table_count());    
+    IF_RETURN_FAILED(m_sub_rowset == NULL);
+
+    ret = m_aggr_table.init_complete(m_database, 0);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
     m_first = true;
-
     return RT_SUCCEEDED;
 }
 
@@ -327,37 +367,32 @@ result_t hash_group_node_t::build(mem_stack_t* mem)
     result_t ret;
 
     while (true) {
-        ret = m_children->next(&m_rowset, mem);
+        ret = m_children->next(m_sub_rowset, mem);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
-        if (m_rowset.count() == 0) break;
+        if (m_sub_rowset->count == 0) break;
 
-        ret = m_aggr_table.next(&m_rowset, mem);
+        ret = m_aggr_table.build(m_sub_rowset, mem);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
-        if (m_rowset.count() < SEGMENT_SIZE) break;
+        if (m_sub_rowset->count < SEGMENT_SIZE) break;
     }
 
     return RT_SUCCEEDED;
 }
 
-result_t hash_group_node_t::next(rowset_t* rows, mem_stack_t* mem)
+result_t hash_group_node_t::next(rowset_t* rs, mem_stack_t* mem)
 {
+    assert(rs->mode == AGGR_TABLE_MODE);
+    aggr_rowset_t* ars = (aggr_rowset_t*)rs;
+
     result_t ret;
     if UNLIKELY(m_first) {
         ret = build(mem);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
         m_first = false;
     }
-        
-    //m_aggr_table.
-    return RT_FAILED;
+
+    return m_aggr_table.next(ars);
 }
-
-
-db_int32 hash_group_node_t::rowid_size()
-{
-    return 0;
-}
-
 
