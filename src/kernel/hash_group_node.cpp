@@ -5,29 +5,7 @@
 
 
 
-db_uint32 calc_data_len(data_type_t type)
-{
-    switch (type)
-    {
 
-    case DB_INT8:
-        return sizeof(db_int8);
-    case DB_INT16:
-        return sizeof(db_int16);
-    case DB_INT32:
-        return sizeof(db_int32);
-    case DB_INT64:
-        return sizeof(db_int64);
-    case DB_FLOAT:
-        return sizeof(db_float);
-    case DB_DOUBLE:
-        return sizeof(db_double);
-    case DB_STRING:
-        return sizeof(db_string);    
-    default:
-        return (-1); 
-    }
-}
 
 
 row_segement_t::row_segement_t()
@@ -59,11 +37,11 @@ result_t row_segement_t::add_column(expr_base_t* expr)
 }
 
 
-result_t row_segement_t::next(rowset_t* rs, mem_stack_t* mem, mem_handle_t result)
+result_t row_segement_t::next(rowset_t* rs, mem_stack_t* mem, mem_handle_t& result)
 {
     result_t ret;
     
-    mem->alloc_memory(m_row_len * rs->count, result);    
+    mem->alloc_memory(m_row_len * SEGMENT_SIZE, result);    
     db_byte* row_segment = (db_byte*)result.ptr();
 
     for (db_uint32 i = 0; i < m_columns.size(); i++) {        

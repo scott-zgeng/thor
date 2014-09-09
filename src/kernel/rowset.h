@@ -151,7 +151,7 @@ struct aggr_rowset_t : public rowset_t
 
     aggr_rowset_t() {
         count = 0;
-        mode = MULTI_TABLE_MODE;
+        mode = AGGR_TABLE_MODE;
     }
 };
 
@@ -159,7 +159,6 @@ inline rowset_t* create_rowset(rowset_mode_t mode, db_uint32 table_count)
 {
     switch (mode)
     {
-
     case SINGLE_TABLE_MODE:
         return new single_rowset_t(); 
     case MULTI_TABLE_MODE:

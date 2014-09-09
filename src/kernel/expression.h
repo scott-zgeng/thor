@@ -18,7 +18,9 @@ extern "C" {
 #include "rowset.h"
 
 
-
+static const db_uint32 DEFAULT_EXPR_NUM = 32;
+class expr_base_t;
+typedef pod_vector<expr_base_t*, DEFAULT_EXPR_NUM> expr_list_t;
 
 
 class expr_base_t
@@ -27,7 +29,7 @@ public:
     virtual ~expr_base_t() {
     }
 
-    virtual result_t init(Expr* expr) { 
+    virtual result_t init(Expr* expr, void* param) {
         return RT_SUCCEEDED; 
     }
 
@@ -38,8 +40,6 @@ public:
     virtual data_type_t data_type() = 0;
     virtual result_t calc(rowset_t* rs, mem_stack_t* mem, mem_handle_t& result) = 0;
 };
-
-
 
 template<int OP_TYPE, typename T, typename RT>
 struct unary_operator {
@@ -212,8 +212,8 @@ public:
     virtual ~expr_convert_t() {
     }
 
-    virtual result_t init(Expr* expr) { 
-        return m_children->init(expr); 
+    virtual result_t init(Expr* expr, void* param) {
+        return m_children->init(expr, param);
     }
 
     virtual bool has_null() { 
@@ -251,6 +251,56 @@ private:
 };
 
 
+class expr_aggr_t : public expr_base_t
+{
+public:
+    virtual ~expr_aggr_t() {
+
+    }
+    db_uint32 m_offset;
+};
+
+
+
+template<typename T>
+class expr_aggr_column_t : public expr_aggr_t
+{
+public:
+    expr_aggr_column_t() {
+        m_offset = 0;
+    }
+
+    virtual ~expr_aggr_column_t() {
+
+    }
+
+    virtual result_t init(Expr* expr, void* param) {    
+        return RT_SUCCEEDED;
+    }
+
+    virtual data_type_t data_type() {
+        variant_type<T> type;
+        return type();
+    }
+
+    virtual result_t calc(rowset_t* rs, mem_stack_t* mem, mem_handle_t& result) {
+        assert(rs->mode == AGGR_TABLE_MODE);
+        aggr_rowset_t* ars = (aggr_rowset_t*)rs;
+
+        mem->alloc_memory(sizeof(T)* SEGMENT_SIZE, result);
+        T* values = (T*)result.ptr();
+
+        for (db_uint32 i = 0; i < ars->count; i++) {            
+            values[i] = *(T*)((db_byte*)ars->rows[i] + m_offset);
+        }
+
+        return RT_SUCCEEDED;
+    }
+
+};
+
+
+
 template<typename T>
 class expr_column_t : public expr_base_t
 {
@@ -264,7 +314,8 @@ public:
     }
 
 public:
-    virtual result_t init(Expr* expr) {
+    virtual result_t init(Expr* expr, void* param) {
+        // TODO(scott.zgeng): instance不允许直接使用
         m_table = database_t::instance.find_table(expr->pTab->zName);
         IF_RETURN_FAILED(m_table == NULL);
 
@@ -317,7 +368,7 @@ public:
     }
 
 public:
-    virtual result_t init(Expr* expr) {
+    virtual result_t init(Expr* expr, void* param) {
         variant_cast<db_int64, T, true> cast_force;
         T v = cast_force(expr->u.iValue);
         for (db_int32 i = 0; i < SEGMENT_SIZE; i++) {
@@ -351,7 +402,7 @@ public:
 
     }
 
-    virtual result_t init(Expr* expr) {        
+    virtual result_t init(Expr* expr, void* param) {
         strncpy_ex(m_string, expr->u.zToken, sizeof(m_value));
         for (db_int32 i = 0; i < SEGMENT_SIZE; i++) {
             m_value[i] = m_string;
@@ -374,6 +425,45 @@ private:
     db_char* m_value[SEGMENT_SIZE];
 };
 
+
+class expr_aggr_count_t : public expr_base_t
+{
+public:
+    expr_aggr_count_t(expr_base_t* children) {
+        m_children = children;
+    }
+
+    virtual ~expr_aggr_count_t() {
+    }
+
+    virtual result_t init(Expr* expr, void* param) {
+        return RT_SUCCEEDED;
+    }
+
+    virtual bool has_null() {
+        return false;
+    }
+
+    virtual data_type_t data_type() {
+        return DB_INT64;
+    }
+
+    virtual result_t calc(rowset_t* rs, mem_stack_t* ctx, mem_handle_t& result) {
+        ctx->alloc_memory(SEGMENT_SIZE*sizeof(db_int64), result);
+        db_int64* count_result = (db_int64*)result.ptr();
+        for (db_uint32 i = 0; i < rs->count; i++) {
+            count_result[i] = 1;
+        }
+        return RT_SUCCEEDED;
+    }
+
+private:
+    expr_base_t* m_children;
+};
+
+
+
+
 class node_base_t;
 class expr_factory_t
 {
@@ -390,32 +480,60 @@ public:
     // 需要增加一个优化表达式的函数
     //result_t optimize(Expr* expr, expr_base_t** root);
 
-    result_t build(Expr* expr, expr_base_t** root);
+    result_t build(Expr* expr, expr_base_t** root) {
+        db_uint32 rec_len = 0;
+        return build_impl(expr, rec_len, root);        
+    }
 
-    static expr_base_t* create_cast_expr(data_type_t rt_type, expr_base_t* children);    
+
+
+    result_t build_list(ExprList* src, expr_list_t* dst);
+
+    
+    static expr_base_t* create_cast(data_type_t rt_type, expr_base_t* children);    
 
 private:
     template<typename T> static expr_base_t* create_convert_expr_impl(data_type_t rt_type, expr_base_t* children);
 
     expr_base_t* create_instance(Expr* expr, expr_base_t* left, expr_base_t* right);    
     
-    expr_base_t* create_expression_binary(Expr* expr, expr_base_t* left, expr_base_t* right);
-    template<int OP_TYPE> expr_base_t* create_expression_arith_impl(data_type_t type, expr_base_t* left, expr_base_t* right);
-    template<int OP_TYPE> expr_base_t* create_expression_logic_impl(data_type_t type, expr_base_t* left, expr_base_t* right);
-    expr_base_t* create_expression_integer(Expr* expr);
-    expr_base_t* create_expression_column(Expr* expr);
+    expr_base_t* create_binary(Expr* expr, expr_base_t* left, expr_base_t* right);
+    template<int OP_TYPE> expr_base_t* create_arith_op(data_type_t type, expr_base_t* left, expr_base_t* right);
+    template<int OP_TYPE> expr_base_t* create_logic_op(data_type_t type, expr_base_t* left, expr_base_t* right);
+    expr_base_t* create_integer(Expr* expr);
+    expr_base_t* create_column(Expr* expr);
+
+    expr_aggr_t* create_aggr_column(Expr* expr);
+    expr_aggr_t* create_aggr_function(Expr* expr);
 
 private:
-    data_type_t get_table_column_type(const char* name, db_int32 column_id);    
-    data_type_t convert_type(int op_type, data_type_t left, data_type_t right);
+    data_type_t get_column_type(const char* name, db_int32 column_id);    
+    data_type_t cast_type(int op_type, data_type_t left, data_type_t right);
+
+private:
+    result_t build_impl(Expr* expr, db_uint32& len, expr_base_t** root) {
+        switch (m_mode)
+        {
+        case SINGLE_TABLE_MODE:
+        case MULTI_TABLE_MODE:
+            return build_normal(expr, len, root);
+        case AGGR_TABLE_MODE:
+            return build_aggr(expr, len, root);
+        default:
+            return RT_FAILED;
+        }
+    }
+
+    result_t build_normal(Expr* expr, db_uint32& len, expr_base_t** root);
+    result_t build_aggr(Expr* expr, db_uint32& len, expr_base_t** root);
 
 private:
     database_t* m_database;
     rowset_mode_t m_mode;
-    db_uint32 m_table_count;
+    db_uint32 m_table_count;   
 };
 
-
+db_uint32 calc_data_len(data_type_t type);
 
 
 #endif //__EXPRESSION_H__

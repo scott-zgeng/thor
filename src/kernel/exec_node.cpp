@@ -69,7 +69,7 @@ result_t node_generator_t::build(node_base_t** root_node)
     ret = build_join(scan_nodes, tab_num, &root);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
-    if (m_select->pGroupBy->nExpr > 0) {
+    if (m_select->pGroupBy != NULL && m_select->pGroupBy->nExpr > 0) {
         hash_group_node_t* group_node = new hash_group_node_t(m_database, root);
         IF_RETURN_FAILED(group_node == NULL);
         
@@ -79,7 +79,7 @@ result_t node_generator_t::build(node_base_t** root_node)
         root = group_node;
     }
 
-    if (m_select->pOrderBy->nExpr > 0) {
+    if (m_select->pOrderBy != NULL && m_select->pOrderBy->nExpr > 0) {
         sort_node_t* sort_node = new sort_node_t(root);
         IF_RETURN_FAILED(sort_node == NULL);
 

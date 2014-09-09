@@ -11,8 +11,7 @@
 
 class project_node_t : public node_base_t
 {
-public:
-    static const db_int32 DEFAULT_EXPR_NUM = 16;
+public:    
     project_node_t(database_t* db, node_base_t* children);
     virtual ~project_node_t();
 
@@ -49,7 +48,7 @@ public:
 private:
     database_t* m_database;
     node_base_t* m_children;
-    pod_vector<expr_base_t*, DEFAULT_EXPR_NUM> m_expr_columns;
+    expr_list_t m_expr_columns;
     mem_stack_t m_mem;
     rowset_t* m_sub_rowset;
     pod_vector<void*, DEFAULT_EXPR_NUM> m_expr_values;

@@ -107,7 +107,7 @@ result_t insert_stmt_t::prepare(Parse *pParse, SrcList *pTabList, Select *pSelec
 
         data_type_t insert_type = m_table->get_column(i)->data_type();
         if (expr->data_type() != insert_type) {
-            expr_base_t* cast_expr = factory.create_cast_expr(insert_type, expr);
+            expr_base_t* cast_expr = factory.create_cast(insert_type, expr);
             IF_RETURN_FAILED(cast_expr == NULL);
             expr = cast_expr;
         }

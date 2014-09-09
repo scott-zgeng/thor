@@ -23,14 +23,8 @@ result_t project_node_t::init(Parse* parse, Select* select)
 {
     ExprList* expr_list = select->pEList;
     expr_factory_t factory(m_database, m_children);
-    result_t ret;
-    for (db_int32 i = 0; i < expr_list->nExpr; i++) {
-        expr_base_t* expr = NULL;
-        ret = factory.build(expr_list->a[i].pExpr, &expr);
-        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
-
-        m_expr_columns.push_back(expr);
-    }
+    result_t ret = factory.build_list(select->pEList, &m_expr_columns);
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
     m_sub_rowset = create_rowset(m_children->rowset_mode(), m_children->table_count());    
     IF_RETURN_FAILED(m_sub_rowset == NULL);

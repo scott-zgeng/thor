@@ -10,40 +10,6 @@
 #include "pod_hash_map.h"
 
 
-class expr_aggr_count_t: public expr_base_t
-{
-public:
-    expr_aggr_count_t(expr_base_t* children) {
-        m_children = children;
-    }
-
-    virtual ~expr_aggr_count_t() {
-    }
-
-    virtual result_t init(Expr* expr) {
-        return RT_SUCCEEDED;
-    }
-
-    virtual bool has_null() {
-        return false;
-    }
-
-    virtual data_type_t data_type() {
-        return DB_INT64;
-    }
-
-    virtual result_t calc(rowset_t* rs, mem_stack_t* ctx, mem_handle_t& result) {
-        ctx->alloc_memory(SEGMENT_SIZE*sizeof(db_int64), result);
-        db_int64* count_result = (db_int64*)result.ptr();
-        for (db_uint32 i = 0; i < rs->count; i++) {
-            count_result[i] = 1;
-        }
-        return RT_SUCCEEDED;
-    }
-
-private:
-    expr_base_t* m_children;
-};
 
 
 
@@ -55,7 +21,7 @@ public:
 
 public:
     result_t add_column(expr_base_t* expr);
-    result_t next(rowset_t* rs, mem_stack_t* mem, mem_handle_t result);
+    result_t next(rowset_t* rs, mem_stack_t* mem, mem_handle_t& result);
 
     db_uint32 row_len() const {
         return m_row_len;
@@ -181,9 +147,9 @@ public:
         case DB_INT8:
         case DB_INT16:
         case DB_INT32:     
-            return expr_factory_t::create_cast_expr(DB_INT64, expr);
+            return expr_factory_t::create_cast(DB_INT64, expr);
         case DB_FLOAT:
-            return expr_factory_t::create_cast_expr(DB_DOUBLE, expr);
+            return expr_factory_t::create_cast(DB_DOUBLE, expr);
         case DB_INT64:
         case DB_DOUBLE:
             return expr;
