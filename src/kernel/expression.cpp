@@ -30,6 +30,26 @@ db_uint32 calc_data_len(data_type_t type)
     }
 }
 
+
+aggr_type_t get_aggr_type(const char* token)
+{
+    assert(token != NULL);
+
+    if (strcmp(token, "count") == 0)
+        return AGGR_FUNC_COUNT;
+    else if (strcmp(token, "min") == 0)
+        return AGGR_FUNC_MIN;
+    else if (strcmp(token, "max") == 0)
+        return AGGR_FUNC_MAX;
+    else if (strcmp(token, "sum") == 0)
+        return AGGR_FUNC_SUM;
+    else if (strcmp(token, "avg") == 0)
+        return AGGR_FUNC_AVG;
+    else
+        return AGGR_UNKNOWN;
+}
+
+
 expr_factory_t::expr_factory_t(database_t* db, node_base_t* node)
 {
     m_database = db;
@@ -63,6 +83,10 @@ expr_aggr_t* expr_factory_t::create_aggr_column(Expr* expr)
         return new expr_aggr_column_t<db_int32>();
     case DB_INT64:
         return new expr_aggr_column_t<db_int64>();
+    case DB_FLOAT:
+        return new expr_aggr_column_t<db_float>();
+    case DB_DOUBLE:
+        return new expr_aggr_column_t<db_double>();
     case DB_STRING:
         return new expr_aggr_column_t<db_string>();
     default:
@@ -71,9 +95,30 @@ expr_aggr_t* expr_factory_t::create_aggr_column(Expr* expr)
 }
 
 
+
+
 expr_aggr_t* expr_factory_t::create_aggr_function(Expr* expr)
 {
-    return NULL;
+    aggr_type_t type = get_aggr_type(expr->u.zToken);
+
+    switch (type)
+    {
+    case AGGR_FUNC_COUNT:
+        return new expr_aggr_column_t<db_int64>();
+
+    //case AGGR_COLUMN:
+    //    break;    
+    //case AGGR_FUNC_SUM:
+    //    break;
+    //case AGGR_FUNC_AVG:
+    //    break;
+    //case AGGR_FUNC_MIN:
+    //    break;
+    //case AGGR_FUNC_MAX:
+    //    break;
+    default:
+        return NULL;
+    }
 }
 
 
@@ -92,6 +137,10 @@ expr_base_t* expr_factory_t::create_column(Expr* expr)
         return new expr_column_t<db_int32>();
     case DB_INT64:
         return new expr_column_t<db_int64>();
+    case DB_FLOAT:
+        return new expr_column_t<db_float>();
+    case DB_DOUBLE:
+        return new expr_column_t<db_double>();
     case DB_STRING:
         return new expr_column_t<db_string>();
     default:
@@ -371,6 +420,7 @@ result_t expr_factory_t::build_aggr(Expr* expr, db_uint32& len, expr_base_t** ro
     if (expr->op == TK_AGG_COLUMN || expr->op == TK_AGG_FUNCTION) {
         expr_aggr_t* aggr_expr = (expr->op == TK_AGG_COLUMN) ?
             create_aggr_column(expr) : create_aggr_function(expr);
+        
 
         aggr_expr->m_offset = len;
         *root = aggr_expr;        
@@ -434,5 +484,4 @@ result_t expr_factory_t::build_list(ExprList* src, expr_list_t* dst)
 
     return RT_SUCCEEDED;
 }
-
 

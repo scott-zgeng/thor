@@ -39,16 +39,6 @@ private:
 };
 
 
-enum aggr_type_t {
-    AGGR_UNKNOWN = 0,
-    AGGR_COLUMN = 1,
-    AGGR_FUNC_COUNT = 2,
-    AGGR_FUNC_SUM = 3,
-    AGGR_FUNC_AVG = 4,
-    AGGR_FUNC_MIN = 5,
-    AGGR_FUNC_MAX = 6,
-};
-
 struct group_op_base_t
 {
     group_op_base_t() { offset = 0; }
@@ -251,6 +241,8 @@ public:
         hash_node_t* hash_node = (hash_node_t*)m_hash_region.alloc(sizeof(hash_node_t));
         IF_RETURN_FAILED(hash_node == NULL);
 
+        hash_node->hash_val = hash_val;
+
         hash_node->key = (db_byte*)m_group_table.alloc();
         IF_RETURN_FAILED(hash_node->key == NULL);
         memcpy(hash_node->key, group_row, m_group_rows.row_len());
@@ -261,8 +253,8 @@ public:
 
         hash_node_t*& entry = m_hash_table[hash_val % m_hash_size];
         hash_node->next = entry;
+        
         entry = hash_node;
-
         m_row_count++;
 
         return RT_SUCCEEDED;
@@ -348,7 +340,7 @@ public:
 
 private:
     result_t add_aggr_sub_expr(expr_factory_t& factory, Expr* expr);
-    aggr_type_t get_aggr_type(const char* token);
+    
     result_t build(mem_stack_t* mem);
 
 private:   

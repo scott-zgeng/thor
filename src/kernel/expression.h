@@ -251,6 +251,17 @@ private:
 };
 
 
+enum aggr_type_t {
+    AGGR_UNKNOWN = 0,
+    AGGR_COLUMN = 1,
+    AGGR_FUNC_COUNT = 2,
+    AGGR_FUNC_SUM = 3,
+    AGGR_FUNC_AVG = 4,
+    AGGR_FUNC_MIN = 5,
+    AGGR_FUNC_MAX = 6,
+};
+
+
 class expr_aggr_t : public expr_base_t
 {
 public:
@@ -485,11 +496,8 @@ public:
         return build_impl(expr, rec_len, root);        
     }
 
-
-
     result_t build_list(ExprList* src, expr_list_t* dst);
 
-    
     static expr_base_t* create_cast(data_type_t rt_type, expr_base_t* children);    
 
 private:
@@ -534,7 +542,7 @@ private:
 };
 
 db_uint32 calc_data_len(data_type_t type);
-
+aggr_type_t get_aggr_type(const char* token);
 
 #endif //__EXPRESSION_H__
 

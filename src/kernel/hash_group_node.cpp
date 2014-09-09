@@ -244,6 +244,7 @@ result_t hash_group_node_t::init(Parse* parse, Select* select)
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
     }
 
+
     for (db_int32 i = 0; i < select->pGroupBy->nExpr; i++) {
         expr_base_t* expr = NULL;
         ret = factory.build(select->pGroupBy->a[i].pExpr, &expr);
@@ -315,25 +316,6 @@ result_t hash_group_node_t::add_aggr_sub_expr(expr_factory_t& factory, Expr* pEx
     return RT_SUCCEEDED;
 }
 
-
-
-aggr_type_t hash_group_node_t::get_aggr_type(const char* token)
-{
-    assert(token != NULL);
-
-    if (strcmp(token, "count") == 0)
-        return AGGR_FUNC_COUNT;
-    else if (strcmp(token, "min") == 0)
-        return AGGR_FUNC_MIN;
-    else if (strcmp(token, "max") == 0)
-        return AGGR_FUNC_MAX;
-    else if (strcmp(token, "sum") == 0)
-        return AGGR_FUNC_SUM;
-    else if (strcmp(token, "avg") == 0)
-        return AGGR_FUNC_AVG;
-    else
-        return AGGR_UNKNOWN;
-}
 
 
 void hash_group_node_t::uninit()
