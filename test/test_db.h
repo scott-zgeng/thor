@@ -84,7 +84,7 @@ void test_func()
 
     for (int i = 0; i < 30; i++) {
         char buff[1024];
-        sprintf_s(buff, 1023, "insert into test1 values (%d, 'hello world, %d', %d);", i, i, 100);
+        sprintf_s(buff, 1023, "insert into test1 values (%d, 'hello world, %d', %d);", 300, i, 20);
         ret = do_dml_command(db, buff);
         EXPECT_TRUE(ret == SQLITE_DONE);
     }
@@ -94,7 +94,7 @@ void test_func()
     //const char sql[] = "select f1, (f1 + 2), f2, f3 + 3 from test1 where f2 <> 'hello world, 0' and f1 < 15 and f1 > 10 and f3 > 12";
 
     //const char sql[] = "select f1, f2, sum(f3) + 1 / count(f3) + f3 as avg_f,  max(f3), min(f3), avg(f3), count(*), count(f3), sum(f3),  sum(f3) from test1 where f1 > 2 group by f1 order by f1";
-    const char sql[] = "select f1, count(f2) from test1 where f1 > 2 group by f1, f3";
+    const char sql[] = "select f1, f3, count(f2) from test1 where f1 > 2 group by f1, f3";
 
     sqlite3_stmt* stmt;
     const char* tail;

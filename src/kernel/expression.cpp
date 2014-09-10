@@ -96,7 +96,6 @@ expr_aggr_t* expr_factory_t::create_aggr_column(Expr* expr)
 
 
 
-
 expr_aggr_t* expr_factory_t::create_aggr_function(Expr* expr)
 {
     aggr_type_t type = get_aggr_type(expr->u.zToken);
@@ -105,7 +104,8 @@ expr_aggr_t* expr_factory_t::create_aggr_function(Expr* expr)
     {
     case AGGR_FUNC_COUNT:
         return new expr_aggr_column_t<db_int64>();
-
+      
+    // 其他的不知道是什么类型，需要知道集合函数下层的节点是什么类型
     //case AGGR_COLUMN:
     //    break;    
     //case AGGR_FUNC_SUM:

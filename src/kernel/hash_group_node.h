@@ -9,8 +9,22 @@
 #include "exec_node.h"
 #include "pod_hash_map.h"
 
+// TODO(scott.zgeng):  聚合产生的临时表需要有表结构定义，便于在表达式中查询，表达式的产生全部移到expression去
+class row_table_def_t
+{    
+public:
+    struct column_def_t {
+        expr_base_t* expr;
+        db_uint32 offset;
+        db_uint32 size;
+    }; 
 
+    result_t init(expr_list_t* expr_list);
 
+private:
+    pod_vector<column_def_t, 16> m_columns;
+    db_uint32 m_row_len;
+};
 
 
 class row_segement_t
@@ -162,6 +176,8 @@ public:
     }
 
     result_t add_aggr_column(expr_base_t* expr, aggr_type_t aggr_type) {
+        db_uint32 offset = m_aggr_rows.row_len();
+
         expr_base_t* wrapper = conv_aggr_expr(expr, aggr_type); 
         IF_RETURN_FAILED(wrapper == NULL);
 
@@ -171,7 +187,7 @@ public:
         aggr_op_base_t* op = create_aggr_op(wrapper->data_type(), aggr_type);
         db_bool is_succ = m_aggr_ops.push_back(op);
         IF_RETURN_FAILED(!is_succ);
-        op->offset = m_aggr_rows.row_len();
+        op->offset = offset;
 
         // NOTE(scott.zgeng): AVG实际是有SUM和COUNT两列组合起来的
         if (aggr_type == AGGR_FUNC_AVG) {
@@ -287,11 +303,11 @@ public:
     }
 
 private:
-    mem_row_table_t m_group_table;
-    mem_row_table_t m_aggr_table;
+    mem_row_region_t m_group_table;
+    mem_row_region_t m_aggr_table;
 
     mem_region_t m_hash_region;
-    mem_row_table_t::iterator m_iterator;
+    mem_row_region_t::iterator m_iterator;
 
     row_segement_t m_group_rows;
     row_segement_t m_aggr_rows;

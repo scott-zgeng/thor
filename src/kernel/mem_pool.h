@@ -416,7 +416,7 @@ private:
 };
 
 
-class mem_row_table_t
+class mem_row_region_t
 {
 public:
     class iterator
@@ -430,11 +430,11 @@ public:
             m_pos = NULL;
         }
 
-        iterator(mem_row_table_t* table) {            
+        iterator(mem_row_region_t* table) {            
             init(table);
         }
 
-        void init(mem_row_table_t* table) {
+        void init(mem_row_region_t* table) {
             m_iterator.init(&table->m_region);
             m_len = table->m_len;
             m_left_count = table->m_count;
@@ -472,7 +472,7 @@ public:
 
     friend class iterator;
 
-    mem_row_table_t() {
+    mem_row_region_t() {
         m_len = 0;
         m_count = 0;
     }
