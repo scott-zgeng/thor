@@ -94,7 +94,7 @@ void test_func()
     //const char sql[] = "select f1, (f1 + 2), f2, f3 + 3 from test1 where f2 <> 'hello world, 0' and f1 < 15 and f1 > 10 and f3 > 12";
 
     //const char sql[] = "select f1, f2, sum(f3) + 1 / count(f3) + f3 as avg_f,  max(f3), min(f3), avg(f3), count(*), count(f3), sum(f3),  sum(f3) from test1 where f1 > 2 group by f1 order by f1";
-    const char sql[] = "select f1, f3, count(f2), sum(f3), min(f3), max(f3), sum(f3) /count(3) from test1 where f1 > 2 group by f1";
+    const char sql[] = "select f1, f3, count(f2), sum(f3), min(f3), max(f3), sum(f3) + 100, sum(f3) + 100.0, (sum(f3) + 100) / count(f3) , avg(f3) from test1 where f1 > 2 group by f1";
 
     sqlite3_stmt* stmt;
     const char* tail;
@@ -127,8 +127,10 @@ void test_func()
                     printf("%lld ", sqlite3_vector_column_bigint(stmt, col_id, row_idx));
                     break;
                 case DB_FLOAT:
+                    printf("%f ", sqlite3_vector_column_float(stmt, col_id, row_idx));
                     break;
                 case DB_DOUBLE:
+                    printf("%f ", sqlite3_vector_column_double(stmt, col_id, row_idx));
                     break;
                 case DB_STRING:
                     printf("%s ", sqlite3_vector_column_string(stmt, col_id, row_idx));

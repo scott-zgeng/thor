@@ -372,11 +372,7 @@ template<typename T>
 class expr_integer_t : public expr_base_t
 {
 public:
-    expr_integer_t() { 
-    }
-
-    virtual ~expr_integer_t() {
-    }
+    virtual ~expr_integer_t() {}
 
 public:
     virtual result_t init(Expr* expr, void* param) {
@@ -402,16 +398,39 @@ private:
     T m_value[SEGMENT_SIZE];    
 };
 
+
+class expr_float_t : public expr_base_t
+{
+
+public:    
+    virtual ~expr_float_t() {}
+
+public:
+    virtual result_t init(Expr* expr, void* param) {        
+        db_double v = atof(expr->u.zToken);
+        for (db_int32 i = 0; i < SEGMENT_SIZE; i++) {
+            m_value[i] = v;
+        }
+        return RT_SUCCEEDED;
+    }
+
+    virtual data_type_t data_type() {        
+        return DB_DOUBLE;
+    }
+
+    virtual result_t calc(rowset_t* rs, mem_stack_t* mem, mem_handle_t& result) {
+        result.init(mem, m_value);
+        return RT_SUCCEEDED;
+    }
+
+private:
+    db_double  m_value[SEGMENT_SIZE];
+};
+
 class expr_string_t : public expr_base_t
 {
 public:
-    expr_string_t() {
-
-    }
-
-    virtual ~expr_string_t() {
-
-    }
+    virtual ~expr_string_t() {}
 
     virtual result_t init(Expr* expr, void* param) {
         strncpy_ex(m_string, expr->u.zToken, sizeof(m_value));
@@ -483,6 +502,7 @@ public:
         m_stmt = stmt;
         m_mode = mode;
         m_table_count = table_count;
+        m_expr_idx = 0;
     }
 
     expr_factory_t(statement_t* stmt, node_base_t* node);
@@ -492,7 +512,7 @@ public:
     //result_t optimize(Expr* expr, expr_base_t** root);
 
     result_t build(Expr* expr, expr_base_t** root) {        
-        return build_impl(expr, 0, root);        
+        return build_impl(expr, root);        
     }
 
     result_t build_list(ExprList* src, expr_list_t* dst);
@@ -504,41 +524,43 @@ private:
 
     expr_base_t* create_instance(Expr* expr, expr_base_t* left, expr_base_t* right);    
     
-    expr_base_t* create_binary(Expr* expr, expr_base_t* left, expr_base_t* right);
+    expr_base_t* create_binary(db_uint32 op_type, expr_base_t* left, expr_base_t* right);
     template<int OP_TYPE> expr_base_t* create_arith_op(data_type_t type, expr_base_t* left, expr_base_t* right);
     template<int OP_TYPE> expr_base_t* create_logic_op(data_type_t type, expr_base_t* left, expr_base_t* right);
     expr_base_t* create_integer(Expr* expr);
     expr_base_t* create_column(Expr* expr);
 
     expr_aggr_t* create_aggr_column(Expr* expr);
-    expr_aggr_t* create_aggr_function(Expr* expr, db_uint32 index);
+    expr_aggr_t* create_aggr_function(Expr* expr);
 
 private:
     data_type_t get_column_type(const char* name, db_int32 column_id);    
     data_type_t cast_type(int op_type, data_type_t left, data_type_t right);
 
 private:
-    result_t build_impl(Expr* expr, db_uint32 index, expr_base_t** root) {
+    result_t build_impl(Expr* expr, expr_base_t** root) {
         switch (m_mode)
         {
         case SINGLE_TABLE_MODE:
         case MULTI_TABLE_MODE:
-            return build_normal(expr, index, root);
+            return build_normal(expr, root);
         case AGGR_TABLE_MODE:
-            return build_aggr(expr, index, root);
+            return build_aggr(expr, root);
         default:
             return RT_FAILED;
         }
     }
 
-    result_t build_normal(Expr* expr, db_uint32 index, expr_base_t** root);
-    result_t build_aggr(Expr* expr, db_uint32 index, expr_base_t** root);
+    result_t build_normal(Expr* expr, expr_base_t** root);
+    result_t build_aggr(Expr* expr, expr_base_t** root);
 
 private:
     statement_t* m_stmt;
     rowset_mode_t m_mode;
     db_uint32 m_table_count;   
+    db_uint32 m_expr_idx;
 };
+
 
 db_uint32 calc_data_len(data_type_t type);
 aggr_type_t get_aggr_type(const char* token);

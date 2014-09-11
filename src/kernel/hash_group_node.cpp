@@ -356,8 +356,7 @@ expr_base_t* aggr_table_t::conv_aggr_expr(expr_base_t* expr, aggr_type_t aggr_ty
     switch (aggr_type) {
     case AGGR_FUNC_COUNT:
         return new expr_aggr_count_t(expr);
-    case AGGR_FUNC_SUM:
-    case AGGR_FUNC_AVG:
+    case AGGR_FUNC_SUM:    
         return create_cast_expr(expr, aggr_type);
     default:
         return expr;
@@ -367,6 +366,9 @@ expr_base_t* aggr_table_t::conv_aggr_expr(expr_base_t* expr, aggr_type_t aggr_ty
 result_t aggr_table_t::add_aggr_column(expr_base_t* expr, aggr_type_t aggr_type) 
 {
     db_uint32 offset = m_aggr_rows.row_len();
+
+    db_bool is_avg = (aggr_type == AGGR_FUNC_AVG);
+    if (is_avg) aggr_type = AGGR_FUNC_SUM;
 
     expr_base_t* wrapper = conv_aggr_expr(expr, aggr_type);
     IF_RETURN_FAILED(wrapper == NULL);
@@ -380,7 +382,7 @@ result_t aggr_table_t::add_aggr_column(expr_base_t* expr, aggr_type_t aggr_type)
     op->offset = offset;
 
     // NOTE(scott.zgeng): AVG实际是有SUM和COUNT两列组合起来的
-    if (aggr_type == AGGR_FUNC_AVG) {
+    if (is_avg) {
         result_t ret = add_aggr_column(expr, AGGR_FUNC_COUNT);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
     }

@@ -139,6 +139,27 @@ long long sqlite3_vector_column_bigint(sqlite3_stmt* stmt, int col_idx, int row_
 }
 
 
+float sqlite3_vector_column_float(sqlite3_stmt* stmt, int col_idx, int row_idx)
+{
+    Vdbe* v = (Vdbe*)stmt;
+    select_stmt_t* select_stmt = (select_stmt_t*)v->stmtHandle;
+    project_node_t* root_node = select_stmt->root();
+    db_float* val = (db_float*)root_node->column_data(col_idx);
+    return val[row_idx];
+}
+
+
+double sqlite3_vector_column_double(sqlite3_stmt* stmt, int col_idx, int row_idx)
+{
+    Vdbe* v = (Vdbe*)stmt;
+    select_stmt_t* select_stmt = (select_stmt_t*)v->stmtHandle;
+    project_node_t* root_node = select_stmt->root();
+    db_double* val = (db_double*)root_node->column_data(col_idx);
+    return val[row_idx];
+}
+
+
+
 const char* sqlite3_vector_column_string(sqlite3_stmt* stmt, int col_idx, int row_idx)
 {
     Vdbe* v = (Vdbe*)stmt;
