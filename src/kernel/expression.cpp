@@ -4,6 +4,9 @@
 #include <assert.h>
 #include "expression.h"
 #include "exec_node.h"
+#include "statement.h"
+
+#include "hash_group_node.h"
 
 
 db_uint32 calc_data_len(data_type_t type)
@@ -50,9 +53,9 @@ aggr_type_t get_aggr_type(const char* token)
 }
 
 
-expr_factory_t::expr_factory_t(database_t* db, node_base_t* node)
+expr_factory_t::expr_factory_t(statement_t* stmt, node_base_t* node)
 {
-    m_database = db;
+    m_stmt = stmt;
     m_mode = node->rowset_mode();
     m_table_count = node->table_count();    
 }
@@ -60,7 +63,7 @@ expr_factory_t::expr_factory_t(database_t* db, node_base_t* node)
 
 data_type_t expr_factory_t::get_column_type(const char* name, db_int32 column_id)
 {
-    column_table_t* table = m_database->find_table(name);
+    column_table_t* table = m_stmt->database()->find_table(name);
     if (table == NULL) return DB_UNKNOWN;
     column_base_t* column = table->get_column(column_id);
     if (column == NULL) return DB_UNKNOWN;
@@ -96,26 +99,32 @@ expr_aggr_t* expr_factory_t::create_aggr_column(Expr* expr)
 
 
 
-expr_aggr_t* expr_factory_t::create_aggr_function(Expr* expr)
+expr_aggr_t* expr_factory_t::create_aggr_function(Expr* expr, db_uint32 index)
 {
-    aggr_type_t type = get_aggr_type(expr->u.zToken);
+    row_segement_t::expr_item_t& item = m_stmt->m_aggr_table_def->m_columns[index];
+    data_type_t data_type = item.expr->data_type();
+    aggr_type_t aggr_type = get_aggr_type(expr->u.zToken);
 
-    switch (type)
-    {
-    case AGGR_FUNC_COUNT:
+    if (aggr_type == AGGR_FUNC_COUNT) {
         return new expr_aggr_column_t<db_int64>();
-      
-    // 其他的不知道是什么类型，需要知道集合函数下层的节点是什么类型
-    //case AGGR_COLUMN:
-    //    break;    
-    //case AGGR_FUNC_SUM:
-    //    break;
-    //case AGGR_FUNC_AVG:
-    //    break;
-    //case AGGR_FUNC_MIN:
-    //    break;
-    //case AGGR_FUNC_MAX:
-    //    break;
+    }
+    
+    switch (data_type)
+    {
+    case DB_INT8:
+        return new expr_aggr_column_t<db_int8>();
+    case DB_INT16:
+        return new expr_aggr_column_t<db_int16>();
+    case DB_INT32:
+        return new expr_aggr_column_t<db_int32>();
+    case DB_INT64:
+        return new expr_aggr_column_t<db_int64>();
+    case DB_FLOAT:
+        return new expr_aggr_column_t<db_float>();
+    case DB_DOUBLE:
+        return new expr_aggr_column_t<db_double>();
+    case DB_STRING:
+        return new expr_aggr_column_t<db_string>();
     default:
         return NULL;
     }
@@ -361,7 +370,7 @@ expr_base_t* expr_factory_t::create_cast(data_type_t rt_type, expr_base_t* child
 
 
 
-result_t expr_factory_t::build_normal(Expr* expr, db_uint32& len, expr_base_t** root)
+result_t expr_factory_t::build_normal(Expr* expr, db_uint32 index, expr_base_t** root)
 {    
     result_t ret;
 
@@ -372,13 +381,13 @@ result_t expr_factory_t::build_normal(Expr* expr, db_uint32& len, expr_base_t** 
 
     expr_base_t* left = NULL;
     if (expr->pLeft != NULL) {
-        ret = build_normal(expr->pLeft, len, &left);
+        ret = build_normal(expr->pLeft, index, &left);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
     }
 
     expr_base_t* right = NULL;
     if (expr->pRight != NULL) {
-        ret = build_normal(expr->pRight, len, &right);
+        ret = build_normal(expr->pRight, index, &right);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
     }
 
@@ -413,30 +422,29 @@ result_t expr_factory_t::build_normal(Expr* expr, db_uint32& len, expr_base_t** 
 }
 
 
-result_t expr_factory_t::build_aggr(Expr* expr, db_uint32& len, expr_base_t** root)
+result_t expr_factory_t::build_aggr(Expr* expr, db_uint32 index, expr_base_t** root)
 {    
     result_t ret;
 
     if (expr->op == TK_AGG_COLUMN || expr->op == TK_AGG_FUNCTION) {
         expr_aggr_t* aggr_expr = (expr->op == TK_AGG_COLUMN) ?
-            create_aggr_column(expr) : create_aggr_function(expr);
+            create_aggr_column(expr) : create_aggr_function(expr, index);
         
-
-        aggr_expr->m_offset = len;
-        *root = aggr_expr;        
-        len += calc_data_len(aggr_expr->data_type());
+        row_segement_t::expr_item_t& item = m_stmt->m_aggr_table_def->m_columns[index];
+        aggr_expr->m_offset = item.offset;
+        *root = aggr_expr;                
         return aggr_expr->init(expr, NULL);
     }
 
     expr_base_t* left = NULL;
     if (expr->pLeft != NULL) {
-        ret = build_aggr(expr->pLeft, len, &left);
+        ret = build_aggr(expr->pLeft, index, &left);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
     }
 
     expr_base_t* right = NULL;
     if (expr->pRight != NULL) {
-        ret = build_aggr(expr->pRight, len, &right);
+        ret = build_aggr(expr->pRight, index, &right);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
     }
 
@@ -472,11 +480,10 @@ result_t expr_factory_t::build_aggr(Expr* expr, db_uint32& len, expr_base_t** ro
 
 
 result_t expr_factory_t::build_list(ExprList* src, expr_list_t* dst)
-{    
-    db_uint32 rec_len = 0;
+{        
     for (db_int32 i = 0; i < src->nExpr; i++) {
         expr_base_t* expr = NULL;
-        result_t ret = build_impl(src->a[i].pExpr, rec_len, &expr);
+        result_t ret = build_impl(src->a[i].pExpr, i, &expr);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);
         db_bool is_succ = dst->push_back(expr);
         IF_RETURN_FAILED(!is_succ);

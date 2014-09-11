@@ -474,26 +474,25 @@ private:
 
 
 
-
+class statement_t;
 class node_base_t;
 class expr_factory_t
 {
 public:
-    expr_factory_t(database_t* db, rowset_mode_t mode, db_uint32 table_count) {
-        m_database = db;
+    expr_factory_t(statement_t* stmt, rowset_mode_t mode, db_uint32 table_count) {
+        m_stmt = stmt;
         m_mode = mode;
         m_table_count = table_count;
     }
 
-    expr_factory_t(database_t* db, node_base_t* node);
+    expr_factory_t(statement_t* stmt, node_base_t* node);
 
 public:
     // 需要增加一个优化表达式的函数
     //result_t optimize(Expr* expr, expr_base_t** root);
 
-    result_t build(Expr* expr, expr_base_t** root) {
-        db_uint32 rec_len = 0;
-        return build_impl(expr, rec_len, root);        
+    result_t build(Expr* expr, expr_base_t** root) {        
+        return build_impl(expr, 0, root);        
     }
 
     result_t build_list(ExprList* src, expr_list_t* dst);
@@ -512,31 +511,31 @@ private:
     expr_base_t* create_column(Expr* expr);
 
     expr_aggr_t* create_aggr_column(Expr* expr);
-    expr_aggr_t* create_aggr_function(Expr* expr);
+    expr_aggr_t* create_aggr_function(Expr* expr, db_uint32 index);
 
 private:
     data_type_t get_column_type(const char* name, db_int32 column_id);    
     data_type_t cast_type(int op_type, data_type_t left, data_type_t right);
 
 private:
-    result_t build_impl(Expr* expr, db_uint32& len, expr_base_t** root) {
+    result_t build_impl(Expr* expr, db_uint32 index, expr_base_t** root) {
         switch (m_mode)
         {
         case SINGLE_TABLE_MODE:
         case MULTI_TABLE_MODE:
-            return build_normal(expr, len, root);
+            return build_normal(expr, index, root);
         case AGGR_TABLE_MODE:
-            return build_aggr(expr, len, root);
+            return build_aggr(expr, index, root);
         default:
             return RT_FAILED;
         }
     }
 
-    result_t build_normal(Expr* expr, db_uint32& len, expr_base_t** root);
-    result_t build_aggr(Expr* expr, db_uint32& len, expr_base_t** root);
+    result_t build_normal(Expr* expr, db_uint32 index, expr_base_t** root);
+    result_t build_aggr(Expr* expr, db_uint32 index, expr_base_t** root);
 
 private:
-    database_t* m_database;
+    statement_t* m_stmt;
     rowset_mode_t m_mode;
     db_uint32 m_table_count;   
 };

@@ -15,9 +15,9 @@
 //-----------------------------------------------------------------------------
 // node_generator_t
 //-----------------------------------------------------------------------------
-node_generator_t::node_generator_t(database_t* db, Parse* parse, Select* select)
+node_generator_t::node_generator_t(statement_t* stmt, Parse* parse, Select* select)
 {
-    m_database = db;
+    m_stmt = stmt;
     m_parse = parse;
     m_select = select;
 }
@@ -58,7 +58,7 @@ result_t node_generator_t::build(node_base_t** root_node)
     for (db_int32 i = 0; i < tab_num; i++) {
 
         // TODO(scott.zgeng@gmail.com): 需要增加异常情况退出的内存泄露
-        scan_nodes[i] = new scan_node_t(m_database, i);
+        scan_nodes[i] = new scan_node_t(m_stmt, i);
         IF_RETURN_FAILED(scan_nodes[i] == NULL);
 
         ret = scan_nodes[i]->init(m_parse, m_select);
@@ -70,7 +70,7 @@ result_t node_generator_t::build(node_base_t** root_node)
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
     if (m_select->pGroupBy != NULL && m_select->pGroupBy->nExpr > 0) {
-        hash_group_node_t* group_node = new hash_group_node_t(m_database, root);
+        hash_group_node_t* group_node = new hash_group_node_t(m_stmt, root);
         IF_RETURN_FAILED(group_node == NULL);
         
         ret = group_node->init(m_parse, m_select);
@@ -89,7 +89,7 @@ result_t node_generator_t::build(node_base_t** root_node)
         root = sort_node;
     }
 
-    node_base_t* project_node = new project_node_t(m_database, root);
+    node_base_t* project_node = new project_node_t(m_stmt, root);
     IF_RETURN_FAILED(project_node == NULL);
 
     ret = project_node->init(m_parse, m_select);

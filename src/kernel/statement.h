@@ -10,6 +10,7 @@
 #include "pod_vector.h"
 #include "expression.h"
 
+class row_segement_t;
 class database_t;
 class statement_t
 {
@@ -20,10 +21,15 @@ public:
     virtual void uninit() = 0;
 
 public:
-    database_t* get_database() { return m_database; }
+    database_t* database() { return m_database; }
 
 protected:    
     database_t* m_database;
+
+public:
+
+    // TODO(scott.zgeng): 以下代码仅用来验证可行性，后面需要重构掉
+    row_segement_t* m_aggr_table_def; 
 };
 
 

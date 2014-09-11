@@ -35,7 +35,7 @@ void select_stmt_t::uninit()
 
 result_t select_stmt_t::prepare(Parse *pParse, Select *pSelect)
 {
-    node_generator_t generator(m_database, pParse, pSelect);
+    node_generator_t generator(this, pParse, pSelect);
         
     node_base_t* root = NULL;
     result_t ret = generator.build(&root);
@@ -89,7 +89,7 @@ result_t insert_stmt_t::prepare(Parse *pParse, SrcList *pTabList, Select *pSelec
     char* name = pTabList->a[0].zName;
     assert(name != NULL);
 
-    expr_factory_t factory(m_database, SINGLE_TABLE_MODE, 1);
+    expr_factory_t factory(this, SINGLE_TABLE_MODE, 1);
 
     m_table = m_database->find_table(name);
     IF_RETURN_FAILED(m_table == NULL);

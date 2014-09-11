@@ -2,10 +2,7 @@
 
 
 #include "hash_group_node.h"
-
-
-
-
+#include "statement.h"
 
 
 row_segement_t::row_segement_t()
@@ -152,6 +149,63 @@ class aggr_op_t<db_int64, AGGR_FUNC_COUNT> : public aggr_op_base_t
     }
 };
 
+template<typename T>
+class aggr_op_t<T, AGGR_FUNC_SUM> : public aggr_op_base_t
+{
+    virtual void update(void* dst_row, void* src_row) {
+        *(T*)dst_row += *(T*)src_row;
+    }
+};
+
+
+template<typename T>
+class aggr_op_t<T, AGGR_FUNC_MIN> : public aggr_op_base_t
+{
+    virtual void update(void* dst_row, void* src_row) {
+        T& left = *(T*)dst_row;
+        T& right = *(T*)src_row;
+
+        if (left > right) {
+            left = right;
+        }
+    }
+};
+
+template<>
+class aggr_op_t<db_string, AGGR_FUNC_MIN> : public aggr_op_base_t
+{
+    virtual void update(void* dst_row, void* src_row) {
+        db_string left = (db_string)dst_row;
+        db_string right = (db_string)src_row;
+        if (strcmp(left, right) > 0) {
+            left = right;
+        }
+    }
+};
+
+
+template<typename T>
+class aggr_op_t<T, AGGR_FUNC_MAX> : public aggr_op_base_t
+{
+    virtual void update(void* dst_row, void* src_row) {
+        T& left = *(T*)dst_row;
+        T& right = *(T*)src_row;
+
+        if (left < right) left = right;
+    }
+};
+
+template<>
+class aggr_op_t<db_string, AGGR_FUNC_MAX> : public aggr_op_base_t
+{
+    virtual void update(void* dst_row, void* src_row) {
+        db_string left = (db_string)dst_row;
+        db_string right = (db_string)src_row;
+        if (strcmp(left, right) < 0) {
+            left = right;
+        }
+    }
+};
 
 
 template<aggr_type_t AT>
@@ -216,10 +270,244 @@ aggr_op_base_t* aggr_table_t::create_aggr_op(data_type_t type, aggr_type_t aggr_
 
 
 
-hash_group_node_t::hash_group_node_t(database_t* db, node_base_t* children) 
+
+//----------------------------------------------------------
+// aggr_table_t
+//----------------------------------------------------------
+aggr_table_t::aggr_table_t()
+{
+    m_hash_size = 0;
+    m_hash_table = NULL;
+    m_group_node = NULL;
+    m_row_count = 0;
+    m_mode = UNKNOWN_MODE;
+    m_table_count = 0;
+}
+
+aggr_table_t::~aggr_table_t() 
+{
+    if (m_hash_table != NULL) {
+        free(m_hash_table);
+        m_hash_table = NULL;
+    }
+}
+
+
+result_t aggr_table_t::init(hash_group_node_t* group_node, rowset_mode_t mode, db_uint32 table_count, db_uint32 row_count)
+{
+    m_group_node = group_node;
+    m_mode = mode;
+    m_table_count = table_count;
+
+    m_hash_size = 393241; // TODO(scott.zgeng): add cala hash size function
+    m_hash_table = (hash_node_t**)malloc(m_hash_size * sizeof(hash_node_t*));
+    IF_RETURN_FAILED(m_hash_table == NULL);
+
+    memset(m_hash_table, 0, sizeof(hash_node_t*)* m_hash_size);
+
+    return RT_SUCCEEDED;
+}
+
+void aggr_table_t::init_complete()
+{    
+    database_t* db = m_group_node->statement()->database();
+    m_group_table.init(db->get_mem_pool(), m_group_rows.row_len());
+    m_aggr_table.init(db->get_mem_pool(), m_aggr_rows.row_len());
+    m_hash_region.init(db->get_mem_pool());
+
+    // TODO(scott.zgeng): 以下代码仅用来验证可行性，后面需要重构掉
+    m_group_node->statement()->m_aggr_table_def = &m_aggr_rows;
+}
+
+
+result_t aggr_table_t::add_group_column(expr_base_t* expr) 
+{
+    group_op_base_t* op = create_group_op(expr->data_type());
+    db_bool is_succ = m_group_ops.push_back(op);
+    IF_RETURN_FAILED(!is_succ);
+    op->offset = m_group_rows.row_len();
+
+    return m_group_rows.add_column(expr);
+}
+
+
+expr_base_t* aggr_table_t::create_cast_expr(expr_base_t* expr, aggr_type_t aggr_type) 
+{
+
+    switch (expr->data_type())
+    {
+    case DB_INT8:
+    case DB_INT16:
+    case DB_INT32:
+        return expr_factory_t::create_cast(DB_INT64, expr);
+    case DB_FLOAT:
+        return expr_factory_t::create_cast(DB_DOUBLE, expr);
+    case DB_INT64:
+    case DB_DOUBLE:
+        return expr;
+    default:
+        return NULL;
+    }
+}
+
+
+expr_base_t* aggr_table_t::conv_aggr_expr(expr_base_t* expr, aggr_type_t aggr_type) 
+{
+    switch (aggr_type) {
+    case AGGR_FUNC_COUNT:
+        return new expr_aggr_count_t(expr);
+    case AGGR_FUNC_SUM:
+    case AGGR_FUNC_AVG:
+        return create_cast_expr(expr, aggr_type);
+    default:
+        return expr;
+    }
+}
+
+result_t aggr_table_t::add_aggr_column(expr_base_t* expr, aggr_type_t aggr_type) 
+{
+    db_uint32 offset = m_aggr_rows.row_len();
+
+    expr_base_t* wrapper = conv_aggr_expr(expr, aggr_type);
+    IF_RETURN_FAILED(wrapper == NULL);
+
+    result_t ret = m_aggr_rows.add_column(wrapper);
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+    aggr_op_base_t* op = create_aggr_op(wrapper->data_type(), aggr_type);
+    db_bool is_succ = m_aggr_ops.push_back(op);
+    IF_RETURN_FAILED(!is_succ);
+    op->offset = offset;
+
+    // NOTE(scott.zgeng): AVG实际是有SUM和COUNT两列组合起来的
+    if (aggr_type == AGGR_FUNC_AVG) {
+        result_t ret = add_aggr_column(expr, AGGR_FUNC_COUNT);
+        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+    }
+
+    return RT_SUCCEEDED;
+}
+
+result_t aggr_table_t::build(rowset_t* rs, mem_stack_t* mem)
+{
+    result_t ret;
+    mem_handle_t group_handle;
+    ret = m_group_rows.next(rs, mem, group_handle);
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+    mem_handle_t aggr_handle;
+    ret = m_aggr_rows.next(rs, mem, aggr_handle);
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+    db_byte* group_row = (db_byte*)group_handle.ptr();
+    db_byte* aggr_row = (db_byte*)aggr_handle.ptr();
+
+    for (db_uint32 i = 0; i < rs->count; i++) {
+        ret = insert_update(group_row, aggr_row);
+        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+        group_row += m_group_rows.row_len();
+        aggr_row += m_aggr_rows.row_len();
+    }
+
+    m_iterator.init(&m_aggr_table);
+
+    return RT_SUCCEEDED;
+}
+
+result_t aggr_table_t::next(aggr_rowset_t* ars) 
+{
+    db_uint32 i;
+    for (i = 0; i < SEGMENT_SIZE; i++) {
+        void* ptr = m_iterator.next();
+        if (ptr == NULL) break;
+        ars->rows[i] = ptr;
+    }
+
+    ars->count = i;
+    return RT_SUCCEEDED;
+}
+
+result_t aggr_table_t::insert_update(db_byte* group_row, db_byte* aggr_row) 
+{
+    db_uint32 hash_val = calc_hash(group_row);
+
+    hash_node_t* node = m_hash_table[hash_val % m_hash_size];
+    while (node != NULL) {
+        if (node->hash_val == hash_val && is_equal(node->key, group_row)) {
+            update(node->value, aggr_row);
+            return RT_SUCCEEDED;
+        }
+        node = node->next;
+    }
+
+    return insert(hash_val, group_row, aggr_row);
+}
+
+result_t aggr_table_t::insert(db_uint32 hash_val, db_byte* group_row, db_byte* aggr_row) 
+{
+    // TODO(scott.zgeng): 目前只做了浅拷贝，后续看是否需要改为深拷贝
+
+    hash_node_t* hash_node = (hash_node_t*)m_hash_region.alloc(sizeof(hash_node_t));
+    IF_RETURN_FAILED(hash_node == NULL);
+
+    hash_node->hash_val = hash_val;
+
+    hash_node->key = (db_byte*)m_group_table.alloc();
+    IF_RETURN_FAILED(hash_node->key == NULL);
+    memcpy(hash_node->key, group_row, m_group_rows.row_len());
+
+    hash_node->value = (db_byte*)m_aggr_table.alloc();
+    IF_RETURN_FAILED(hash_node->value == NULL);
+    memcpy(hash_node->value, aggr_row, m_aggr_rows.row_len());
+
+    hash_node_t*& entry = m_hash_table[hash_val % m_hash_size];
+    hash_node->next = entry;
+
+    entry = hash_node;
+    m_row_count++;
+
+    return RT_SUCCEEDED;
+}
+
+void aggr_table_t::update(db_byte* dst_row, db_byte* src_row)
+{
+    for (db_uint32 i = 0; i < m_aggr_ops.size(); i++) {
+        aggr_op_base_t* op = m_aggr_ops[i];
+        op->update(dst_row + op->offset, src_row + op->offset);
+    }
+}
+
+db_uint32 aggr_table_t::calc_hash(db_byte* row)
+{
+    db_uint32 hash_val = 0;
+    for (db_uint32 i = 0; i <m_group_ops.size(); i++) {
+        group_op_base_t* op = m_group_ops[i];
+        hash_val = op->calc_hash(hash_val, row + op->offset);
+    }
+    return hash_val;
+}
+
+
+db_bool aggr_table_t::is_equal(db_byte* left_row, db_byte* right_row) 
+{
+    for (db_uint32 i = 0; i < m_group_ops.size(); i++) {
+        group_op_base_t* op = m_group_ops[i];
+        if (!op->is_equal(left_row + op->offset, right_row + op->offset)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+
+//----------------------------------------------------------
+// hash_group_node_t
+//----------------------------------------------------------
+hash_group_node_t::hash_group_node_t(statement_t* stmt, node_base_t* children)
 {
     m_children = children;
-    m_database = db;
+    m_stmt = stmt;
     m_first = true;
 }
 
@@ -235,10 +523,10 @@ result_t hash_group_node_t::init(Parse* parse, Select* select)
     IF_RETURN_FAILED(select->pEList->nExpr > MAX_AGGR_COLUMNS);
 
     result_t ret;
-    ret = m_aggr_table.init(m_database, m_children->rowset_mode(), m_children->table_count(), 0);
+    ret = m_aggr_table.init(this, m_children->rowset_mode(), m_children->table_count(), 0);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
     
-    expr_factory_t factory(m_database, m_children);
+    expr_factory_t factory(m_stmt, m_children);
     for (db_int32 i = 0; i < select->pEList->nExpr; i++) {        
         ret = add_aggr_sub_expr(factory, select->pEList->a[i].pExpr);
         IF_RETURN_FAILED(ret != RT_SUCCEEDED);

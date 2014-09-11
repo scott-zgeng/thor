@@ -12,7 +12,7 @@
 class scan_node_t : public node_base_t
 {
 public:
-    scan_node_t(database_t* db, int index);
+    scan_node_t(statement_t* stmt, int index);
     virtual ~scan_node_t();
 
 public:
@@ -38,7 +38,7 @@ private:
     rowid_t* m_odd_rows;
     db_uint32 m_odd_count;
 
-    database_t* m_database;
+    statement_t* m_stmt;
 };
 
 

@@ -12,7 +12,7 @@
 class project_node_t : public node_base_t
 {
 public:    
-    project_node_t(database_t* db, node_base_t* children);
+    project_node_t(statement_t* stmt, node_base_t* children);
     virtual ~project_node_t();
 
 public:
@@ -46,7 +46,7 @@ public:
     }
 
 private:
-    database_t* m_database;
+    statement_t* m_stmt;
     node_base_t* m_children;
     expr_list_t m_expr_columns;
     mem_stack_t m_mem;

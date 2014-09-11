@@ -8,9 +8,9 @@
 //-----------------------------------------------------------------------------
 // scan_node_t
 //-----------------------------------------------------------------------------
-scan_node_t::scan_node_t(database_t* db, int index)
+scan_node_t::scan_node_t(statement_t* stmt, int index)
 {
-    m_database = db;
+    m_stmt = stmt;
     m_index = index;
     m_where = NULL;
     m_eof = false;
@@ -30,7 +30,7 @@ result_t scan_node_t::init(Parse* parse, Select* select)
 {
     result_t ret;
 
-    expr_factory_t factory(m_database, this);
+    expr_factory_t factory(m_stmt, this);
 
     ret = factory.build(select->pWhere, &m_where);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);

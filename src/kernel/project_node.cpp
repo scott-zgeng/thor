@@ -7,9 +7,9 @@
 //-----------------------------------------------------------------------------
 // project_node_t
 //-----------------------------------------------------------------------------
-project_node_t::project_node_t(database_t* db, node_base_t* children)
+project_node_t::project_node_t(statement_t* stmt, node_base_t* children)
 {
-    m_database = db;         
+    m_stmt = stmt;         
     m_children = children;
     m_sub_rowset = NULL;
 }
@@ -22,7 +22,7 @@ project_node_t::~project_node_t()
 result_t project_node_t::init(Parse* parse, Select* select)
 {
     ExprList* expr_list = select->pEList;
-    expr_factory_t factory(m_database, m_children);
+    expr_factory_t factory(m_stmt, m_children);
     result_t ret = factory.build_list(select->pEList, &m_expr_columns);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 

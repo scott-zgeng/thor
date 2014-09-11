@@ -34,7 +34,7 @@ class expr_base_t;
 class node_generator_t
 {
 public:
-    node_generator_t(database_t* db, Parse* parse, Select* select);
+    node_generator_t(statement_t* stmt, Parse* parse, Select* select);
     ~node_generator_t();
 
 public:
@@ -46,7 +46,7 @@ private:
 private:
     Parse* m_parse;
     Select* m_select;
-    database_t* m_database;
+    statement_t* m_stmt;
 };
 
 
