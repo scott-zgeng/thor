@@ -34,7 +34,7 @@ public:
 
 // 回调可以改为模板
 
-
+class channel_loop_t;
 class channel_base_t
 {
 public:
@@ -44,32 +44,45 @@ public:
     channel_base_t(channel_loop_t* loop, channel_handle_t* handle);
     virtual ~channel_base_t();
 
-    void send(void* buff, db_uint32 len);
-    void recv(void* buff, db_uint32 len);
+    result_t send(void* ptr, db_int32 len);
+    result_t recv(void* ptr, db_int32 len);
     void close();
 
-
 protected:    
-    static void on_ev_write(struct ev_loop* loop, ev_io* ev, int events);
-    static void on_ev_read(struct ev_loop* loop, ev_io* ev, int events);
+    void attach_socket(socket_handle fd);
 
-    void attach(socket_handle fd, const sockaddr_in& addr);
+    void loop_send();
+    void loop_recv();
 
-    void loop_write();
-    void loop_read();
+    void post_send() { 
+        m_ev.cb = on_ev_send;
+        post_event(EV_WRITE); 
+    }
+    void post_recv() { 
+        m_ev.cb = on_ev_recv;
+        post_event(EV_READ); 
+    }
+    void post_pause();
+    void post_event(int events);
 
-    void set_mode(int events); 
-    void set_none();
+    socket_handle socket() { return m_fd; }
+
+private:
+    static void on_ev_send(struct ev_loop* loop, ev_io* ev, int events);
+    static void on_ev_recv(struct ev_loop* loop, ev_io* ev, int events);
 
 private:
     channel_loop_t* m_loop;
     channel_handle_t* m_handle;
-    sockaddr_in m_addr;
-    socket_handle m_fd;
-    db_byte* m_write_buff;
-    db_uint32 m_write_len;
-    db_byte* m_read_buff;
-    db_uint32 m_read_len;
+    
+    socket_handle m_fd;    
+    
+    db_char* m_send_ptr;
+    db_int32 m_send_len;
+
+    db_char* m_recv_ptr;
+    db_int32 m_recv_len;
+
     ev_io m_ev;
 };
 
@@ -77,16 +90,21 @@ private:
 
 class listen_handle_t
 {
-    void on_accept();
+public:
+    virtual void on_accept(socket_handle fd, const sockaddr_in& addr) = 0;    
 };
 
 
-class listen_channel_t : public channel_base_t, channel_handle_t
+class listen_channel_t : public channel_base_t, private channel_handle_t
 {
 public:
     listen_channel_t(channel_loop_t* loop, listen_handle_t* handle);
-    
+    virtual ~listen_channel_t();
+
 public:
+    result_t listen(db_uint16 port);
+
+private:
     virtual void on_send();
     virtual void on_recv();
     virtual void on_close();
@@ -115,12 +133,42 @@ public:
 class channel_loop_t
 {
 public:
-    channel_loop_t();
-    virtual ~channel_loop_t();
+    channel_loop_t() {
+        m_loop = NULL;
+    }
+
+    ~channel_loop_t() {
+        if (m_loop != NULL) {
+            stop();
+            ev_loop_destroy(m_loop);
+            return;        
+        }        
+    }
     
 public:
-    result_t init();
-    struct ev_loop* ptr() { return m_loop; }
+    result_t init() {
+        m_loop = ev_loop_new();
+        IF_RETURN_FAILED(m_loop == NULL);
+
+        return RT_SUCCEEDED;
+    }
+
+    void run() {
+        ev_run(m_loop, 0);
+    } 
+
+    void run_once() {
+        ev_run(m_loop, EVRUN_ONCE);
+    }
+
+    void stop() {
+        ev_break(m_loop, EVBREAK_ALL);
+    }
+
+    struct ev_loop* native_handle() { 
+        return m_loop; 
+    }
+
 private:
     struct ev_loop* m_loop;
 };

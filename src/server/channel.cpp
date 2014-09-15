@@ -1,25 +1,62 @@
 // channel.cpp by scott.zgeng@gmail.com 2014.09.14
 
 #include <assert.h>
+#include <errno.h>
+
 #include "channel.h"
 
 
-
-
-void channel_base_t::on_ev_write(struct ev_loop* loop, ev_io* ev, int events)
+db_int32 set_noblock_socket(socket_handle fd)
 {
-    DB_TRACE("channel_base_t::on_ev_write");
-
-    channel_base_t* channel = (channel_base_t*)ev->data;
-    channel->m_handle->on_send();
+#ifndef _WIN32
+    return fcntl(fd, F_SETFL, flags | O_NONBLOCK | O_RDWR);       
+#else
+    unsigned long flag = 1;
+    return ioctlsocket(fd, FIONBIO, &flag);    
+#endif
 }
 
-void channel_base_t::on_ev_read(struct ev_loop* loop, ev_io* ev, int events)
+db_int32 set_nodelay_socket(socket_handle fd)
 {
-    DB_TRACE("channel_base_t::on_ev_read");
+    int flag = 1;
+    return setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char*)&flag, sizeof(flag));
+}
+
+db_int32 set_reuseaddr_socket(socket_handle fd)
+{
+    int flag = 1;
+    return setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char*)&flag, sizeof(flag));
+}
+
+db_bool is_noblock_error(int code)
+{
+    switch (code)
+    {
+    case ECONNRESET:
+    case ECONNABORTED:
+    case EAGAIN:
+        return true;
+    default:
+        return false;
+    }
+}
+
+
+
+void channel_base_t::on_ev_send(struct ev_loop* loop, ev_io* ev, int events)
+{
+    DB_TRACE("channel_base_t::on_ev_send");
 
     channel_base_t* channel = (channel_base_t*)ev->data;
-    channel->m_handle->on_recv();
+    channel->loop_send();
+}
+
+void channel_base_t::on_ev_recv(struct ev_loop* loop, ev_io* ev, int events)
+{
+    DB_TRACE("channel_base_t::on_ev_recv");
+
+    channel_base_t* channel = (channel_base_t*)ev->data;
+    channel->loop_recv();
 }
 
 
@@ -27,13 +64,13 @@ channel_base_t::channel_base_t(channel_loop_t* loop, channel_handle_t* handle)
 {
     m_loop = loop;
     m_handle = handle;
-    memset(&m_addr, 0, sizeof(m_addr));
+
     m_fd = INVALID_SOCKET;
 
-    m_write_buff = NULL;
-    m_write_len = 0;
-    m_read_buff = NULL;
-    m_read_len = 0;
+    m_send_ptr = NULL;
+    m_send_len = 0;
+    m_recv_ptr = NULL;
+    m_recv_len = 0;
 
     ev_io_init(&m_ev, NULL, m_fd, EV_NONE);
     m_ev.data = this;
@@ -45,123 +82,188 @@ channel_base_t::~channel_base_t()
 }
 
 
-void channel_base_t::send(void* buff, db_uint32 len)
+result_t channel_base_t::send(void* ptr, db_int32 len)
 {
-    m_write_buff = (db_byte*)buff;
-    m_write_len = len;
+    if (m_fd == INVALID_SOCKET) 
+        return RT_FAILED;
 
-    loop_write();
+    m_send_ptr = (db_char*)ptr;
+    m_send_len = len;
+
+    post_send();
+    return RT_SUCCEEDED;
 }
 
-void channel_base_t::recv(void* buff, db_uint32 len)
+result_t channel_base_t::recv(void* ptr, db_int32 len)
 {
-    m_read_buff = (db_byte*)buff;
-    m_read_len = len;
+    if (m_fd == INVALID_SOCKET)
+        return RT_FAILED;
 
-    loop_read();
+    m_recv_ptr = (db_char*)ptr;
+    m_recv_len = len;
+
+    post_recv();
+    return RT_SUCCEEDED;
 }
+
 
 void channel_base_t::close()
 {   
     if (m_fd != INVALID_SOCKET) {
-        set_none();
+        post_pause();
         close_socket(m_fd);
         m_fd = INVALID_SOCKET;
         m_handle->on_close();
     }    
 }
 
-void channel_base_t::attach(socket_handle fd, const sockaddr_in& addr)
+void channel_base_t::attach_socket(socket_handle fd)
 {
-    m_fd = fd;
-    memcpy(&m_addr, &addr, sizeof(m_addr));
+    m_fd = fd;    
 }
 
 
-void channel_base_t::loop_write()
+void channel_base_t::loop_send()
 {
     assert(m_fd != INVALID_SOCKET);
 
+    while (m_send_len > 0) {
+        db_int32 ret = ::send(m_fd, m_send_ptr, m_send_len, 0);
+        if (ret > 0) {
+            m_send_ptr += ret;
+            m_send_len -= ret;
 
+        } else if (ret < 0 && is_noblock_error(errno)) {
+            post_send();
+            return;
 
-
-}
-
-void channel_base_t::loop_read()
-{
-
-}
-
-void channel_base_t::set_mode(int events)
-{
-    assert(m_fd != INVALID_SOCKET);
-
-    if (events != m_ev.events) {
-        ev_io_stop(m_loop->ptr(), &m_ev);
+        } else {
+            close();
+            return;
+        }
     }
 
-    ev_io_set(&m_ev, m_fd, events);
-    ev_io_start(m_loop->ptr(), &m_ev);
+    post_pause();
+    m_handle->on_send();
 }
 
 
-
-void channel_base_t::set_none()
+void channel_base_t::loop_recv()
 {
     assert(m_fd != INVALID_SOCKET);
 
+    while (m_recv_len > 0) {
+        db_int32 ret = ::recv(m_fd, m_recv_ptr, m_recv_len, 0);
+        if (ret > 0) {
+            m_recv_ptr += ret;
+            m_recv_len -= ret;
+
+        }
+        else if (ret < 0 && is_noblock_error(errno)) {
+            post_recv();
+            return;
+
+        }
+        else {
+            close();
+            return;
+        }
+    }
+
+    post_pause();
+    m_handle->on_recv();
+}
+
+void channel_base_t::post_pause()
+{
     if (m_ev.events == EV_NONE)
         return;
 
-    ev_io_stop(m_loop->ptr(), &m_ev);
+    assert(m_fd != INVALID_SOCKET);
+    struct ev_loop* loop = m_loop->native_handle();
+    ev_io_stop(loop, &m_ev);
     ev_io_set(&m_ev, m_fd, EV_NONE);
 }
 
 
-
-listen_channel_t::listen_channel_t(channel_loop_t* loop) : channel_base_t(loop, this)
+void channel_base_t::post_event(int events)
 {
+    assert(m_fd != INVALID_SOCKET);
+    struct ev_loop* loop = m_loop->native_handle();
+
+    if (m_ev.events == EV_NONE) {
+        ev_io_set(&m_ev, m_fd, events);
+        ev_io_start(loop, &m_ev);
+
+    } else if (m_ev.events != events) {
+        ev_io_stop(loop, &m_ev);
+        ev_io_set(&m_ev, m_fd, events);
+        ev_io_start(loop, &m_ev);
+
+    } else {}
+        
+}
+
+
+
+
+listen_channel_t::listen_channel_t(channel_loop_t* loop, listen_handle_t* handle) : 
+    channel_base_t(loop, this)
+{
+    m_handle = handle;
+}
+
+
+result_t listen_channel_t::listen(db_uint16 port)
+{
+    socket_handle fd = ::socket(PF_INET, SOCK_STREAM, 0);
+    IF_RETURN_FAILED(fd <= 0);
+
+    set_noblock_socket(fd);
+    set_nodelay_socket(fd);
+    set_reuseaddr_socket(fd);
+
+    attach_socket(fd);
+
+    int ret;
+    sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = INADDR_ANY;
+
+    ret = ::bind(fd, (sockaddr*)&addr, sizeof(addr));
+    IF_RETURN_FAILED(ret != 0);
     
-
-}
-
-void fasda()
-{
-    ///m_fd = socket(PF_INET, SOCK_STREAM, 0);
-    //IF_RETURN_FAILED(m_fd <= 0);
-
-    //m_addr.sin_family = AF_INET;
-    //m_addr.sin_port = htons(port);
-    //m_addr.sin_addr.s_addr = INADDR_ANY;
-
-    //ret = bind(m_fd, (sockaddr*)&m_addr, sizeof(m_addr));
-    //IF_RETURN_FAILED(ret != 0);
-
-    //ret = listen(m_fd, BACKLOG);
-    //IF_RETURN_FAILED(ret != 0);
-
-    //return RT_SUCCEEDED;
-}
-
-channel_loop_t::channel_loop_t()
-{
-    m_loop = NULL;
-}
-
-channel_loop_t::~channel_loop_t()
-{
-    if (m_loop != NULL) {
-        ev_loop_destroy(m_loop);
-    }
+    ret = ::listen(fd, BACKLOG);
+    IF_RETURN_FAILED(ret != 0);
     
-}
-
-result_t channel_loop_t::init()
-{
-    m_loop = ev_loop_new();
-    IF_RETURN_FAILED(m_loop == NULL);
-
+    post_recv();
     return RT_SUCCEEDED;
+}
+
+void listen_channel_t::on_send()
+{
+    DB_TRACE("listen_channel_t::on_send");
+}
+
+
+void listen_channel_t::on_recv()
+{
+    DB_TRACE("listen_channel_t::on_recv");
+
+    sockaddr_in addr;
+    int addr_len = 0;
+    socket_handle fd = ::accept(socket(), (sockaddr*)&addr, &addr_len);
+    if (fd == INVALID_SOCKET)
+        return;
+        
+    m_handle->on_accept(fd, addr);
+}
+
+
+void listen_channel_t::on_close()
+{
+    DB_TRACE("listen_channel_t::on_close");
 }
 
 
