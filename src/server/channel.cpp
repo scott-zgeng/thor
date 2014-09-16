@@ -5,6 +5,9 @@
 
 #include "channel.h"
 
+#ifdef _WIN32
+#pragma comment(lib,"ws2_32.lib")
+#endif 
 
 db_int32 set_noblock_socket(socket_handle fd)
 {
@@ -213,6 +216,10 @@ listen_channel_t::listen_channel_t(channel_loop_t* loop, listen_handle_t* handle
     m_handle = handle;
 }
 
+listen_channel_t::~listen_channel_t()
+{
+
+}
 
 result_t listen_channel_t::listen(db_uint16 port)
 {
