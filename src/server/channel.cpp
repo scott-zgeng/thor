@@ -45,7 +45,6 @@ db_bool is_noblock_error(int code)
 }
 
 
-
 void channel_base_t::on_ev_send(struct ev_loop* loop, ev_io* ev, int events)
 {
     DB_TRACE("channel_base_t::on_ev_send");
@@ -63,10 +62,10 @@ void channel_base_t::on_ev_recv(struct ev_loop* loop, ev_io* ev, int events)
 }
 
 
-channel_base_t::channel_base_t(channel_loop_t* loop, channel_handle_t* handle)
+channel_base_t::channel_base_t(channel_action_t* action)
 {
-    m_loop = loop;
-    m_handle = handle;
+    m_loop = NULL;
+    m_action = action;
 
     m_fd = INVALID_SOCKET;
 
@@ -116,12 +115,13 @@ void channel_base_t::close()
         post_pause();
         close_socket(m_fd);
         m_fd = INVALID_SOCKET;
-        m_handle->on_close();
+        m_action->on_close();
     }    
 }
 
-void channel_base_t::attach_socket(socket_handle fd)
+void channel_base_t::attach_socket(channel_loop_t* loop, socket_handle fd)
 {
+    m_loop = loop;
     m_fd = fd;    
 }
 
@@ -147,7 +147,7 @@ void channel_base_t::loop_send()
     }
 
     post_pause();
-    m_handle->on_send();
+    m_action->on_send();
 }
 
 
@@ -174,7 +174,7 @@ void channel_base_t::loop_recv()
     }
 
     post_pause();
-    m_handle->on_recv();
+    m_action->on_recv();
 }
 
 void channel_base_t::post_pause()
@@ -210,10 +210,10 @@ void channel_base_t::post_event(int events)
 
 
 
-listen_channel_t::listen_channel_t(channel_loop_t* loop, listen_handle_t* handle) : 
-    channel_base_t(loop, this)
+listen_channel_t::listen_channel_t(listen_action_t* action) : 
+    channel_base_t(this)
 {
-    m_handle = handle;
+    m_action = action;
 }
 
 listen_channel_t::~listen_channel_t()
@@ -221,16 +221,16 @@ listen_channel_t::~listen_channel_t()
 
 }
 
-result_t listen_channel_t::listen(db_uint16 port)
+result_t listen_channel_t::listen(channel_loop_t* loop, db_uint16 port)
 {
     socket_handle fd = ::socket(PF_INET, SOCK_STREAM, 0);
     IF_RETURN_FAILED(fd <= 0);
 
+    attach_socket(loop, fd);
+    
     set_noblock_socket(fd);
     set_nodelay_socket(fd);
     set_reuseaddr_socket(fd);
-
-    attach_socket(fd);
 
     int ret;
     sockaddr_in addr;
@@ -264,7 +264,7 @@ void listen_channel_t::on_recv()
     if (fd == INVALID_SOCKET)
         return;
         
-    m_handle->on_accept(fd, addr);
+    m_action->on_accept(fd, addr);
 }
 
 

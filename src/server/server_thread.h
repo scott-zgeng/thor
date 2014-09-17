@@ -51,13 +51,11 @@ private:
 };
 
 
-
-
-class server_worker_thread_t : private executor_t
+class worker_thread_t : private executor_t
 {
 public:
-    server_worker_thread_t();
-    virtual ~server_worker_thread_t();
+    worker_thread_t();
+    virtual ~worker_thread_t();
 
 public:
     result_t start();
@@ -74,14 +72,14 @@ private:
 
 
 
-class server_main_thread_t : public listen_handle_t
+class main_thread_t : public listen_action_t
 {
 public:
     static const db_uint32 MAX_THREAD_NUM = 1024;
 
 public:
-    server_main_thread_t();
-    ~server_main_thread_t();
+    main_thread_t();
+    ~main_thread_t();
 
 public:
     result_t init();
@@ -90,14 +88,14 @@ public:
     virtual void on_accept(socket_handle fd, const sockaddr_in& addr);
 
 private:
-    server_worker_thread_t* find_unused_worker();
+    worker_thread_t* find_unused_worker();
 
 private:
     channel_loop_t m_loop;
     db_bool m_stop;
     listen_channel_t m_listener;
 
-    server_worker_thread_t* m_workers[MAX_THREAD_NUM];
+    worker_thread_t* m_workers[MAX_THREAD_NUM];
     mutex_t m_lock;
 };
 

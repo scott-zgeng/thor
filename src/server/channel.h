@@ -20,10 +20,10 @@ inline void close_socket(socket_handle fd)  { close(fd); }
 
 
 
-class channel_handle_t
+class channel_action_t
 {
 public:
-    virtual ~channel_handle_t() {}
+    virtual ~channel_action_t() {}
 
     virtual void on_send() = 0;
     virtual void on_recv() = 0;
@@ -34,6 +34,7 @@ public:
 
 // 回调可以改为模板
 
+
 class channel_loop_t;
 class channel_base_t
 {
@@ -41,7 +42,7 @@ public:
     static const db_int32 BACKLOG = 8;
 
 public:
-    channel_base_t(channel_loop_t* loop, channel_handle_t* handle);
+    channel_base_t(channel_action_t* action);
     virtual ~channel_base_t();
 
     result_t send(void* ptr, db_int32 len);
@@ -49,7 +50,7 @@ public:
     void close();
 
 protected:    
-    void attach_socket(socket_handle fd);
+    void attach_socket(channel_loop_t* loop, socket_handle fd);
 
     void loop_send();
     void loop_recv();
@@ -73,7 +74,7 @@ private:
 
 private:
     channel_loop_t* m_loop;
-    channel_handle_t* m_handle;
+    channel_action_t* m_action;
     
     socket_handle m_fd;    
     
@@ -88,21 +89,21 @@ private:
 
 
 
-class listen_handle_t
+class listen_action_t
 {
 public:
     virtual void on_accept(socket_handle fd, const sockaddr_in& addr) = 0;    
 };
 
 
-class listen_channel_t : public channel_base_t, private channel_handle_t
+class listen_channel_t : public channel_base_t, private channel_action_t
 {
 public:
-    listen_channel_t(channel_loop_t* loop, listen_handle_t* handle);
+    listen_channel_t(listen_action_t* action);
     virtual ~listen_channel_t();
 
 public:
-    result_t listen(db_uint16 port);
+    result_t listen(channel_loop_t* loop, db_uint16 port);
 
 private:
     virtual void on_send();
@@ -110,7 +111,7 @@ private:
     virtual void on_close();
 
 private:
-    listen_handle_t* m_handle;
+    listen_action_t* m_action;
 };
 
 

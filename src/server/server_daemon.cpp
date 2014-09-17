@@ -5,33 +5,15 @@
 #include "../kernel/pod_vector.h"
 
 
-struct server_context_t
-{
-    server_main_thread_t main_thread;
-    
-
-    result_t init() {
-        return main_thread.init();
-    }
-
-    result_t start() {
-        main_thread.run();
-        return RT_SUCCEEDED;
-    }
-};
-
-
-
 result_t server_daemon_t::main_entry(int argc, char* argv[])
 {
-    server_context_t ctx;
     result_t ret;
+    main_thread_t main_thread;
 
-    ret = ctx.init();
+    ret = main_thread.init();
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
-    ret = ctx.start();
-    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+    main_thread.run();    
 
     return RT_SUCCEEDED;
 }
