@@ -2,30 +2,34 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <sys/types.h>  
+#include <sys/socket.h>
+#include <netinet/tcp.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <fcntl.h>
+
 
 #include "channel.h"
 
-#ifdef _WIN32
-#pragma comment(lib,"ws2_32.lib")
-#endif 
 
-db_int32 set_noblock_socket(socket_handle fd)
+db_int32 set_noblock_socket(db_int32 fd)
 {
 #ifndef _WIN32
-    return fcntl(fd, F_SETFL, flags | O_NONBLOCK | O_RDWR);       
+    return fcntl(fd, F_SETFL, O_NONBLOCK | O_RDWR);       
 #else
     unsigned long flag = 1;
     return ioctlsocket(fd, FIONBIO, &flag);    
 #endif
 }
 
-db_int32 set_nodelay_socket(socket_handle fd)
+db_int32 set_nodelay_socket(db_int32 fd)
 {
     int flag = 1;
     return setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char*)&flag, sizeof(flag));
 }
 
-db_int32 set_reuseaddr_socket(socket_handle fd)
+db_int32 set_reuseaddr_socket(db_int32 fd)
 {
     int flag = 1;
     return setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char*)&flag, sizeof(flag));
@@ -52,6 +56,7 @@ void channel_base_t::on_ev_send(struct ev_loop* loop, ev_io* ev, int events)
     channel_base_t* channel = (channel_base_t*)ev->data;
     channel->loop_send();
 }
+
 
 void channel_base_t::on_ev_recv(struct ev_loop* loop, ev_io* ev, int events)
 {
@@ -113,13 +118,13 @@ void channel_base_t::close()
 {   
     if (m_fd != INVALID_SOCKET) {
         post_pause();
-        close_socket(m_fd);
+        ::close(m_fd);
         m_fd = INVALID_SOCKET;
         m_action->on_close();
     }    
 }
 
-void channel_base_t::attach_socket(channel_loop_t* loop, socket_handle fd)
+void channel_base_t::attach_socket(channel_loop_t* loop, db_int32 fd)
 {
     m_loop = loop;
     m_fd = fd;    
@@ -223,7 +228,7 @@ listen_channel_t::~listen_channel_t()
 
 result_t listen_channel_t::listen(channel_loop_t* loop, db_uint16 port)
 {
-    socket_handle fd = ::socket(PF_INET, SOCK_STREAM, 0);
+    db_int32 fd = ::socket(PF_INET, SOCK_STREAM, 0);
     IF_RETURN_FAILED(fd <= 0);
 
     attach_socket(loop, fd);
@@ -231,13 +236,13 @@ result_t listen_channel_t::listen(channel_loop_t* loop, db_uint16 port)
     set_noblock_socket(fd);
     set_nodelay_socket(fd);
     set_reuseaddr_socket(fd);
-
-    int ret;
+     
     sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = INADDR_ANY;
 
+    db_int32 ret;
     ret = ::bind(fd, (sockaddr*)&addr, sizeof(addr));
     IF_RETURN_FAILED(ret != 0);
     
@@ -259,8 +264,8 @@ void listen_channel_t::on_recv()
     DB_TRACE("listen_channel_t::on_recv");
 
     sockaddr_in addr;
-    int addr_len = 0;
-    socket_handle fd = ::accept(socket(), (sockaddr*)&addr, &addr_len);
+    socklen_t addr_len = 0;
+    db_int32 fd = ::accept(socket(), (sockaddr*)&addr, &addr_len);
     if (fd == INVALID_SOCKET)
         return;
         

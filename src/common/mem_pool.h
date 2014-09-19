@@ -222,7 +222,7 @@ private:
 
 
 
-
+class mem_handle_t;
 class mem_stack_t
 {
 public:
@@ -234,7 +234,7 @@ public:
         m_position = m_begin;
     }
 
-    mem_stack_t::~mem_stack_t() {
+    ~mem_stack_t() {
     }
 
 public:

@@ -6,19 +6,12 @@
 
 
 #include "ev.h"
-#include "../kernel/define.h"
+#include "define.h"
 
 
-#ifdef _WIN32
-#include <WinSock2.h>
-typedef SOCKET socket_handle;
-inline void close_socket(socket_handle fd)  { closesocket(fd); }
-#else 
-typedef int socket_handle;
-inline void close_socket(socket_handle fd)  { close(fd); }
+#ifndef INVALID_SOCKET
+#define INVALID_SOCKET (-1)
 #endif
-
-
 
 class channel_action_t
 {
@@ -50,7 +43,7 @@ public:
     void close();
 
 protected:    
-    void attach_socket(channel_loop_t* loop, socket_handle fd);
+    void attach_socket(channel_loop_t* loop, db_int32 fd);
 
     void loop_send();
     void loop_recv();
@@ -66,7 +59,7 @@ protected:
     void post_pause();
     void post_event(int events);
 
-    socket_handle socket() { return m_fd; }
+    db_int32 socket() { return m_fd; }
 
 private:
     static void on_ev_send(struct ev_loop* loop, ev_io* ev, int events);
@@ -76,7 +69,7 @@ private:
     channel_loop_t* m_loop;
     channel_action_t* m_action;
     
-    socket_handle m_fd;    
+    db_int32 m_fd;
     
     db_char* m_send_ptr;
     db_int32 m_send_len;
@@ -89,10 +82,11 @@ private:
 
 
 
+struct sockaddr_in;
 class listen_action_t
 {
 public:
-    virtual void on_accept(socket_handle fd, const sockaddr_in& addr) = 0;    
+    virtual void on_accept(db_int32 fd, const sockaddr_in& addr) = 0;
 };
 
 

@@ -2,7 +2,7 @@
 
 #include "server_thread.h"
 #include "server_daemon.h"
-#include "../kernel/pod_vector.h"
+#include "pod_vector.h"
 
 
 result_t server_daemon_t::main_entry(int argc, char* argv[])

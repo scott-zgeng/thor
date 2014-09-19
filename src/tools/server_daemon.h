@@ -5,7 +5,7 @@
 #define  __SERVER_DAEMON_H__
 
 
-#include "../kernel/define.h"
+#include "define.h"
 
 class server_daemon_t
 {
