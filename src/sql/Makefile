@@ -1,6 +1,6 @@
-TARGET=../../lib/libthorsql.so
-include ../makefile.in
+TARGET=${THOR_HOME}/lib/libthorsql.so
+include ${THOR_HOME}/src/makefile.in
 
-INCLUDES+=-I../../add-ons
+INCLUDES+=
 LIBS+=
 

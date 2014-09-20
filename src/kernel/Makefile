@@ -1,8 +1,7 @@
-TARGET=../../lib/libthorkernel.so
-include ../makefile.in
+TARGET=${THOR_HOME}/lib/libthorkernel.so
+include ${THOR_HOME}/src/makefile.in
 
-
-INCLUDES+=-I../../add-ons
+INCLUDES+=-I${THOR_HOME}/add-ons
 INCLUDES+=-I../common
 INCLUDES+=-I../sql
 

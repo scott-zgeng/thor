@@ -1,10 +1,11 @@
 CC=gcc
 CXX=g++
-LEMON=../../add-ons/lemon
+LEMON=${THOR_HOME}/add-ons/lemon
 
 INCLUDES=
 LIBS=
 
+CFLAGS+=-fPIC -DPIC -pthread -Werror -g -m64
 
 ifeq "$(suffix $(TARGET))" ".so"
 	LINK_OPTION=-shared
@@ -12,7 +13,7 @@ else
 	LINK_OPTION=-ldl
 endif
 
-CFLAGS+=-fPIC -DPIC -pthread -Werror -g
+
 OBJ_DIR=.libs
 TARGET_INNER=$(OBJ_DIR)/$(notdir $(TARGET))
 
