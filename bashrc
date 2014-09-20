@@ -8,3 +8,5 @@ alias lib="cd ${THOR_HOME}/lib"
 alias log="cd ${THOR_HOME}/log"
 alias src="cd ${THOR_HOME}/src"
 
+
+export LANG=en_US
