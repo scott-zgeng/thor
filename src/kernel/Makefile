@@ -1,29 +1,10 @@
-CC=gcc
-CXX=g++
+TARGET=../../lib/libthorkernel.so
+include ../makefile.in
 
 
-OBJ_DIR=.libs
-
-TARGET=$(OBJ_DIR)/libthorkernel.so
-
-CFLAGS=
-LIBS=
+INCLUDES+=-I../../add-ons
 INCLUDES+=-I../common
+INCLUDES+=-I../sql
 
+LIBS+=
 
-CFLAGS+=-fPIC -DPIC -pthread -Werror
-
-OBJS=$(patsubst %.cpp, $(OBJ_DIR)/%.o, $(wildcard *.cpp))
-
-
-$(shell  mkdir -p $(OBJ_DIR))
-
-#rm -f  $@; ar -r  $@ $^
-$(TARGET):$(OBJS)
-	$(CXX) $(CFLAGS) -shared -o $@ $^ $(LIBS)
-
-$(OBJS):$(OBJ_DIR)/%.o:%.cpp
-	$(CXX) $(INCLUDES) $(CFLAGS) -o $@ -c $<
-
-clean:
-	rm -rf $(OBJ_DIR)/*

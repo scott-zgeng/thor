@@ -2,6 +2,7 @@
 
 
 #include <assert.h>
+#include <limits.h>
 #include "expression.h"
 #include "exec_node.h"
 #include "statement.h"

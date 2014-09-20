@@ -17,16 +17,16 @@ public:
 
     fstring(const char* str) {
         assert(str != NULL && strlen(str) < SIZE);
-        strncpy_s(m_data, SIZE, str, SIZE);
+        strncpy_ex(m_data, str, SIZE);
     }
 
     fstring(const fstring& str) {
-        strncpy_s(m_data, SIZE, str.m_data, SIZE);
+        strncpy_ex(m_data, str.m_data, SIZE);
     }
 
     void operator=(const char* str) {
         assert(str != NULL && strlen(str) < SIZE);
-        strncpy_s(m_data, SIZE, str, SIZE);
+        strncpy_ex(m_data, str, SIZE);
     }
 
     bool operator==(const fstring& str) const {

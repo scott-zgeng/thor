@@ -1,7 +1,7 @@
-// server_server.h by scott.zgeng@gmail.com 2014.09.15
+// network_service.h by scott.zgeng@gmail.com 2014.09.15
 
-#ifndef  __SERVER_THREAD_H__
-#define  __SERVER_THREAD_H__
+#ifndef  __NETWORK_SERVICE_H__
+#define  __NETWORK_SERVICE_H__
 
 
 #include "tinythread.h"
@@ -59,7 +59,7 @@ public:
 
 public:
     result_t start();
-    result_t append_server_session(socket_handle fd, const sockaddr_in& addr);
+    result_t append_server_session(db_int32 fd, const sockaddr_in& addr);
 
 private:
     virtual void run();
@@ -72,20 +72,20 @@ private:
 
 
 
-class main_thread_t : public listen_action_t
+class network_service : public listen_action_t
 {
 public:
     static const db_uint32 MAX_THREAD_NUM = 1024;
 
 public:
-    main_thread_t();
-    ~main_thread_t();
+    network_service();
+    ~network_service();
 
 public:
     result_t init();
     void run();
 
-    virtual void on_accept(socket_handle fd, const sockaddr_in& addr);
+    virtual void on_accept(db_int32 fd, const sockaddr_in& addr);
 
 private:
     worker_thread_t* find_unused_worker();
@@ -99,6 +99,8 @@ private:
     mutex_t m_lock;
 };
 
-#endif //__SERVER_THREAD_H__
+
+
+#endif //__NETWORK_SERVICE_H__
 
 

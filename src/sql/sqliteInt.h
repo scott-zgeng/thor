@@ -356,7 +356,7 @@ void sqlite3Coverage(int);
 #define unlikely(X)  (X)
 
 #include "hash.h"
-#include "parse.h"
+#include "token.h"  // replace from parse.h
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -250,7 +250,7 @@ public:
         if (!ensure_capacity(n))
             return false;
 
-        memcpy(m_begin, first, size_t(T) * n);
+        memcpy(m_begin, first, sizeof(T) * n);
         m_size = n;
         m_end = m_begin + m_size;
         return true;

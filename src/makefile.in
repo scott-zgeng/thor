@@ -1,0 +1,46 @@
+CC=gcc
+CXX=g++
+LEMON=../../add-ons/lemon
+
+INCLUDES=
+LIBS=
+
+
+ifeq "$(suffix $(TARGET))" ".so"
+	LINK_OPTION=-shared
+else
+	LINK_OPTION=-ldl
+endif
+
+CFLAGS+=-fPIC -DPIC -pthread -Werror -g
+OBJ_DIR=.libs
+TARGET_INNER=$(OBJ_DIR)/$(notdir $(TARGET))
+
+CPP_OBJS=$(patsubst %.cpp, $(OBJ_DIR)/%.o, $(wildcard *.cpp))
+C_OBJS=$(patsubst %.c, $(OBJ_DIR)/%.o, $(wildcard *.c))
+Y_OBJS=$(patsubst %.y, %.c, $(wildcard *.y))
+
+
+$(TARGET):$(TARGET_INNER)
+	cp $(TARGET_INNER) $(TARGET)
+
+$(TARGET_INNER): $(OBJ_DIR) $(C_OBJS) $(CPP_OBJS) 
+	$(CXX) $(LINK_OPTION)  $(CFLAGS) -o $@ $(C_OBJS) $(CPP_OBJS)  $(LIBS)
+	
+$(OBJ_DIR):
+	mkdir -p $(OBJ_DIR)
+
+$(C_OBJS):$(OBJ_DIR)/%.o:%.c
+	$(CC) $(INCLUDES) $(CFLAGS) -o $@ -c $<
+
+$(CPP_OBJS):$(OBJ_DIR)/%.o:%.cpp
+	$(CXX) $(INCLUDES) $(CFLAGS) -o $@ -c $<
+
+$(Y_OBJS):%.c:%.y
+	$(LEMON) $<
+
+.PHONY:
+clean:
+	rm -rf $(OBJ_DIR)/*.o  $(TARGET)
+
+

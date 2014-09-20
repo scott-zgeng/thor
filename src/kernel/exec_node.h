@@ -5,8 +5,8 @@
 #define  __EXEC_NODE_H__
 
 extern "C" {
-#include "../sql/sqliteInt.h"
-#include "../sql/vdbeInt.h"
+#include "sqliteInt.h"
+#include "vdbeInt.h"
 }
 
 

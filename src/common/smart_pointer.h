@@ -58,6 +58,10 @@ public:
         return ptr;
     }
 
+    bool is_null() const {
+        return (m_ptr == NULL);
+    }
+
     T* ptr() const {
         return m_ptr;
     }

@@ -106,8 +106,8 @@ result_t column_table_t::init(database_t* db, Table* table, db_int32 table_id)
 
 result_t column_table_t::add_column(data_type_t type, db_uint32 len)
 {
-    smart_pointer<column_base_t> new_column = column_base_t::create_column(type);        
-    IF_RETURN_FAILED(new_column.ptr() == NULL);
+    smart_pointer<column_base_t> new_column(column_base_t::create_column(type));
+    IF_RETURN_FAILED(new_column.is_null());
 
     result_t ret = new_column->init(get_mem_pool(), len);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);

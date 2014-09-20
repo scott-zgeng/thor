@@ -6,8 +6,8 @@
 
 
 extern "C" {
-#include "../sql/sqliteInt.h"
-#include "../sql/vdbeInt.h"
+#include "sqliteInt.h"
+#include "vdbeInt.h"
 }
 
 

@@ -1,0 +1,20 @@
+#include "parse.h"
+
+#define TK_EXT_BEGIN			        200
+#define TK_TO_TEXT                      (TK_EXT_BEGIN + 1)
+#define TK_TO_BLOB                      (TK_EXT_BEGIN + 2)
+#define TK_TO_NUMERIC                   (TK_EXT_BEGIN + 3)
+#define TK_TO_INT                       (TK_EXT_BEGIN + 4)
+#define TK_TO_REAL                      (TK_EXT_BEGIN + 5)
+#define TK_ISNOT                        (TK_EXT_BEGIN + 6)
+#define TK_END_OF_FILE                  (TK_EXT_BEGIN + 7)
+#define TK_ILLEGAL                      (TK_EXT_BEGIN + 8)
+#define TK_SPACE                        (TK_EXT_BEGIN + 9)
+#define TK_UNCLOSED_STRING              (TK_EXT_BEGIN + 10)
+#define TK_FUNCTION                     (TK_EXT_BEGIN + 11)
+#define TK_COLUMN                       (TK_EXT_BEGIN + 12)
+#define TK_AGG_FUNCTION                 (TK_EXT_BEGIN + 13)
+#define TK_AGG_COLUMN                   (TK_EXT_BEGIN + 14)
+#define TK_UMINUS                       (TK_EXT_BEGIN + 15)
+#define TK_UPLUS                        (TK_EXT_BEGIN + 16)
+#define TK_REGISTER                     (TK_EXT_BEGIN + 17)

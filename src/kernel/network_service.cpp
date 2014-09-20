@@ -1,7 +1,7 @@
-// server_thread.cpp by scott.zgeng@gmail.com 2014.09.15
+// network_service.cpp by scott.zgeng@gmail.com 2014.09.15
 
-
-#include "server_thread.h"
+#include <string.h>
+#include "network_service.h"
 
 
 
@@ -37,32 +37,24 @@ void worker_thread_t::run()
 
 
 
-main_thread_t::main_thread_t() : 
+network_service::network_service() : 
     m_listener(this)
 {
     m_stop = false;
     memset(m_workers, 0, sizeof(m_workers));
 
-#ifdef _WIN32
-    WSADATA data;
-    WSAStartup(MAKEWORD(1, 1), &data);
-#endif
 }
 
-main_thread_t::~main_thread_t()
+network_service::~network_service()
 {
     m_stop = true;
-
-#ifdef _WIN32
-    WSACleanup();
-#endif
 }
 
 
 #include <sys/stat.h>
 #include <sys/types.h>
 
-result_t main_thread_t::init()
+result_t network_service::init()
 {
     result_t ret;
     db_uint16 server_port = 19992;  // TODO(scott.zgeng): 需要从配置中获取
@@ -74,25 +66,22 @@ result_t main_thread_t::init()
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
     
-    //eventfd()
-    //epoll_ctl()
-
     return RT_SUCCEEDED;
 }
 
 
-void main_thread_t::on_accept(socket_handle fd, const sockaddr_in& addr)
+void network_service::on_accept(db_int32 fd, const sockaddr_in& addr)
 {
     worker_thread_t* worker = find_unused_worker();
     if (worker == NULL) {
-        close_socket(fd);
+        close(fd);
         return;
     }
 
     worker->start();
 }
 
-worker_thread_t* main_thread_t::find_unused_worker()
+worker_thread_t* network_service::find_unused_worker()
 {
     for (db_uint32 i = 0; i < MAX_THREAD_NUM; i++) {
         if (m_workers[i] == NULL)  {
@@ -105,7 +94,7 @@ worker_thread_t* main_thread_t::find_unused_worker()
 }
 
 
-void main_thread_t::run()
+void network_service::run()
 {
     while (!m_stop) {
         m_loop.run_once();

@@ -5,6 +5,7 @@
 #define  __DEFINE_H__
 
 #include <stdio.h>
+#include <string.h>
 
 #ifdef _WIN32
 #undef NDEBUG // for assert
@@ -100,6 +101,16 @@ static const db_uint64 INVALID_UINT64 = (-1);
 #define  LIKELY(condition)      (__builtin_expect((condition), 1))
 #define  UNLIKELY(condition)    (__builtin_expect((condition), 0))
 #endif
+
+
+
+inline void strncpy_ex(char* dst, const char* src, size_t n)
+{
+    size_t len = n - 1;
+    strncpy(dst, src, len);
+    dst[len] = 0;
+}
+
 
 #endif //__DEFINE_H__
 
