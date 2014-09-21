@@ -3,10 +3,75 @@
 #ifndef  __NETWORK_SERVICE_H__
 #define  __NETWORK_SERVICE_H__
 
+#include <netinet/in.h>
 
 #include "tinythread.h"
 #include "fast_mutex.h"
 #include "channel.h"
+
+
+/*
+1. start-up
+    To begin a session, a frontend opens a connection to the server and sends a startup message. 
+    This message includes the names of the user and of the database the user wants to connect to; 
+    it also identifies the particular protocol version to be used. (Optionally, the startup message 
+    can include additional settings for run-time parameters.) The server then uses this information 
+    and the contents of its configuration files (such as pg_hba.conf) to determine whether the connection 
+    is provisionally acceptable, and what additional authentication is required (if any).
+
+    The server then sends an appropriate authentication request message, to which the frontend must 
+    reply with an appropriate authentication response message (such as a password).
+
+*/
+
+class packet_ostream_t;
+class server_session_t : private channel_action_t
+{
+public:
+    static const db_uint32 MAX_SEND_BUF_SIZE = 1024;
+    static const db_uint32 MAX_RECV_BUF_SIZE = 1024;    
+
+    static const db_uint32 HEAD_SIZE = 5;
+
+public:
+    static void startup();
+
+public:
+    server_session_t();
+    virtual ~server_session_t();
+
+public:
+    void init(channel_loop_t* loop, db_int32 fd, const sockaddr_in& addr);
+
+    void recv_startup();
+    void recv_packet();
+
+    channel_base_t* channel() { return &m_channel; }
+    
+private:
+    virtual void on_send();
+    virtual void on_recv();
+    virtual void on_close();
+    
+    result_t on_recv_packet();
+    result_t on_recv_head();
+
+private:
+    sockaddr_in m_client_addr;
+    channel_base_t m_channel;
+
+    db_int8 m_is_startup;
+    db_int8 m_is_header;
+
+    db_int8 m_pack_type;
+    db_int32 m_pack_len;
+    db_char m_send_buff[MAX_SEND_BUF_SIZE];
+    db_char m_recv_buff[MAX_RECV_BUF_SIZE];
+
+    
+};
+
+
 
 
 typedef tthread::fast_mutex mutex_t;
@@ -34,7 +99,7 @@ public:
 
 public:
     result_t start(executor_t* executor) {
-        tthread::thread* m_thread = new tthread::thread(thread_entry, this);
+        tthread::thread* m_thread = new tthread::thread(thread_entry, executor);
         IF_RETURN_FAILED(m_thread == NULL);
 
         return RT_SUCCEEDED;
@@ -42,12 +107,11 @@ public:
 
 private:
     static void thread_entry(void* arg) {
-        thread_t* t = (thread_t*)arg;
-        t->m_executor->run();
+        executor_t* executor = (executor_t*)arg;        
+        executor->run();
     }
 
-    tthread::thread* m_thread;
-    executor_t* m_executor;
+    tthread::thread* m_thread;    
 };
 
 
@@ -58,8 +122,8 @@ public:
     virtual ~worker_thread_t();
 
 public:
-    result_t start();
-    result_t append_server_session(db_int32 fd, const sockaddr_in& addr);
+    result_t start(db_int32 fd, const sockaddr_in& addr);
+    
 
 private:
     virtual void run();
@@ -68,6 +132,8 @@ private:
     db_bool m_stop;
     channel_loop_t m_loop;
     thread_t m_thread;
+    server_session_t m_session;
+
 };
 
 

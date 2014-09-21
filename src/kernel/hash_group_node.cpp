@@ -13,6 +13,7 @@ row_segement_t::row_segement_t()
 
 row_segement_t::~row_segement_t()
 {
+
 }
 
 

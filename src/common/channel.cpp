@@ -124,7 +124,7 @@ void channel_base_t::close()
     }    
 }
 
-void channel_base_t::attach_socket(channel_loop_t* loop, db_int32 fd)
+void channel_base_t::attach(channel_loop_t* loop, db_int32 fd)
 {
     m_loop = loop;
     m_fd = fd;    
@@ -231,7 +231,7 @@ result_t listen_channel_t::listen(channel_loop_t* loop, db_uint16 port)
     db_int32 fd = ::socket(PF_INET, SOCK_STREAM, 0);
     IF_RETURN_FAILED(fd <= 0);
 
-    attach_socket(loop, fd);
+    attach(loop, fd);
     
     set_noblock_socket(fd);
     set_nodelay_socket(fd);

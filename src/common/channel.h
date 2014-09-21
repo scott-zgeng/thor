@@ -30,7 +30,7 @@ public:
 
 class channel_loop_t;
 class channel_base_t
-{
+  {
 public:
     static const db_int32 BACKLOG = 8;
 
@@ -38,13 +38,13 @@ public:
     channel_base_t(channel_action_t* action);
     virtual ~channel_base_t();
 
+  public:
+    void attach(channel_loop_t* loop, db_int32 fd);
     result_t send(void* ptr, db_int32 len);
     result_t recv(void* ptr, db_int32 len);
     void close();
 
 protected:    
-    void attach_socket(channel_loop_t* loop, db_int32 fd);
-
     void loop_send();
     void loop_recv();
 

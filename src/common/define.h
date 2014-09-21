@@ -102,6 +102,10 @@ static const db_uint64 INVALID_UINT64 = (-1);
 #define  UNLIKELY(condition)    (__builtin_expect((condition), 0))
 #endif
 
+#define DISALLOW_COPY_AND_ASSIGN(class_name) \
+private:\
+    class_name(const class_name&) {} \
+    void operator=(const class_name&) {} \
 
 
 inline void strncpy_ex(char* dst, const char* src, size_t n)
