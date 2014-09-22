@@ -130,6 +130,28 @@ public:
 };
 
 
+template<bool IS_IDLE>
+class read_for_query_opacket_t : public opacket_t
+{
+public:
+    read_for_query_opacket_t() {
+        status = IS_IDLE ? 'I' : 'E';
+    }
+    virtual ~read_for_query_opacket_t() {}
+public:
+
+    virtual db_int8 type() {
+        return 'Z';
+    }
+
+    virtual result_t encode(packet_ostream_t& stream) {
+        stream.write_int8(status);
+        return RT_SUCCEEDED;
+    }
+
+    db_byte status;
+};
+
 
 class startup_ipacket_t : public ipacket_t
 {
@@ -147,6 +169,15 @@ public:
     db_char* options;
 };
 
+class password_ipacket_t : public ipacket_t
+{
+public:
+    virtual result_t decode(packet_istream_t& stream);
+    virtual result_t process(server_session_t* session);
+
+public:
+    char* password;
+};
 
 
 #endif //__PACKET_H__

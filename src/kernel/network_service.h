@@ -43,7 +43,7 @@ public:
 
     void recv_startup();
     void recv_packet();
-    void send_packet(opacket_t* packet);
+    void send_packet(opacket_t& packet);
 
 private:
     virtual void on_send();

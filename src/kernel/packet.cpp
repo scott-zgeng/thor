@@ -128,6 +128,8 @@ ipacket_t* ipacket_t::create_packet(db_int8 type)
     {
     case 0:
         return new startup_ipacket_t();
+    case 'p':
+        return new password_ipacket_t();
     default:
         return NULL;
     }
@@ -167,8 +169,29 @@ result_t startup_ipacket_t::process(server_session_t* session)
     IF_RETURN_FAILED(protocol_version != PROTOCOL_VERSION);
     
     auth_md5_opacket_t packet;
-    session->send_packet(&packet);
+    session->send_packet(packet);
     
+    return RT_SUCCEEDED;
+}
+
+
+result_t password_ipacket_t::decode(packet_istream_t& stream)
+{
+    password = stream.read_string();
+    return RT_SUCCEEDED;
+}
+ 
+
+result_t password_ipacket_t::process(server_session_t* session)
+{
+    // TODO(scott.zgeng): 需要增加对密码的校验，目前先简化这个操作，直接返回成功
+
+    auth_opacket_t<AuthenticationOk> packet;
+    session->send_packet(packet);
+
+    read_for_query_opacket_t<true> packet2;
+    session->send_packet(packet);
+
     return RT_SUCCEEDED;
 }
 

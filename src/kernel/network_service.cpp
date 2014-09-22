@@ -8,6 +8,9 @@
 #include "packet.h"
 
 
+// TODO(scott.zgeng): 
+// 线程模型需要修改一下，在startup阶段，最好都是在主线程完成，
+// 不需要立即创建新线程，只有当鉴权通过后，才创建线程
 
 server_session_t::server_session_t() : m_channel(this)
 {
@@ -51,14 +54,15 @@ void server_session_t::recv_packet()
 }
 
 
-void server_session_t::send_packet(opacket_t* packet)
+
+void server_session_t::send_packet(opacket_t& packet)
 {
     packet_ostream_t osteam1(m_send_buff, HEAD_SIZE);
     
-    osteam1.write_int8(packet->type());
+    osteam1.write_int8(packet.type());
         
     packet_ostream_t osteam2(m_send_buff + HEAD_SIZE, MAX_SEND_BUF_SIZE - HEAD_SIZE);
-    result_t ret = packet->encode(osteam2);
+    result_t ret = packet.encode(osteam2);
     if (ret != RT_SUCCEEDED) {
         m_channel.close();
         return;
