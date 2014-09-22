@@ -523,7 +523,7 @@ hash_group_node_t::~hash_group_node_t()
 result_t hash_group_node_t::init(Parse* parse, Select* select)
 {
     // NOTE(scott.zgeng): 目前计划有最大支持列数限制，如果有必要可以去掉
-    IF_RETURN_FAILED(select->pEList->nExpr > MAX_AGGR_COLUMNS);
+    IF_RETURN_FAILED((db_uint32)select->pEList->nExpr > MAX_AGGR_COLUMNS);
 
     result_t ret;
     ret = m_aggr_table.init(this, m_children->rowset_mode(), m_children->table_count(), 0);

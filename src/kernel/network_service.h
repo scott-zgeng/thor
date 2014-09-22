@@ -25,6 +25,7 @@
 */
 
 class packet_ostream_t;
+class opacket_t;
 class server_session_t : private channel_action_t
 {
 public:
@@ -32,9 +33,6 @@ public:
     static const db_uint32 MAX_RECV_BUF_SIZE = 1024;    
 
     static const db_uint32 HEAD_SIZE = 5;
-
-public:
-    static void startup();
 
 public:
     server_session_t();
@@ -45,9 +43,8 @@ public:
 
     void recv_startup();
     void recv_packet();
+    void send_packet(opacket_t* packet);
 
-    channel_base_t* channel() { return &m_channel; }
-    
 private:
     virtual void on_send();
     virtual void on_recv();
@@ -64,7 +61,7 @@ private:
     db_int8 m_is_header;
 
     db_int8 m_pack_type;
-    db_int32 m_pack_len;
+    db_uint32 m_pack_len;
     db_char m_send_buff[MAX_SEND_BUF_SIZE];
     db_char m_recv_buff[MAX_RECV_BUF_SIZE];
 

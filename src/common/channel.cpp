@@ -51,8 +51,6 @@ db_bool is_noblock_error(int code)
 
 void channel_base_t::on_ev_send(struct ev_loop* loop, ev_io* ev, int events)
 {
-    DB_TRACE("channel_base_t::on_ev_send");
-
     channel_base_t* channel = (channel_base_t*)ev->data;
     channel->loop_send();
 }
@@ -60,8 +58,6 @@ void channel_base_t::on_ev_send(struct ev_loop* loop, ev_io* ev, int events)
 
 void channel_base_t::on_ev_recv(struct ev_loop* loop, ev_io* ev, int events)
 {
-    DB_TRACE("channel_base_t::on_ev_recv");
-
     channel_base_t* channel = (channel_base_t*)ev->data;
     channel->loop_recv();
 }
@@ -248,14 +244,13 @@ result_t listen_channel_t::listen(channel_loop_t* loop, db_uint16 port)
     
     ret = ::listen(fd, BACKLOG);
     IF_RETURN_FAILED(ret != 0);
-    
+        
     post_recv();
     return RT_SUCCEEDED;
 }
 
 void listen_channel_t::on_send()
-{
-    DB_TRACE("listen_channel_t::on_send");
+{    
 }
 
 
@@ -270,6 +265,7 @@ void listen_channel_t::on_recv()
         return;
         
     m_action->on_accept(fd, addr);
+    post_recv();
 }
 
 

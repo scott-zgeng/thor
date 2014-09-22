@@ -348,8 +348,7 @@ public:
 
         single_rowset_t* srs = (single_rowset_t*)rs;
         if (srs->is_scan()) {
-            void* values = NULL;
-            db_int32 row_count = 0;
+            void* values = NULL;            
             result_t ret = m_table->get_segment_values(m_column_id, srs->segment_id, &values);
             IF_RETURN_FAILED(ret != RT_SUCCEEDED);
             result.init(mem, values);

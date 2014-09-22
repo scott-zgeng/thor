@@ -49,7 +49,7 @@ db_int32 packet_istream_t::read_int32()
 db_char* packet_istream_t::read_string()
 {
     db_char* val = m_pos;
-    db_uint32 len = strnlen(val, m_left_len);
+    db_uint32 len = strlen(val) + 1;
     m_pos += len;
     m_left_len -= len;
     assert(m_left_len >= 0);
@@ -74,27 +74,56 @@ packet_ostream_t::~packet_ostream_t()
 
 result_t packet_ostream_t::write_int8(db_int8 val)
 {
-
+    *(db_int8*)m_pos = val;
+    m_pos += sizeof(db_int8);
+    m_left_len -= sizeof(db_int8);
+    assert(m_left_len >= 0);
+    return RT_SUCCEEDED;
 }
+
 result_t packet_ostream_t::write_int16(db_int16 val)
 {
-
+    *(db_int16*)m_pos = htons(val);
+    m_pos += sizeof(db_int16);
+    m_left_len -= sizeof(db_int16);
+    assert(m_left_len >= 0);
+    return RT_SUCCEEDED;
 }
+
 result_t packet_ostream_t::write_int32(db_int32 val)
 {
-
+    *(db_int32*)m_pos = htonl(val);
+    m_pos += sizeof(db_int32);
+    m_left_len -= sizeof(db_int32);
+    assert(m_left_len >= 0);
+    return RT_SUCCEEDED;
 }
+
+
 result_t packet_ostream_t::write_string(db_char* val)
 {
-
+    strcpy(m_pos, val);
+    db_uint32 len = strlen(val) + 1;
+    m_pos += len;
+    m_left_len -= len;
+    assert(m_left_len >= 0);
+    return RT_SUCCEEDED;
 }
 
 
-
-
-
-in_packet_t* in_packet_t::create_packet(db_int8 type)
+result_t packet_ostream_t::write_bytes(db_byte* val, db_uint32 len)
 {
+    memcpy(m_pos, val, len);
+    m_pos += len;
+    m_left_len -= len;
+    assert(m_left_len >= 0);
+    return RT_SUCCEEDED;
+}
+
+
+ipacket_t* ipacket_t::create_packet(db_int8 type)
+{
+    DB_TRACE("create_packet = %d(%c)", type, type);
     switch (type)
     {
     case 0:
@@ -105,15 +134,7 @@ in_packet_t* in_packet_t::create_packet(db_int8 type)
 }
 
 
-auth_ok_opacket_t::~auth_ok_opacket_t()
-{
 
-}
-
-result_t auth_ok_opacket_t::encode(packet_ostream_t& stream)
-{
-    return RT_SUCCEEDED;
-}
 
 result_t startup_ipacket_t::decode(packet_istream_t& stream)
 {
@@ -121,12 +142,19 @@ result_t startup_ipacket_t::decode(packet_istream_t& stream)
 
     while (!stream.is_eof()) {
         db_char* param_name = stream.read_string();
+
+        if (strcmp(param_name, "") == 0)
+            break;
+
         if (strcmp(param_name, "user") == 0)
             user = stream.read_string();
         else if (strcmp(param_name, "database") == 0)
             database = stream.read_string();
-        else {            
-            options = stream.read_string();
+        else {                        
+            // application_name
+            // client_encoding
+            // ...
+            (void)stream.read_string();
         }            
     }
 
@@ -134,18 +162,13 @@ result_t startup_ipacket_t::decode(packet_istream_t& stream)
 }
 
 
-result_t startup_ipacket_t::process(server_session_t* session, packet_ostream_t& stream)
+result_t startup_ipacket_t::process(server_session_t* session)
 {
     IF_RETURN_FAILED(protocol_version != PROTOCOL_VERSION);
-
-    channel_base_t* channel = session->channel();
     
-    auth_ok_opacket_t packet;
-    result_t ret = packet.encode(stream);
+    auth_md5_opacket_t packet;
+    session->send_packet(&packet);
     
-
     return RT_SUCCEEDED;
 }
-
-
 

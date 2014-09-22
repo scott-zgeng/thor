@@ -4,7 +4,7 @@
 #ifndef  __PACKET_H__
 #define  __PACKET_H__
 
-
+#include <stdlib.h>
 #include "define.h"
 
 
@@ -44,8 +44,10 @@ public:
     result_t write_int16(db_int16 val);
     result_t write_int32(db_int32 val);
     result_t write_string(db_char* val);
+    result_t write_bytes(db_byte* val, db_uint32 len);
 
     bool is_eof() { return m_left_len == 0; }
+    db_uint32 length() { return m_pos - m_ptr; }
 
 private:
     db_char* m_ptr;
@@ -55,45 +57,88 @@ private:
 
 
 class server_session_t;
-class in_packet_t
+class ipacket_t
 {
 public:
-    static in_packet_t* create_packet(db_int8 type);
+    static ipacket_t* create_packet(db_int8 type);
 
 public:
-    virtual ~in_packet_t() {}
+    virtual ~ipacket_t() {}
 
-public:
+public:    
     virtual result_t decode(packet_istream_t& stream) = 0;
-    virtual result_t process(server_session_t* session, packet_ostream_t& stream) = 0;
+    virtual result_t process(server_session_t* session) = 0;
 };
 
 
-class out_packet_t
+class opacket_t
 {
 public:
-    virtual ~out_packet_t() {}
+    virtual ~opacket_t() {}
 public:
+    virtual db_int8 type() = 0;
     virtual result_t encode(packet_ostream_t& stream) = 0;
 };
 
 
-class auth_ok_opacket_t : public out_packet_t
+#define AuthenticationOk 0
+#define AuthenticationKerberosV5 2
+#define AuthenticationCleartextPassword 3
+#define AuthenticationMD5Password 5
+#define AuthenticationSCMCredential  6
+#define AuthenticationGSS 7
+#define AuthenticationGSSContinue 8
+#define AuthenticationSSPI 9
+
+
+template<db_int32 AUTH_TYPE>
+class auth_opacket_t : public opacket_t
 {
 public:
-    virtual ~auth_ok_opacket_t();
-    virtual result_t encode(packet_ostream_t& stream);
+    static const db_int32 auth_type = AUTH_TYPE;
+
+public:
+    auth_opacket_t() {}
+    virtual ~auth_opacket_t() {}
+public:
+    virtual db_int8 type() { 
+        return 'R'; 
+    }
+
+    virtual result_t encode(packet_ostream_t& stream) {
+        stream.write_int32(auth_type);
+        return RT_SUCCEEDED;
+    }
 };
 
 
-class startup_ipacket_t : public in_packet_t
+class auth_md5_opacket_t : public auth_opacket_t<AuthenticationMD5Password>
+{
+public:
+    auth_md5_opacket_t() {
+        db_int32 temp = rand();
+        memcpy(salt, &temp, sizeof(salt));
+    }
+
+    virtual result_t encode(packet_ostream_t& stream) {
+        stream.write_int32(auth_type);
+        stream.write_bytes(salt, sizeof(salt));
+        return RT_SUCCEEDED;
+    }
+
+    db_byte salt[4];
+};
+
+
+
+class startup_ipacket_t : public ipacket_t
 {
 public:
     static const db_int32 PROTOCOL_VERSION = 196608;
     
 public:
     virtual result_t decode(packet_istream_t& stream);
-    virtual result_t process(server_session_t* session, packet_ostream_t& stream);
+    virtual result_t process(server_session_t* session);
 
 public:
     db_int32 protocol_version;
@@ -101,7 +146,6 @@ public:
     db_char* database;    
     db_char* options;
 };
-
 
 
 

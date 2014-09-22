@@ -1,11 +1,11 @@
 // network_service.cpp by scott.zgeng@gmail.com 2014.09.15
 
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include "network_service.h"
 #include "packet.h"
-
-
-
 
 
 
@@ -13,6 +13,7 @@ server_session_t::server_session_t() : m_channel(this)
 {
     memset(&m_client_addr, 0, sizeof(m_client_addr));
 
+    m_pack_type = 0;
     m_is_startup = true;
     m_is_header = true;
     m_send_buff[0] = 0;
@@ -27,6 +28,10 @@ server_session_t::~server_session_t()
 
 void server_session_t::init(channel_loop_t* loop, db_int32 fd, const sockaddr_in& addr)
 {
+    m_pack_type = 0;
+    m_is_startup = true;
+    m_is_header = true;
+
     m_client_addr = addr;
     m_channel.attach(loop, fd);
 }
@@ -46,9 +51,29 @@ void server_session_t::recv_packet()
 }
 
 
+void server_session_t::send_packet(opacket_t* packet)
+{
+    packet_ostream_t osteam1(m_send_buff, HEAD_SIZE);
+    
+    osteam1.write_int8(packet->type());
+        
+    packet_ostream_t osteam2(m_send_buff + HEAD_SIZE, MAX_SEND_BUF_SIZE - HEAD_SIZE);
+    result_t ret = packet->encode(osteam2);
+    if (ret != RT_SUCCEEDED) {
+        m_channel.close();
+        return;
+    }
+
+    db_uint32 packet_len = osteam2.length();
+    osteam1.write_int32(packet_len + sizeof(db_int32));
+
+    m_channel.send(m_send_buff, packet_len + HEAD_SIZE);
+}
+
 
 void server_session_t::on_send()
 {
+    DB_TRACE("server_session_t::on_send");
     recv_packet();
 }
 
@@ -60,10 +85,11 @@ result_t server_session_t::on_recv_head()
     if LIKELY(!m_is_startup) {
         m_pack_type = stream.read_int8();
     } else {
+        m_pack_type = 0;
         m_is_startup = false;
     }
 
-    m_pack_len = stream.read_int32();
+    m_pack_len = (db_uint32)stream.read_int32();
     IF_RETURN_FAILED(m_pack_len > MAX_RECV_BUF_SIZE);
     m_pack_len -= sizeof(db_int32);
     m_is_header = false;
@@ -76,14 +102,14 @@ result_t server_session_t::on_recv_packet()
 {    
     packet_istream_t istream(m_recv_buff, m_pack_len);
 
-    in_packet_t* packet = in_packet_t::create_packet(m_pack_type);
+    ipacket_t* packet = ipacket_t::create_packet(m_pack_type);
     IF_RETURN_FAILED(packet == NULL);
 
     result_t ret = packet->decode(istream);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
-    packet_ostream_t osteam(m_send_buff, MAX_SEND_BUF_SIZE);
-    ret = packet->process(this, osteam);
+    
+    ret = packet->process(this);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
     return RT_SUCCEEDED;  
@@ -92,6 +118,8 @@ result_t server_session_t::on_recv_packet()
 
 void server_session_t::on_recv()
 {
+    DB_TRACE("server_session_t::on_recv");
+
     result_t ret = m_is_header ? on_recv_head() : on_recv_packet();
     if (ret != RT_SUCCEEDED) {
         m_channel.close();
@@ -100,10 +128,9 @@ void server_session_t::on_recv()
 }
 
 
-
 void server_session_t::on_close()
 {
-
+    DB_TRACE("server_session_t::on_close");
 }
 
 
@@ -158,8 +185,7 @@ network_service::~network_service()
 }
 
 
-#include <sys/stat.h>
-#include <sys/types.h>
+
 
 result_t network_service::init()
 {

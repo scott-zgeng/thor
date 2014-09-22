@@ -348,6 +348,7 @@ public:
     bool erase(const iterator& it) {
         assert(it.m_curr != NULL && *(it.m_curr) != NULL);
         erase_inner(it.m_curr);
+        return true;
     }
 
     void clear() {

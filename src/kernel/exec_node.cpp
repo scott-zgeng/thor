@@ -48,7 +48,7 @@ result_t node_generator_t::build_join(node_base_t** scan_nodes, db_int32 tab_num
 
 result_t node_generator_t::build(node_base_t** root_node)
 {
-    IF_RETURN_FAILED(m_select->pSrc->nSrc != m_select->pSrc->nAlloc);
+    IF_RETURN_FAILED((db_uint32)m_select->pSrc->nSrc != m_select->pSrc->nAlloc);
     IF_RETURN_FAILED(m_select->pSrc->nSrc > MAX_JOIN_TABLE);
 
     result_t ret;

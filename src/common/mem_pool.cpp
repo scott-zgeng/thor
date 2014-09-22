@@ -97,7 +97,7 @@ void mem_pool_t::uninit()
 
     m_bitmap_num = 0;
 
-    for (db_int32 i = 0; i < ENTRY_SIZE; i++) {
+    for (db_uint32 i = 0; i < ENTRY_SIZE; i++) {
         m_free_lists[i].detach();
     }
     

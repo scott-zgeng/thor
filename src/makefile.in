@@ -1,11 +1,11 @@
 CC=gcc
 CXX=g++
-LEMON=${THOR_HOME}/add-ons/lemon
 
 INCLUDES=
 LIBS=
 
-CFLAGS+=-fPIC -DPIC -pthread -Werror -g -m64
+CFLAGS+=-fPIC -DPIC -pthread -Werror -Wall  -g 
+#CFLAGS+=-m64 
 
 ifeq "$(suffix $(TARGET))" ".so"
 	LINK_OPTION=-shared
@@ -19,8 +19,6 @@ TARGET_INNER=$(OBJ_DIR)/$(notdir $(TARGET))
 
 CPP_OBJS=$(patsubst %.cpp, $(OBJ_DIR)/%.o, $(wildcard *.cpp))
 C_OBJS=$(patsubst %.c, $(OBJ_DIR)/%.o, $(wildcard *.c))
-Y_OBJS=$(patsubst %.y, %.c, $(wildcard *.y))
-
 
 $(TARGET):$(TARGET_INNER)
 	cp $(TARGET_INNER) $(TARGET)
@@ -37,8 +35,6 @@ $(C_OBJS):$(OBJ_DIR)/%.o:%.c
 $(CPP_OBJS):$(OBJ_DIR)/%.o:%.cpp
 	$(CXX) $(INCLUDES) $(CFLAGS) -o $@ -c $<
 
-$(Y_OBJS):%.c:%.y
-	$(LEMON) $<
 
 .PHONY:
 clean:
