@@ -96,6 +96,9 @@ int sqlite3VectorDBInit()
 int sqlite3_vector_step(sqlite3_stmt* stmt)
 {
     Vdbe* v = (Vdbe*)stmt;
+    if UNLIKELY(!v->pParse->columnStorage)
+        return sqlite3_step(stmt);
+
     statement_t* v_stmt = (statement_t*)v->stmtHandle;
     return v_stmt->next();
 }

@@ -21,6 +21,9 @@ result_t database_t::init()
     ret = m_mem_pool.init(mem_size);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
+    db_int32 sqlite_ret = sqlite3_open(NULL, &m_kernel_db);
+    IF_RETURN_FAILED(sqlite_ret != SQLITE_OK);
+     
     return RT_SUCCEEDED;
 }
 

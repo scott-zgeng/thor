@@ -28,6 +28,7 @@ public:
 public:
     database_t() : m_table_map(true) {
         memset(m_tables, 0, sizeof(m_tables));
+        m_kernel_db = NULL;
     }
 
 public:
@@ -40,6 +41,11 @@ public:
         return &m_mem_pool; 
     }
 
+
+    sqlite3* native_handle() const {
+        return m_kernel_db;
+    }
+    
 private:
     db_int32 find_idle_entry();
 
@@ -47,6 +53,8 @@ private:
     column_table_t* m_tables[MAX_TABLE_NUM];
 
     mem_pool_t m_mem_pool;
+
+    sqlite3* m_kernel_db;
 };
 
 

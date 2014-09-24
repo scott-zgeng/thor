@@ -55,7 +55,7 @@ void server_session_t::recv_packet()
 
 
 
-void server_session_t::send_packet(opacket_t& packet)
+result_t server_session_t::send_packet(opacket_t& packet)
 {
     packet_ostream_t osteam1(m_send_buff, HEAD_SIZE);
     
@@ -63,15 +63,54 @@ void server_session_t::send_packet(opacket_t& packet)
         
     packet_ostream_t osteam2(m_send_buff + HEAD_SIZE, MAX_SEND_BUF_SIZE - HEAD_SIZE);
     result_t ret = packet.encode(osteam2);
-    if (ret != RT_SUCCEEDED) {
-        m_channel.close();
-        return;
-    }
-
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+    
     db_uint32 packet_len = osteam2.length();
     osteam1.write_int32(packet_len + sizeof(db_int32));
 
     m_channel.send(m_send_buff, packet_len + HEAD_SIZE);
+    return RT_SUCCEEDED;
+}
+
+
+result_t server_session_t::send_packets(packet_vector_t& packets)
+{
+    db_char* pos = m_send_buff;
+    db_uint32 capacity = MAX_SEND_BUF_SIZE;
+
+    for (db_uint32 i = 0; i < packets.size(); i++) {
+        packet_ostream_t osteam1(pos, HEAD_SIZE);
+        osteam1.write_int8(packets[i]->type());
+
+        packet_ostream_t osteam2(pos + HEAD_SIZE, capacity - HEAD_SIZE);
+        result_t ret = packets[i]->encode(osteam2);
+        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+        
+
+        db_uint32 packet_len = osteam2.length() + sizeof(db_int32);
+        osteam1.write_int32(packet_len);
+
+        packet_len += sizeof(db_int8); // 加上头的一个字节
+
+        pos += packet_len;
+        capacity -= packet_len;
+
+        assert(capacity >= 0); // 先简单这么做，后面再完善
+    }
+
+    m_channel.send(m_send_buff, pos - m_send_buff);
+    return RT_SUCCEEDED;
+}
+
+result_t server_session_t::send_packet_with_end(opacket_t& packet)
+{
+    packet_vector_t packets;
+    packets.push_back(&packet);
+
+    read_for_query_opacket_t<true> end_packet;
+    packets.push_back(&end_packet);
+
+    return send_packets(packets);
 }
 
 

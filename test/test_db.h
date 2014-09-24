@@ -33,6 +33,8 @@ inline int do_ddl_command(sqlite3* db, const char* sql)
     return SQLITE_DONE;
 }
 
+
+
 inline int do_dml_command(sqlite3* db, const char* sql)
 {
     int len = strlen(sql);

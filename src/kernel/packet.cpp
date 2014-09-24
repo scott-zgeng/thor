@@ -130,6 +130,8 @@ ipacket_t* ipacket_t::create_packet(db_int8 type)
         return new startup_ipacket_t();
     case 'p':
         return new password_ipacket_t();
+    case 'Q':
+        return new query_ipacket_t();
     default:
         return NULL;
     }
@@ -185,13 +187,51 @@ result_t password_ipacket_t::decode(packet_istream_t& stream)
 result_t password_ipacket_t::process(server_session_t* session)
 {
     // TODO(scott.zgeng): 需要增加对密码的校验，目前先简化这个操作，直接返回成功
+    
+    auth_opacket_t<AuthenticationOk> packet;    
+    return session->send_packet_with_end(packet);
+}
+  
+extern "C" {
+#include "sqliteInt.h"
+#include "vdbeInt.h"
+}
+#include "database.h"
 
-    auth_opacket_t<AuthenticationOk> packet;
-    session->send_packet(packet);
-
-    read_for_query_opacket_t<true> packet2;
-    session->send_packet(packet);
-
+result_t query_ipacket_t::decode(packet_istream_t& stream)
+{
+    sql = stream.read_string();
     return RT_SUCCEEDED;
+}
+
+
+result_t query_ipacket_t::process(server_session_t* session)
+{
+    const char* tail;
+    db_int32 len = strlen(sql);
+
+    int len = strlen(sql);
+    const char* tail;
+    db_int32 sqlite_ret = sqlite3_vector_prepare(database_t::instance.native_handle(), sql, len, &stmt, &tail);
+    if (sqlite_ret != SQLITE_OK) { 
+        error_ipacket_t error_packet("sqlite3_vector_prepare failed");
+        session->send_packet_with_end(error_packet);
+        return RT_SUCCEEDED;
+    }
+
+    sqlite_ret = sqlite3_vector_step(stmt);
+    if (sqlite_ret != SQLITE_OK) {
+        error_ipacket_t error_packet("sqlite3_vector_step failed");
+        session->send_packet_with_end(error_packet);
+        return RT_SUCCEEDED;
+    }
+
+    if (sqlite_ret == SQLITE_DONE) {
+        error_ipacket_t error_packet("sqlite3_vector_step failed");
+        session->send_packet_with_end(error_packet);
+        return RT_SUCCEEDED;
+    }
+
+    
 }
 

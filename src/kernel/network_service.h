@@ -8,7 +8,7 @@
 #include "tinythread.h"
 #include "fast_mutex.h"
 #include "channel.h"
-
+#include "packet.h"
 
 /*
 1. start-up
@@ -24,13 +24,17 @@
 
 */
 
+
+
+
+
 class packet_ostream_t;
 class opacket_t;
 class server_session_t : private channel_action_t
 {
 public:
-    static const db_uint32 MAX_SEND_BUF_SIZE = 1024;
-    static const db_uint32 MAX_RECV_BUF_SIZE = 1024;    
+    static const db_uint32 MAX_SEND_BUF_SIZE = 1024 * 1024 * 2; 
+    static const db_uint32 MAX_RECV_BUF_SIZE = 1024 * 128;    
 
     static const db_uint32 HEAD_SIZE = 5;
 
@@ -43,7 +47,12 @@ public:
 
     void recv_startup();
     void recv_packet();
-    void send_packet(opacket_t& packet);
+    result_t send_packet(opacket_t& packet); 
+    result_t send_packets(packet_vector_t& packets);
+
+
+    result_t send_packet_with_end(opacket_t& packet);
+    
 
 private:
     virtual void on_send();
@@ -160,6 +169,7 @@ private:
 
     worker_thread_t* m_workers[MAX_THREAD_NUM];
     mutex_t m_lock;
+   
 };
 
 

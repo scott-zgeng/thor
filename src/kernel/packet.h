@@ -6,6 +6,9 @@
 
 #include <stdlib.h>
 #include "define.h"
+#include "pod_vector.h"
+
+
 
 
 class packet_istream_t
@@ -81,6 +84,8 @@ public:
 };
 
 
+typedef pod_vector<opacket_t*, 128> packet_vector_t;
+
 #define AuthenticationOk 0
 #define AuthenticationKerberosV5 2
 #define AuthenticationCleartextPassword 3
@@ -153,6 +158,31 @@ public:
 };
 
 
+
+class error_ipacket_t : public opacket_t
+{
+public:
+    error_ipacket_t(db_char* msg) {
+        error_type = 'D';
+        error_message = msg;
+    }
+
+    virtual db_int8 type() {
+        return 'E';
+    }
+
+    virtual result_t encode(packet_ostream_t& stream) {
+        stream.write_int8(error_type);
+        stream.write_string(error_message);
+
+        return RT_SUCCEEDED;
+    }
+
+    db_byte error_type;
+    db_char* error_message;
+};
+
+
 class startup_ipacket_t : public ipacket_t
 {
 public:
@@ -178,6 +208,20 @@ public:
 public:
     char* password;
 };
+
+
+
+struct sqlite3_stmt;
+class query_ipacket_t :public ipacket_t
+{
+public:
+    virtual result_t decode(packet_istream_t& stream);
+    virtual result_t process(server_session_t* session);
+public:
+    char* sql;
+    sqlite3_stmt* stmt;
+};
+
 
 
 #endif //__PACKET_H__
