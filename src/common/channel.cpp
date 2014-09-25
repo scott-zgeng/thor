@@ -13,6 +13,20 @@
 #include "channel.h"
 
 
+inline void ev_io_init_ex(ev_io* ev, int fd)
+{
+    ev->active = 0;
+    ev->cb = NULL;
+    ev->data = NULL;
+    ev->events = EV_NONE | EV__IOFDSET;
+    ev->fd = fd;
+    ev->next = NULL;
+    ev->priority = 0;
+    ev->pending = 0;
+}
+
+
+
 db_int32 set_noblock_socket(db_int32 fd)
 {
 #ifndef _WIN32
@@ -63,6 +77,8 @@ void channel_base_t::on_ev_recv(struct ev_loop* loop, ev_io* ev, int events)
 }
 
 
+
+
 channel_base_t::channel_base_t(channel_action_t* action)
 {
     m_loop = NULL;
@@ -74,8 +90,11 @@ channel_base_t::channel_base_t(channel_action_t* action)
     m_send_len = 0;
     m_recv_ptr = NULL;
     m_recv_len = 0;
+   
+    // NOTES(scott.zgeng): ev_io_init  failed with g++ compiler -O2
+    //ev_io_init(&m_ev, NULL, m_fd, EV_NONE);  
+    ev_io_init_ex(&m_ev, m_fd);
 
-    ev_io_init(&m_ev, NULL, m_fd, EV_NONE);
     m_ev.data = this;
 }
 

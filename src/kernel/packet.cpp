@@ -272,6 +272,7 @@ void query_ipacket_t::on_send_complete(server_session_t* session)
         // case SQLITE_ROW
         segment_row_count = sqlite3_vector_row_count(stmt);
         total_count += segment_row_count;
+        row_idx = 0;
         assert(segment_row_count > 0);
     }
 
@@ -282,41 +283,7 @@ void query_ipacket_t::on_send_complete(server_session_t* session)
         const variant_t& val = sqlite3_vector_column_variant(stmt, i, row_idx);
         data_packet.add_row_data(val);
     }
-    row_idx++;  
+    row_idx++;
     session->send_packet(data_packet, this);
 }
 
-
-//
-//
-//db_int32 row_count = sqlite3_vector_row_count(stmt);
-//
-//db_uint32 column_count = sqlite3_vector_column_count(stmt);
-//
-//for (db_int32 row_idx = 0; row_idx < row_count; row_idx++) {
-//    printf("ROW[%d]: ", row_idx);
-//    for (db_uint32 col_id = 0; col_id < column_count; col_id++) {
-//        data_type_t type = (data_type_t)sqlite3_vector_column_type(stmt, col_id);
-//        switch (type)
-//        {
-//        case DB_UNKNOWN:
-//            break;
-//        case DB_INT8:
-//            break;
-//        case DB_INT16:
-//            break;
-//        case DB_INT32:
-//            printf("%d ", sqlite3_vector_column_int(stmt, col_id, row_idx));
-//            break;
-//        case DB_INT64:
-//            printf("%lld ", sqlite3_vector_column_bigint(stmt, col_id, row_idx));
-//            break;
-//        case DB_FLOAT:
-//            printf("%f ", sqlite3_vector_column_float(stmt, col_id, row_idx));
-//            break;
-//        case DB_DOUBLE:
-//            printf("%f ", sqlite3_vector_column_double(stmt, col_id, row_idx));
-//            break;
-//        case DB_STRING:
-//            printf("%s ", sqlite3_vector_column_string(stmt, col_id, row_idx));
-//
