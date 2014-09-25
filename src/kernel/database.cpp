@@ -13,17 +13,17 @@ database_t database_t::instance;
 
 result_t database_t::init()
 {
-    result_t ret;
-
+    if (m_kernel_db != NULL) 
+        return RT_SUCCEEDED;
+    
     // TODO(scott.zgeng): 大小先随便写一个，后面动态根据配置，或SQL来配置
-    db_size mem_size = 1024 * 1024 * 100;
-
-    ret = m_mem_pool.init(mem_size);
+    db_size mem_size = 1024 * 1024 * 100;    
+    result_t ret = m_mem_pool.init(mem_size);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+    
+    db_int32 ret2 = sqlite3_open(NULL, &m_kernel_db);
+    IF_RETURN_FAILED(ret2 != SQLITE_OK);
 
-    db_int32 sqlite_ret = sqlite3_open(NULL, &m_kernel_db);
-    IF_RETURN_FAILED(sqlite_ret != SQLITE_OK);
-     
     return RT_SUCCEEDED;
 }
 

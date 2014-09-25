@@ -67,7 +67,9 @@ int sqlite3VectorInsert(Parse *pParse, SrcList *pTabList, Select *pSelect, IdLis
 
 void sqlite3VectorInsertEnd(Parse *pParse, Select *pSelect)
 {    
-    pParse->pVdbe->stmtHandle = pParse->stmtHandle;
+    if (pParse->pVdbe != NULL) {
+        pParse->pVdbe->stmtHandle = pParse->stmtHandle;
+    }
 }
 
 
@@ -83,11 +85,11 @@ void sqlite3VectorFinalize(void* stmtHandle)
 
 int sqlite3VectorDBInit()
 {
-    result_t ret;
-    ret = database_t::instance.init();
+    //result_t ret;
+    //ret = database_t::instance.init();
 
-    if (ret != RT_SUCCEEDED)
-        return SQLITE_ERROR;
+    //if (ret != RT_SUCCEEDED)
+    //    return SQLITE_ERROR;
 
     return SQLITE_OK;
 }
@@ -96,13 +98,19 @@ int sqlite3VectorDBInit()
 int sqlite3_vector_step(sqlite3_stmt* stmt)
 {
     Vdbe* v = (Vdbe*)stmt;
-    if UNLIKELY(!v->pParse->columnStorage)
+    if UNLIKELY(v->stmtHandle == NULL)
         return sqlite3_step(stmt);
 
     statement_t* v_stmt = (statement_t*)v->stmtHandle;
     return v_stmt->next();
 }
 
+project_node_t* get_statement_root_node(sqlite3_stmt* stmt)
+{
+    Vdbe* v = (Vdbe*)stmt;
+    select_stmt_t* select_stmt = (select_stmt_t*)v->stmtHandle;
+    return select_stmt->root();
+}
 
 int sqlite3_vector_row_count(sqlite3_stmt* stmt)
 {
@@ -111,6 +119,8 @@ int sqlite3_vector_row_count(sqlite3_stmt* stmt)
     project_node_t* root_node = select_stmt->root();    
     return root_node->count();
 }
+
+
 
 int sqlite3_vector_column_count(sqlite3_stmt* stmt)
 {
@@ -121,6 +131,33 @@ int sqlite3_vector_column_count(sqlite3_stmt* stmt)
 
 }
 
+
+
+variant_t sqlite3_vector_column_variant(sqlite3_stmt* stmt, int col_idx, int row_idx)
+{
+    Vdbe* v = (Vdbe*)stmt;
+    select_stmt_t* select_stmt = (select_stmt_t*)v->stmtHandle;
+    project_node_t* root_node = select_stmt->root();
+    data_type_t type = root_node->column_type(col_idx);
+    void* row = root_node->column_data(col_idx);
+
+    switch (type)
+    {         
+    case DB_INT32:
+        return variant_t(((db_int32*)row)[row_idx]);
+    case DB_INT64:
+        return variant_t(((db_int64*)row)[row_idx]);
+    case DB_FLOAT:
+        return variant_t(((db_float*)row)[row_idx]);
+    case DB_DOUBLE:
+        return variant_t(((db_double*)row)[row_idx]);
+    case DB_STRING:
+        return variant_t(((db_string*)row)[row_idx]);    
+    default:
+        assert(false);
+        return variant_t(((db_int32*)row)[row_idx]);
+    }
+}
 
 int sqlite3_vector_column_int(sqlite3_stmt* stmt, int col_idx, int row_idx)
 {

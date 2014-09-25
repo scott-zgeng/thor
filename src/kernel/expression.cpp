@@ -59,6 +59,7 @@ expr_factory_t::expr_factory_t(statement_t* stmt, node_base_t* node)
     m_stmt = stmt;
     m_mode = node->rowset_mode();
     m_table_count = node->table_count();    
+    m_expr_idx = 0;
 }
 
 
@@ -75,7 +76,7 @@ data_type_t expr_factory_t::get_column_type(const char* name, db_int32 column_id
 expr_aggr_t* expr_factory_t::create_aggr_column(Expr* expr)
 {
     db_uint32 index = m_expr_idx;
-    row_segement_t::expr_item_t& item = m_stmt->m_aggr_table_def->m_columns[index];
+    row_segement_t::expr_item_t& item = m_stmt->m_aggr_table_def->m_columns[index];  
     data_type_t type = item.expr->data_type();
 
     switch (type)

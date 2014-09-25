@@ -41,9 +41,19 @@ public:
         return m_expr_values[idx];
     }
 
+    const db_char* column_name(db_int32 idx) const {        
+        return "column"; // TODO(scott.zgeng): for test
+    }
+
     data_type_t column_type(db_int32 idx) {
         return m_expr_columns[idx]->data_type();
     }
+
+    db_uint32 column_size(db_int32 idx) {
+        return 4; // TODO(scott.zgeng): for test
+
+    }
+
 
 private:
     statement_t* m_stmt;

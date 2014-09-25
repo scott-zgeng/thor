@@ -53,7 +53,8 @@ public:
     result_t prepare(Parse *pParse, Select *pSelect);
     project_node_t* root() { return m_root; }
 private:
-    project_node_t* m_root;  
+    project_node_t* m_root;
+    db_bool m_is_eof;
 
 };
 

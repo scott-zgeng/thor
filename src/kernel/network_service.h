@@ -25,12 +25,7 @@
 */
 
 
-
-
-
-class packet_ostream_t;
-class opacket_t;
-class server_session_t : private channel_action_t
+class server_session_t : private channel_action_t, session_send_action_t
 {
 public:
     static const db_uint32 MAX_SEND_BUF_SIZE = 1024 * 1024 * 2; 
@@ -47,20 +42,25 @@ public:
 
     void recv_startup();
     void recv_packet();
-    result_t send_packet(opacket_t& packet); 
+    
     result_t send_packets(packet_vector_t& packets);
 
+    result_t send_packet(opacket_t& packet);
+    result_t send_packet(opacket_t& packet, session_send_action_t* action);
 
     result_t send_packet_with_end(opacket_t& packet);
     
 
 private:
+    virtual void on_send_complete(server_session_t* session);
     virtual void on_send();
     virtual void on_recv();
     virtual void on_close();
     
     result_t on_recv_packet();
     result_t on_recv_head();
+
+    
 
 private:
     sockaddr_in m_client_addr;
@@ -74,7 +74,7 @@ private:
     db_char m_send_buff[MAX_SEND_BUF_SIZE];
     db_char m_recv_buff[MAX_RECV_BUF_SIZE];
 
-    
+    session_send_action_t* m_send_action;
 };
 
 

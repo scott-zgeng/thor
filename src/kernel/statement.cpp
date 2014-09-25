@@ -13,6 +13,7 @@ select_stmt_t::select_stmt_t(database_t* db)
 {
     m_root = NULL;
     m_database = db;
+    m_is_eof = false;
 }
 
 
@@ -49,12 +50,19 @@ result_t select_stmt_t::prepare(Parse *pParse, Select *pSelect)
 
 db_int32 select_stmt_t::next()
 {        
+    if (m_is_eof)
+        return SQLITE_DONE;
+
     // TODO(scott.zgeng): project节点的数据结构需要提到STMT里面来
     if (m_root->next() != RT_SUCCEEDED)
         return SQLITE_ERROR;
     
-    if (m_root->count() < SEGMENT_SIZE)
+    db_int32 row_count = m_root->count();
+    if (row_count == 0)
         return SQLITE_DONE;
+
+    if (row_count < SEGMENT_SIZE)
+        m_is_eof = true;
     
     return SQLITE_ROW;    
 }
@@ -82,6 +90,7 @@ void insert_stmt_t::uninit()
 {
 
 }
+
 
 result_t insert_stmt_t::prepare(Parse *pParse, SrcList *pTabList, Select *pSelect, IdList *pColumn, int onError)
 {

@@ -7,9 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifdef _WIN32
-#undef NDEBUG // for assert
-#endif
+
 
 
 enum data_type_t {

@@ -6,7 +6,7 @@
 
 #include "network_service.h"
 #include "packet.h"
-
+#include "database.h"
 
 // TODO(scott.zgeng): 
 // 线程模型需要修改一下，在startup阶段，最好都是在主线程完成，
@@ -21,6 +21,7 @@ server_session_t::server_session_t() : m_channel(this)
     m_is_header = true;
     m_send_buff[0] = 0;
     m_recv_buff[0] = 0;
+    m_send_action = this; // 自动恢复到缺省动作
 }
 
 server_session_t::~server_session_t()
@@ -54,22 +55,28 @@ void server_session_t::recv_packet()
 }
 
 
-
-result_t server_session_t::send_packet(opacket_t& packet)
+result_t server_session_t::send_packet(opacket_t& packet, session_send_action_t* action)
 {
     packet_ostream_t osteam1(m_send_buff, HEAD_SIZE);
-    
+
     osteam1.write_int8(packet.type());
-        
+
     packet_ostream_t osteam2(m_send_buff + HEAD_SIZE, MAX_SEND_BUF_SIZE - HEAD_SIZE);
     result_t ret = packet.encode(osteam2);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
-    
+
     db_uint32 packet_len = osteam2.length();
     osteam1.write_int32(packet_len + sizeof(db_int32));
 
+    m_send_action = action;
     m_channel.send(m_send_buff, packet_len + HEAD_SIZE);
+
     return RT_SUCCEEDED;
+}
+
+result_t server_session_t::send_packet(opacket_t& packet)
+{
+    return send_packet(packet, this);
 }
 
 
@@ -102,6 +109,8 @@ result_t server_session_t::send_packets(packet_vector_t& packets)
     return RT_SUCCEEDED;
 }
 
+
+
 result_t server_session_t::send_packet_with_end(opacket_t& packet)
 {
     packet_vector_t packets;
@@ -110,13 +119,21 @@ result_t server_session_t::send_packet_with_end(opacket_t& packet)
     read_for_query_opacket_t<true> end_packet;
     packets.push_back(&end_packet);
 
+    m_send_action = this;
     return send_packets(packets);
 }
 
 
 void server_session_t::on_send()
 {
-    DB_TRACE("server_session_t::on_send");
+    DB_TRACE("server_session_t::on_send");    
+    m_send_action->on_send_complete(this);
+}
+
+
+void server_session_t::on_send_complete(server_session_t* session)
+{
+    DB_TRACE("server_session_t::on_send_complete");
     recv_packet();
 }
 
@@ -234,6 +251,9 @@ result_t network_service::init()
 {
     result_t ret;
     db_uint16 server_port = 19992;  // TODO(scott.zgeng): 需要从配置中获取
+    
+    ret = database_t::instance.init();
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
     ret = m_loop.init();
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);

@@ -15,6 +15,7 @@ typedef fstring<MAX_TAB_NAME_LEN + 1> table_name_t;
 
 struct Table;
 class column_table_t;
+struct sqlite3;
 
 class database_t
 {
@@ -53,7 +54,6 @@ private:
     column_table_t* m_tables[MAX_TABLE_NUM];
 
     mem_pool_t m_mem_pool;
-
     sqlite3* m_kernel_db;
 };
 

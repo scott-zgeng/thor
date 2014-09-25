@@ -2,9 +2,12 @@
 
 #include <assert.h>
 #include <arpa/inet.h>
+
 #include "packet.h"
 #include "network_service.h"
-
+#include "database.h"
+#include "parse_ctx.h"
+#include "project_node.h"
 
 
 packet_istream_t::packet_istream_t(db_char* ptr, db_uint32 capacity)
@@ -100,7 +103,7 @@ result_t packet_ostream_t::write_int32(db_int32 val)
 }
 
 
-result_t packet_ostream_t::write_string(db_char* val)
+result_t packet_ostream_t::write_string(const db_char* val)
 {
     strcpy(m_pos, val);
     db_uint32 len = strlen(val) + 1;
@@ -111,7 +114,7 @@ result_t packet_ostream_t::write_string(db_char* val)
 }
 
 
-result_t packet_ostream_t::write_bytes(db_byte* val, db_uint32 len)
+result_t packet_ostream_t::write_bytes(const db_byte* val, db_uint32 len)
 {
     memcpy(m_pos, val, len);
     m_pos += len;
@@ -192,11 +195,15 @@ result_t password_ipacket_t::process(server_session_t* session)
     return session->send_packet_with_end(packet);
 }
   
-extern "C" {
-#include "sqliteInt.h"
-#include "vdbeInt.h"
+
+query_ipacket_t::query_ipacket_t()
+{
+    sql = NULL;
+    stmt = NULL;
+    segment_row_count = 0;
+    total_count = 0;
 }
-#include "database.h"
+
 
 result_t query_ipacket_t::decode(packet_istream_t& stream)
 {
@@ -210,28 +217,106 @@ result_t query_ipacket_t::process(server_session_t* session)
     const char* tail;
     db_int32 len = strlen(sql);
 
-    int len = strlen(sql);
-    const char* tail;
     db_int32 sqlite_ret = sqlite3_vector_prepare(database_t::instance.native_handle(), sql, len, &stmt, &tail);
     if (sqlite_ret != SQLITE_OK) { 
-        error_ipacket_t error_packet("sqlite3_vector_prepare failed");
+        error_opacket_t error_packet("sqlite3_vector_prepare failed");
         session->send_packet_with_end(error_packet);
         return RT_SUCCEEDED;
     }
 
     sqlite_ret = sqlite3_vector_step(stmt);
-    if (sqlite_ret != SQLITE_OK) {
-        error_ipacket_t error_packet("sqlite3_vector_step failed");
+    if (sqlite_ret == SQLITE_ERROR) {
+        error_opacket_t error_packet("sqlite3_vector_step failed");
         session->send_packet_with_end(error_packet);
         return RT_SUCCEEDED;
     }
 
     if (sqlite_ret == SQLITE_DONE) {
-        error_ipacket_t error_packet("sqlite3_vector_step failed");
-        session->send_packet_with_end(error_packet);
+        complete_opacket_t comp_packet(1);
+        session->send_packet_with_end(comp_packet);
         return RT_SUCCEEDED;
     }
 
-    
+    // sqlite_ret = SQLITE_ROW
+    segment_row_count = sqlite3_vector_row_count(stmt);
+    total_count += segment_row_count;
+    row_idx = 0;
+
+    row_desc_opacket_t row_head_packet;
+    project_node_t* node = get_statement_root_node(stmt);
+    for (db_uint32 i = 0; i < node->column_count(); i++) {        
+        row_head_packet.add_row_desc(node->column_name(i), node->column_type(i), node->column_size(i));
+    }           
+
+    session->send_packet(row_head_packet, this);
+    return RT_SUCCEEDED;
 }
 
+
+void query_ipacket_t::on_send_complete(server_session_t* session)
+{
+    if (row_idx == segment_row_count) {
+        db_int32 sqlite_ret = sqlite3_vector_step(stmt);
+        if (sqlite_ret == SQLITE_ERROR) {
+            error_opacket_t packet("sqlite3_vector_step failed");
+            session->send_packet_with_end(packet);
+            return;
+        }
+
+        if (sqlite_ret == SQLITE_DONE) {
+            complete_opacket_t packet(total_count);
+            session->send_packet_with_end(packet);
+            return;
+        }
+
+        // case SQLITE_ROW
+        segment_row_count = sqlite3_vector_row_count(stmt);
+        total_count += segment_row_count;
+        assert(segment_row_count > 0);
+    }
+
+    
+    data_row_opacket_t data_packet;
+    db_int32 col_num = sqlite3_vector_column_count(stmt);
+    for (db_int32 i = 0; i < col_num; i++) {
+        const variant_t& val = sqlite3_vector_column_variant(stmt, i, row_idx);
+        data_packet.add_row_data(val);
+    }
+    row_idx++;  
+    session->send_packet(data_packet, this);
+}
+
+
+//
+//
+//db_int32 row_count = sqlite3_vector_row_count(stmt);
+//
+//db_uint32 column_count = sqlite3_vector_column_count(stmt);
+//
+//for (db_int32 row_idx = 0; row_idx < row_count; row_idx++) {
+//    printf("ROW[%d]: ", row_idx);
+//    for (db_uint32 col_id = 0; col_id < column_count; col_id++) {
+//        data_type_t type = (data_type_t)sqlite3_vector_column_type(stmt, col_id);
+//        switch (type)
+//        {
+//        case DB_UNKNOWN:
+//            break;
+//        case DB_INT8:
+//            break;
+//        case DB_INT16:
+//            break;
+//        case DB_INT32:
+//            printf("%d ", sqlite3_vector_column_int(stmt, col_id, row_idx));
+//            break;
+//        case DB_INT64:
+//            printf("%lld ", sqlite3_vector_column_bigint(stmt, col_id, row_idx));
+//            break;
+//        case DB_FLOAT:
+//            printf("%f ", sqlite3_vector_column_float(stmt, col_id, row_idx));
+//            break;
+//        case DB_DOUBLE:
+//            printf("%f ", sqlite3_vector_column_double(stmt, col_id, row_idx));
+//            break;
+//        case DB_STRING:
+//            printf("%s ", sqlite3_vector_column_string(stmt, col_id, row_idx));
+//
