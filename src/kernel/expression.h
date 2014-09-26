@@ -110,10 +110,10 @@ BINARY_PRIMITIVE(TK_GE, >=);
 BINARY_PRIMITIVE(TK_LT, <);
 BINARY_PRIMITIVE(TK_LE, <=);
 
-BINARY_PRIMITIVE(TK_PLUS, +);
-BINARY_PRIMITIVE(TK_MINUS, -);
-BINARY_PRIMITIVE(TK_STAR, *);
-BINARY_PRIMITIVE(TK_SLASH, /);
+BINARY_PRIMITIVE(TK_PLUS, + );
+BINARY_PRIMITIVE(TK_MINUS, - );
+BINARY_PRIMITIVE(TK_STAR, * );
+BINARY_PRIMITIVE(TK_SLASH, / );
 
 
 
@@ -477,8 +477,8 @@ public:
         return DB_INT64;
     }
 
-    virtual result_t calc(rowset_t* rs, mem_stack_t* ctx, mem_handle_t& result) {
-        ctx->alloc_memory(SEGMENT_SIZE*sizeof(db_int64), result);
+    virtual result_t calc(rowset_t* rs, mem_stack_t* mem, mem_handle_t& result) {
+        mem->alloc_memory(SEGMENT_SIZE*sizeof(db_int64), result);
         db_int64* count_result = (db_int64*)result.ptr();
         for (db_uint32 i = 0; i < rs->count; i++) {
             count_result[i] = 1;
@@ -489,6 +489,33 @@ public:
 private:
     expr_base_t* m_children;
 };
+
+
+
+class expr_dummy_t : public expr_base_t
+{
+public:
+    virtual ~expr_dummy_t() {}
+
+public:
+    virtual result_t init(Expr* expr, void* param) {
+        memset(m_value, 0, sizeof(m_value));        
+        return RT_SUCCEEDED;
+    }
+
+    virtual data_type_t data_type() {        
+        return DB_INT32;
+    }
+
+    virtual result_t calc(rowset_t* rs, mem_stack_t* mem, mem_handle_t& result) {
+        result.init(mem, m_value);
+        return RT_SUCCEEDED;
+    }
+
+private:
+    db_int32 m_value[SEGMENT_SIZE];
+};
+
 
 
 
@@ -517,15 +544,17 @@ public:
     result_t build_list(ExprList* src, expr_list_t* dst);
 
     static expr_base_t* create_cast(data_type_t rt_type, expr_base_t* children);    
+    static expr_base_t* create_dummy();
+    
 
 private:
     template<typename T> static expr_base_t* create_convert_expr_impl(data_type_t rt_type, expr_base_t* children);
 
     expr_base_t* create_instance(Expr* expr, expr_base_t* left, expr_base_t* right);    
-    
-    expr_base_t* create_binary(db_uint32 op_type, expr_base_t* left, expr_base_t* right);
-    template<int OP_TYPE> expr_base_t* create_arith_op(data_type_t type, expr_base_t* left, expr_base_t* right);
-    template<int OP_TYPE> expr_base_t* create_logic_op(data_type_t type, expr_base_t* left, expr_base_t* right);
+        
+    template<int OP_TYPE> expr_base_t* create_binary_logic(expr_base_t* left, expr_base_t* right);
+    template<int OP_TYPE> expr_base_t* create_binary_arith(expr_base_t* left, expr_base_t* right);
+
     expr_base_t* create_integer(Expr* expr);
     expr_base_t* create_column(Expr* expr);
 
@@ -535,6 +564,8 @@ private:
 private:
     data_type_t get_column_type(const char* name, db_int32 column_id);    
     data_type_t cast_type(int op_type, data_type_t left, data_type_t right);
+    
+    result_t adjust_binary_sub_type(data_type_t dst_type, expr_base_t*& left, expr_base_t*& right);
 
 private:
     result_t build_impl(Expr* expr, expr_base_t** root) {

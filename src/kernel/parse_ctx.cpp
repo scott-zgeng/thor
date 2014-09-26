@@ -23,8 +23,7 @@ int sqlite3VectorCreateTable(Parse* pParse)
     return SQLITE_OK;
 }
 
-
-int sqlite3VectorSelect(Parse* pParse, Select* pSelect)
+static int vector_select_inner(Parse* pParse, Select* pSelect)
 {
     if (!pParse->columnStorage)
         return SQLITE_OK;
@@ -43,6 +42,16 @@ int sqlite3VectorSelect(Parse* pParse, Select* pSelect)
     return SQLITE_OK;
 }
 
+
+int sqlite3VectorSelect(Parse* pParse, Select* pSelect)
+{
+    int rc = vector_select_inner(pParse, pSelect);
+    pParse->rc = rc;
+    if (rc != SQLITE_OK) {
+        pParse->nErr = 1;
+    }
+    return rc;
+}
 
 
 int sqlite3VectorInsert(Parse *pParse, SrcList *pTabList, Select *pSelect, IdList *pColumn, int onError)

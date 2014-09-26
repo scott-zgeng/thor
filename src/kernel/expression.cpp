@@ -144,11 +144,42 @@ expr_base_t* expr_factory_t::create_integer(Expr* expr)
 }
 
 
-template<int OP_TYPE>
-expr_base_t* expr_factory_t::create_logic_op(data_type_t type, expr_base_t* left, expr_base_t* right)
+
+result_t expr_factory_t::adjust_binary_sub_type(data_type_t dst_type, expr_base_t*& left, expr_base_t*& right)
 {
+    data_type_t left_type = left->data_type();
+    data_type_t right_type = right->data_type();
+
+    if (left_type != dst_type) {
+        expr_base_t* temp = create_cast(dst_type, left);
+        IF_RETURN_FAILED(temp == NULL);
+        left = temp;
+    }
+
+    if (right_type != dst_type) {
+        expr_base_t* temp = create_cast(dst_type, right);
+        IF_RETURN_FAILED(temp == NULL);
+        right = temp;
+    }
+
+    assert(left->data_type() == right->data_type());
+    return RT_SUCCEEDED;
+}
+
+
+template<int OP_TYPE>
+expr_base_t* expr_factory_t::create_binary_logic(expr_base_t* left, expr_base_t* right)
+{
+    assert(left != NULL && right != NULL);
+    
+    data_type_t type = cast_type(OP_TYPE, left->data_type(), right->data_type());
+    if (type == DB_UNKNOWN) return NULL;
+
+    result_t ret = adjust_binary_sub_type(type, left, right);
+    if (ret != RT_SUCCEEDED) return NULL;
+
     switch (type)
-    {    
+    {
     case DB_INT8:
         return new binary_expr_t<OP_TYPE, db_int8, db_int8>(left, right);
     case DB_INT16:
@@ -168,9 +199,18 @@ expr_base_t* expr_factory_t::create_logic_op(data_type_t type, expr_base_t* left
     }
 }
 
+
 template<int OP_TYPE>
-expr_base_t* expr_factory_t::create_arith_op(data_type_t type, expr_base_t* left, expr_base_t* right)
+expr_base_t* expr_factory_t::create_binary_arith(expr_base_t* left, expr_base_t* right)
 {
+    assert(left != NULL && right != NULL);
+
+    data_type_t type = cast_type(OP_TYPE, left->data_type(), right->data_type());
+    if (type == DB_UNKNOWN) return NULL;
+
+    result_t ret = adjust_binary_sub_type(type, left, right);
+    if (ret != RT_SUCCEEDED) return NULL;
+
     switch (type)
     {
     case DB_INT64:
@@ -181,66 +221,6 @@ expr_base_t* expr_factory_t::create_arith_op(data_type_t type, expr_base_t* left
         return NULL;
     }
 }
-
-
-expr_base_t* expr_factory_t::create_binary(db_uint32 op_type, expr_base_t* left, expr_base_t* right)
-{
-    assert(left != NULL && right != NULL);
-    
-    data_type_t left_type = left->data_type();
-    data_type_t right_type = right->data_type();
-
-    data_type_t dst_type = cast_type(op_type, left_type, right_type);
-    if (dst_type == DB_UNKNOWN) return NULL;
-
-    if (left_type != dst_type) {
-        expr_base_t* temp = create_cast(dst_type, left);
-        if (temp == NULL) return NULL;
-        left = temp;
-    }
-
-    if (right_type != dst_type) {
-        expr_base_t* temp = create_cast(dst_type, right);
-        if (temp == NULL) return NULL;
-        right = temp;
-    } 
-
-    assert(left->data_type() == right->data_type());
-    
-    switch (op_type)
-    {
-    case TK_AND:
-        return create_logic_op<TK_AND>(dst_type, left, right);
-    case TK_OR:
-        return create_logic_op<TK_OR>(dst_type, left, right);
-
-    case TK_NE:
-        return create_logic_op<TK_NE>(dst_type, left, right);
-    case TK_EQ:
-        return create_logic_op<TK_EQ>(dst_type, left, right);
-    case TK_GT:
-        return create_logic_op<TK_GT>(dst_type, left, right);
-    case TK_GE:
-        return create_logic_op<TK_GE>(dst_type, left, right);
-    case TK_LT:
-        return create_logic_op<TK_LT>(dst_type, left, right);
-    case TK_LE:
-        return create_logic_op<TK_LE>(dst_type, left, right);
-
-    case TK_PLUS:        
-        return create_arith_op<TK_PLUS>(dst_type, left, right);
-    case TK_MINUS:
-        return create_arith_op<TK_MINUS>(dst_type, left, right);
-    case TK_STAR:
-        return create_arith_op<TK_STAR>(dst_type, left, right);
-    case TK_SLASH:
-        return create_arith_op<TK_SLASH>(dst_type, left, right);
-               
-    default:
-        return NULL;
-    }
-}
-
 
 
 expr_base_t* expr_factory_t::create_instance(Expr* expr, expr_base_t* left, expr_base_t* right)
@@ -256,8 +236,35 @@ expr_base_t* expr_factory_t::create_instance(Expr* expr, expr_base_t* left, expr
         return new expr_float_t();
     case TK_STRING:
         return new expr_string_t();
+
+    case TK_AND:
+        return create_binary_logic<TK_AND>(left, right);
+    case TK_OR:
+        return create_binary_logic<TK_OR>(left, right);
+    case TK_NE:
+        return create_binary_logic<TK_NE>(left, right);
+    case TK_EQ:
+        return create_binary_logic<TK_EQ>(left, right);
+    case TK_GT:
+        return create_binary_logic<TK_GT>(left, right);
+    case TK_GE:
+        return create_binary_logic<TK_GE>(left, right);
+    case TK_LT:
+        return create_binary_logic<TK_LT>(left, right);
+    case TK_LE:
+        return create_binary_logic<TK_LE>(left, right);
+
+    case TK_PLUS:
+        return create_binary_arith<TK_PLUS>(left, right);
+    case TK_MINUS:
+        return create_binary_arith<TK_MINUS>(left, right);
+    case TK_STAR:
+        return create_binary_arith<TK_STAR>(left, right);
+    case TK_SLASH:
+        return create_binary_arith<TK_SLASH>(left, right);
+
     default:
-        return create_binary(expr->op, left, right);
+        return NULL;
     }
 }
 
@@ -359,6 +366,11 @@ expr_base_t* expr_factory_t::create_cast(data_type_t rt_type, expr_base_t* child
     }
 }
 
+expr_base_t* expr_factory_t::create_dummy()
+{
+    return new expr_dummy_t();
+}
+
 
 result_t expr_factory_t::build_normal(Expr* expr, expr_base_t** root)
 {    
@@ -412,7 +424,7 @@ result_t expr_factory_t::build_aggr(Expr* expr, expr_base_t** root)
             aggr_expr2->m_offset = item.offset;
             m_expr_idx++;
 
-            curr_expr = create_binary(TK_SLASH, aggr_expr, aggr_expr2);
+            curr_expr = create_binary_arith<TK_SLASH>(aggr_expr, aggr_expr2);
         }
 
         *root = curr_expr;
@@ -454,5 +466,6 @@ result_t expr_factory_t::build_list(ExprList* src, expr_list_t* dst)
 
     return RT_SUCCEEDED;
 }
+
 
 

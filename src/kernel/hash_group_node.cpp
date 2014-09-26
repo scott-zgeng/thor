@@ -567,7 +567,12 @@ result_t hash_group_node_t::add_aggr_sub_expr(expr_factory_t& factory, Expr* pEx
         if (pExpr->x.pList != NULL) {
             ret = factory.build(pExpr->x.pList->a->pExpr, &expr);
             IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+        } else {
+            expr = expr_factory_t::create_dummy();
+            IF_RETURN_FAILED(expr == NULL);
         }
+
+        assert(expr != NULL);
 
         aggr_type_t aggr_type = get_aggr_type(pExpr->u.zToken);
         IF_RETURN_FAILED(aggr_type == AGGR_UNKNOWN);
