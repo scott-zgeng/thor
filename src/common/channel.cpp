@@ -91,7 +91,7 @@ channel_base_t::channel_base_t(channel_action_t* action)
     m_recv_ptr = NULL;
     m_recv_len = 0;
    
-    // NOTES(scott.zgeng): ev_io_init  failed with g++ compiler -O2
+    // NOTES(scott.zgeng): ev_io_init failed with g++ compiler -O2
     //ev_io_init(&m_ev, NULL, m_fd, EV_NONE);  
     ev_io_init_ex(&m_ev, m_fd);
 

@@ -92,16 +92,6 @@ void sqlite3VectorFinalize(void* stmtHandle)
 }
 
 
-int sqlite3VectorDBInit()
-{
-    //result_t ret;
-    //ret = database_t::instance.init();
-
-    //if (ret != RT_SUCCEEDED)
-    //    return SQLITE_ERROR;
-
-    return SQLITE_OK;
-}
 
 
 int sqlite3_vector_step(sqlite3_stmt* stmt)
@@ -151,7 +141,11 @@ variant_t sqlite3_vector_column_variant(sqlite3_stmt* stmt, int col_idx, int row
     void* row = root_node->column_data(col_idx);
 
     switch (type)
-    {         
+    {      
+    case DB_INT8:
+        return variant_t(((db_int8*)row)[row_idx]);
+    case DB_INT16:
+        return variant_t(((db_int16*)row)[row_idx]);
     case DB_INT32:
         return variant_t(((db_int32*)row)[row_idx]);
     case DB_INT64:
@@ -164,58 +158,8 @@ variant_t sqlite3_vector_column_variant(sqlite3_stmt* stmt, int col_idx, int row
         return variant_t(((db_string*)row)[row_idx]);    
     default:
         assert(false);
-        return variant_t(((db_int32*)row)[row_idx]);
+        return variant_t();
     }
-}
-
-int sqlite3_vector_column_int(sqlite3_stmt* stmt, int col_idx, int row_idx)
-{
-    Vdbe* v = (Vdbe*)stmt;
-    select_stmt_t* select_stmt = (select_stmt_t*)v->stmtHandle;
-    project_node_t* root_node = select_stmt->root();
-    db_int32* val = (db_int32*)root_node->column_data(col_idx);
-    return val[row_idx];
-}
-
-
-long long sqlite3_vector_column_bigint(sqlite3_stmt* stmt, int col_idx, int row_idx)
-{
-    Vdbe* v = (Vdbe*)stmt;
-    select_stmt_t* select_stmt = (select_stmt_t*)v->stmtHandle;
-    project_node_t* root_node = select_stmt->root();
-    db_int64* val = (db_int64*)root_node->column_data(col_idx);
-    return val[row_idx];
-}
-
-
-float sqlite3_vector_column_float(sqlite3_stmt* stmt, int col_idx, int row_idx)
-{
-    Vdbe* v = (Vdbe*)stmt;
-    select_stmt_t* select_stmt = (select_stmt_t*)v->stmtHandle;
-    project_node_t* root_node = select_stmt->root();
-    db_float* val = (db_float*)root_node->column_data(col_idx);
-    return val[row_idx];
-}
-
-
-double sqlite3_vector_column_double(sqlite3_stmt* stmt, int col_idx, int row_idx)
-{
-    Vdbe* v = (Vdbe*)stmt;
-    select_stmt_t* select_stmt = (select_stmt_t*)v->stmtHandle;
-    project_node_t* root_node = select_stmt->root();
-    db_double* val = (db_double*)root_node->column_data(col_idx);
-    return val[row_idx];
-}
-
-
-
-const char* sqlite3_vector_column_string(sqlite3_stmt* stmt, int col_idx, int row_idx)
-{
-    Vdbe* v = (Vdbe*)stmt;
-    select_stmt_t* select_stmt = (select_stmt_t*)v->stmtHandle;
-    project_node_t* root_node = select_stmt->root();
-    db_string* val = (db_string*)root_node->column_data(col_idx);
-    return val[row_idx];
 }
 
 

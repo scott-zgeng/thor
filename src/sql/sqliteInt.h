@@ -3109,7 +3109,7 @@ int sqlite3VectorSelect(Parse* pParse, Select* pSelect);
 int sqlite3VectorInsert(Parse *pParse, SrcList *pTabList, Select *pSelect, IdList *pColumn, int onError);
 void sqlite3VectorInsertEnd(Parse *pParse, Select *pSelect);
 void sqlite3VectorFinalize(void* stmtHandle);
-int sqlite3VectorDBInit();
+
 
 // added by scott.zgeng end
 

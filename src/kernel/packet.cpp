@@ -211,11 +211,26 @@ result_t query_ipacket_t::decode(packet_istream_t& stream)
     return RT_SUCCEEDED;
 }
 
+db_bool query_ipacket_t::is_copy_command(const db_char* sql) const
+{
+    return strncmp(sql, "copy", 4) == 0;
+
+}
+
+result_t query_ipacket_t::process_copy(server_session_t* session, const char* sql)
+{
+
+}
+
 
 result_t query_ipacket_t::process(server_session_t* session)
 {
     const char* tail;
     db_int32 len = strlen(sql);
+
+    if (is_copy_command(sql)) {
+        return process_copy(session, sql);
+    }
 
     db_int32 sqlite_ret = sqlite3_vector_prepare(database_t::instance.native_handle(), sql, len, &stmt, &tail);
     if (sqlite_ret != SQLITE_OK) { 

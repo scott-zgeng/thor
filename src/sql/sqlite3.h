@@ -3223,11 +3223,6 @@ SQLITE_API int sqlite3_vector_finalize(sqlite3_stmt* stmt);
 
 SQLITE_API int sqlite3_vector_row_count(sqlite3_stmt* stmt);
 SQLITE_API int sqlite3_vector_column_count(sqlite3_stmt* stmt);
-SQLITE_API int sqlite3_vector_column_int(sqlite3_stmt* stmt, int col_idx, int row_idx);
-SQLITE_API long long sqlite3_vector_column_bigint(sqlite3_stmt* stmt, int col_idx, int row_idx);
-SQLITE_API float sqlite3_vector_column_float(sqlite3_stmt* stmt, int col_idx, int row_idx);
-SQLITE_API double sqlite3_vector_column_double(sqlite3_stmt* stmt, int col_idx, int row_idx);
-SQLITE_API const char* sqlite3_vector_column_string(sqlite3_stmt* stmt, int col_idx, int row_idx);
 SQLITE_API int sqlite3_vector_column_type(sqlite3_stmt* stmt, int col_idx);
 
 

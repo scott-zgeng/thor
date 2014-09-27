@@ -253,6 +253,10 @@ public:
 // TODO(scott.zgeng): 先放在这里，后面挪走
 struct variant_t
 {
+    variant_t() {
+        type = DB_UNKNOWN;
+    }
+
     explicit variant_t(db_int8 val) {
         type = DB_INT8;
         int8_val = val;
@@ -360,8 +364,39 @@ public:
 
     typedef pod_vector<variant_t, 64> variant_vector_t;
     variant_vector_t variants;
-    
 };
+
+
+class copy_in_opacket_t : public opacket_t
+{
+public:
+    copy_in_opacket_t() {
+        is_binary = 0;
+    }
+    virtual db_int8 type() {
+        return 'G';
+    }
+
+    virtual result_t encode(packet_ostream_t& stream) {
+        stream.write_int8(is_binary);
+        db_int16 colnum_count = types.size();
+        stream.write_int16(colnum_count);
+
+        for (db_int16 i = 0; i < colnum_count; i++) {
+            stream.write_int16(types[i]);
+        }
+
+        return RT_SUCCEEDED;
+    }
+
+
+    // 0 indicates the overall COPY format is textual(rows separated by newlines, columns separated by separator characters, etc). 
+    // 1 indicates the overall copy format is binary(similar to DataRow format).
+    db_int8 is_binary; 
+    pod_vector<db_int16> types;
+};
+
+
 
 
 class startup_ipacket_t : public ipacket_t
@@ -410,6 +445,9 @@ public:
 
 private:
     virtual void on_send_complete(server_session_t* session);
+    result_t process_copy(server_session_t* session, const char* sql);
+    db_bool is_copy_command(const db_char* sql) const;
+
 public:
     char* sql;
     sqlite3_stmt* stmt;
@@ -418,6 +456,8 @@ public:
     db_int32 total_count;
 
 };
+
+
 
 
 
