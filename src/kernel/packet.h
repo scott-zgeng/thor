@@ -60,6 +60,11 @@ private:
 
 
 class server_session_t;
+
+// TODO(scott.zgeng): ipacket， opacket名字不太好，后面考虑换个名字
+// ipacket_t => recv_msg_handle_t ?
+// opacket_t => send_msg_handle_t ?
+
 class ipacket_t
 {
 public:
@@ -367,33 +372,37 @@ public:
 };
 
 
+class column_table_t;
 class copy_in_opacket_t : public opacket_t
 {
 public:
+    
     copy_in_opacket_t() {
-        is_binary = 0;
+        m_is_binary = 0;
     }
     virtual db_int8 type() {
         return 'G';
     }
 
     virtual result_t encode(packet_ostream_t& stream) {
-        stream.write_int8(is_binary);
-        db_int16 colnum_count = types.size();
+        stream.write_int8(m_is_binary);
+        db_int16 colnum_count = m_column_types.size();
         stream.write_int16(colnum_count);
 
         for (db_int16 i = 0; i < colnum_count; i++) {
-            stream.write_int16(types[i]);
+            stream.write_int16(m_column_types[i]);
         }
 
         return RT_SUCCEEDED;
     }
 
+    void init_columns(column_table_t* table);
 
+private:
     // 0 indicates the overall COPY format is textual(rows separated by newlines, columns separated by separator characters, etc). 
     // 1 indicates the overall copy format is binary(similar to DataRow format).
-    db_int8 is_binary; 
-    pod_vector<db_int16> types;
+    db_int8 m_is_binary; 
+    pod_vector<db_int16> m_column_types;
 };
 
 
@@ -408,11 +417,11 @@ public:
     virtual result_t decode(packet_istream_t& stream);
     virtual result_t process(server_session_t* session);
 
-public:
-    db_int32 protocol_version;
-    db_char* user;
-    db_char* database;    
-    db_char* options;
+private:
+    db_int32 m_protocol_version;
+    db_char* m_user;
+    db_char* m_database;    
+    db_char* m_options;
 };
 
 class password_ipacket_t : public ipacket_t
@@ -422,7 +431,7 @@ public:
     virtual result_t process(server_session_t* session);
 
 public:
-    char* password;
+    char* m_password;
 };
 
 
@@ -432,34 +441,97 @@ struct sqlite3_stmt;
 class session_send_action_t
 {
 public:    
-    virtual void on_send_complete(server_session_t* session) = 0;
+    virtual ~session_send_action_t() {}
+    virtual result_t on_send_complete(server_session_t* session) = 0;
+    
 };
 
-class query_ipacket_t : public ipacket_t, private session_send_action_t
+
+class session_recv_action_t
+{
+public:
+    virtual ~session_recv_action_t() {}
+    virtual result_t on_recv_complete(server_session_t* session, packet_istream_t& stream) = 0;
+};
+
+
+
+
+class command_action_t: public session_send_action_t
+{
+public:
+    static command_action_t* create_command(const char* sql);
+public:
+    virtual ~command_action_t() {}
+    virtual result_t execute(server_session_t* session, const char* sql) = 0;
+    
+};
+
+
+class copy_in_action_t : public command_action_t, session_recv_action_t
+{
+public:
+    copy_in_action_t();
+    virtual ~copy_in_action_t();
+public:
+    virtual result_t execute(server_session_t* session, const char* sql);
+    virtual result_t on_send_complete(server_session_t* session);
+    virtual result_t on_recv_complete(server_session_t* session, packet_istream_t& stream);
+};
+
+
+class simple_query_action_t : public command_action_t
+{
+public:
+    simple_query_action_t();
+    virtual ~simple_query_action_t();
+
+public:
+    virtual result_t execute(server_session_t* session, const char* sql);
+    virtual result_t on_send_complete(server_session_t* session);
+
+private:
+    sqlite3_stmt* m_stmt;
+    db_int32 m_segment_row_count;
+    db_int32 m_row_idx;
+    db_int32 m_total_count;
+};
+
+
+class query_ipacket_t : public ipacket_t
 {
 public:
     query_ipacket_t();
+    virtual ~query_ipacket_t() {}
+
 public:
     virtual result_t decode(packet_istream_t& stream);
     virtual result_t process(server_session_t* session);
 
 private:
-    virtual void on_send_complete(server_session_t* session);
-    result_t process_copy(server_session_t* session, const char* sql);
-    db_bool is_copy_command(const db_char* sql) const;
-
-public:
-    char* sql;
-    sqlite3_stmt* stmt;
-    db_int32 segment_row_count;
-    db_int32 row_idx;
-    db_int32 total_count;
-
+    char* m_sql;
 };
 
 
 
 
+class copy_data_ipacket_t : public ipacket_t
+{
+public:
+    copy_data_ipacket_t();
+    virtual ~copy_data_ipacket_t() {}
+
+public:
+    virtual result_t decode(packet_istream_t& stream);
+    virtual result_t process(server_session_t* session);
+
+
+
+};
+
+ 
 
 #endif //__PACKET_H__
+
+
 

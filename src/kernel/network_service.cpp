@@ -22,6 +22,7 @@ server_session_t::server_session_t() : m_channel(this)
     m_send_buff[0] = 0;
     m_recv_buff[0] = 0;
     m_send_action = this; // 自动恢复到缺省动作
+    m_recv_action = this;
 }
 
 server_session_t::~server_session_t()
@@ -50,7 +51,14 @@ void server_session_t::recv_startup()
 
 void server_session_t::recv_packet()
 {
+    recv_packet(this);    
+}
+
+
+void server_session_t::recv_packet(session_recv_action_t* action)
+{
     m_is_header = true;
+    m_recv_action = action;
     m_channel.recv(m_recv_buff, HEAD_SIZE);
 }
 
@@ -131,10 +139,27 @@ void server_session_t::on_send()
 }
 
 
-void server_session_t::on_send_complete(server_session_t* session)
+result_t server_session_t::on_send_complete(server_session_t* session)
 {
     DB_TRACE("server_session_t::on_send_complete");
     recv_packet();
+    return RT_SUCCEEDED;
+}
+
+
+result_t server_session_t::on_recv_complete(server_session_t* session, packet_istream_t& stream)
+{
+    ipacket_t* packet = ipacket_t::create_packet(m_pack_type);
+    IF_RETURN_FAILED(packet == NULL);
+
+    result_t ret = packet->decode(stream);
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+
+    ret = packet->process(this);
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+    return RT_SUCCEEDED;
 }
 
 
@@ -158,33 +183,24 @@ result_t server_session_t::on_recv_head()
 }
 
 
-result_t server_session_t::on_recv_packet()
-{    
-    packet_istream_t istream(m_recv_buff, m_pack_len);
-
-    ipacket_t* packet = ipacket_t::create_packet(m_pack_type);
-    IF_RETURN_FAILED(packet == NULL);
-
-    result_t ret = packet->decode(istream);
-    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
-
-    
-    ret = packet->process(this);
-    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
-
-    return RT_SUCCEEDED;  
-}
 
 
 void server_session_t::on_recv()
 {
     DB_TRACE("server_session_t::on_recv");
 
-    result_t ret = m_is_header ? on_recv_head() : on_recv_packet();
+    result_t ret;
+    if (m_is_header) {
+        ret = on_recv_head();        
+    } else {
+        packet_istream_t stream(m_recv_buff, m_pack_len);
+        ret = m_recv_action->on_recv_complete(this, stream);
+    }
+    
     if (ret != RT_SUCCEEDED) {
         m_channel.close();
         return;
-    }
+    }    
 }
 
 

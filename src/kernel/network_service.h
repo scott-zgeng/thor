@@ -25,7 +25,7 @@
 */
 
 
-class server_session_t : private channel_action_t, session_send_action_t
+class server_session_t : private channel_action_t, session_send_action_t, session_recv_action_t
 {
 public:
     static const db_uint32 MAX_SEND_BUF_SIZE = 1024 * 1024 * 2; 
@@ -42,6 +42,7 @@ public:
 
     void recv_startup();
     void recv_packet();
+    void recv_packet(session_recv_action_t* action);
     
     result_t send_packets(packet_vector_t& packets);
 
@@ -52,12 +53,13 @@ public:
     
 
 private:
-    virtual void on_send_complete(server_session_t* session);
+    virtual result_t on_send_complete(server_session_t* session);
+    virtual result_t on_recv_complete(server_session_t* session, packet_istream_t& stream);
+
     virtual void on_send();
     virtual void on_recv();
     virtual void on_close();
     
-    result_t on_recv_packet();
     result_t on_recv_head();
 
     
@@ -74,6 +76,7 @@ private:
     db_char m_send_buff[MAX_SEND_BUF_SIZE];
     db_char m_recv_buff[MAX_RECV_BUF_SIZE];
 
+    session_recv_action_t* m_recv_action;
     session_send_action_t* m_send_action;
 };
 

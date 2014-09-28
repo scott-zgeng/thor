@@ -8,7 +8,7 @@
 #include "database.h"
 #include "parse_ctx.h"
 #include "project_node.h"
-
+//#include "column.h"
 
 packet_istream_t::packet_istream_t(db_char* ptr, db_uint32 capacity)
 {
@@ -142,10 +142,20 @@ ipacket_t* ipacket_t::create_packet(db_int8 type)
 
 
 
+void copy_in_opacket_t::init_columns(column_table_t* table)
+{
+    db_uint32 count = table->get_column_count();
+    for (db_uint32 i = 0; i < count; i++) {
+        column_base_t* column = table->get_column(i);
+        db_int16 col_type = column->data_type();
+        m_column_types.push_back(col_type);
+    }    
+}
+
 
 result_t startup_ipacket_t::decode(packet_istream_t& stream)
 {
-    protocol_version = stream.read_int32();
+    m_protocol_version = stream.read_int32();
 
     while (!stream.is_eof()) {
         db_char* param_name = stream.read_string();
@@ -154,9 +164,9 @@ result_t startup_ipacket_t::decode(packet_istream_t& stream)
             break;
 
         if (strcmp(param_name, "user") == 0)
-            user = stream.read_string();
+            m_user = stream.read_string();
         else if (strcmp(param_name, "database") == 0)
-            database = stream.read_string();
+            m_database = stream.read_string();
         else {                        
             // application_name
             // client_encoding
@@ -171,7 +181,7 @@ result_t startup_ipacket_t::decode(packet_istream_t& stream)
 
 result_t startup_ipacket_t::process(server_session_t* session)
 {
-    IF_RETURN_FAILED(protocol_version != PROTOCOL_VERSION);
+    IF_RETURN_FAILED(m_protocol_version != PROTOCOL_VERSION);
     
     auth_md5_opacket_t packet;
     session->send_packet(packet);
@@ -182,7 +192,7 @@ result_t startup_ipacket_t::process(server_session_t* session)
 
 result_t password_ipacket_t::decode(packet_istream_t& stream)
 {
-    password = stream.read_string();
+    m_password = stream.read_string();
     return RT_SUCCEEDED;
 }
  
@@ -194,52 +204,95 @@ result_t password_ipacket_t::process(server_session_t* session)
     auth_opacket_t<AuthenticationOk> packet;    
     return session->send_packet_with_end(packet);
 }
-  
 
-query_ipacket_t::query_ipacket_t()
+
+command_action_t* command_action_t::create_command(const char* sql)
 {
-    sql = NULL;
-    stmt = NULL;
-    segment_row_count = 0;
-    total_count = 0;
+    if (strncmp(sql, "copy", 4) == 0)
+        return new copy_in_action_t();
+    else 
+        return new simple_query_action_t();
 }
 
 
-result_t query_ipacket_t::decode(packet_istream_t& stream)
+copy_in_action_t::copy_in_action_t()
 {
-    sql = stream.read_string();
+
+}
+
+copy_in_action_t::~copy_in_action_t()
+{
+
+}
+
+
+result_t copy_in_action_t::execute(server_session_t* session, const char* sql)
+{
+    char temp[1024];
+    strcpy(temp, sql);
+    char delim[] = " ";
+    char* saveptr = NULL;    
+    char* token = strtok_r(temp, delim, &saveptr);
+    assert(token != NULL);
+    token = strtok_r(NULL, delim, &saveptr);
+    IF_RETURN_FAILED(token == NULL);
+
+    column_table_t* table = database_t::instance.find_table(token);
+    if (table == NULL) {
+        error_opacket_t error_packet("can not find the table");
+        session->send_packet_with_end(error_packet);
+        return RT_SUCCEEDED;
+    }
+
+    copy_in_opacket_t copy_in_response;
+    copy_in_response.init_columns(table);
+    return session->send_packet(copy_in_response, this);
+}
+
+
+result_t copy_in_action_t::on_send_complete(server_session_t* session)
+{
+    session->recv_packet(this);
     return RT_SUCCEEDED;
 }
 
-db_bool query_ipacket_t::is_copy_command(const db_char* sql) const
-{
-    return strncmp(sql, "copy", 4) == 0;
 
+result_t copy_in_action_t::on_recv_complete(server_session_t* session, packet_istream_t& stream)
+{
+    copy_data_ipacket_t copy_data;
+    copy_data.decode(stream);
+    
+    return RT_SUCCEEDED;
 }
 
-result_t query_ipacket_t::process_copy(server_session_t* session, const char* sql)
-{
 
+simple_query_action_t::simple_query_action_t()
+{
+    m_stmt = NULL;
+    m_segment_row_count = 0;
+    m_total_count = 0;
+}
+
+simple_query_action_t::~simple_query_action_t()
+{
+    // TODO(scott.zgeng): 
 }
 
 
-result_t query_ipacket_t::process(server_session_t* session)
+  
+result_t simple_query_action_t::execute(server_session_t* session, const char* sql)
 {
     const char* tail;
     db_int32 len = strlen(sql);
 
-    if (is_copy_command(sql)) {
-        return process_copy(session, sql);
-    }
-
-    db_int32 sqlite_ret = sqlite3_vector_prepare(database_t::instance.native_handle(), sql, len, &stmt, &tail);
-    if (sqlite_ret != SQLITE_OK) { 
+    db_int32 sqlite_ret = sqlite3_vector_prepare(database_t::instance.native_handle(), sql, len, &m_stmt, &tail);
+    if (sqlite_ret != SQLITE_OK) {
         error_opacket_t error_packet("sqlite3_vector_prepare failed");
         session->send_packet_with_end(error_packet);
         return RT_SUCCEEDED;
     }
 
-    sqlite_ret = sqlite3_vector_step(stmt);
+    sqlite_ret = sqlite3_vector_step(m_stmt);
     if (sqlite_ret == SQLITE_ERROR) {
         error_opacket_t error_packet("sqlite3_vector_step failed");
         session->send_packet_with_end(error_packet);
@@ -253,52 +306,78 @@ result_t query_ipacket_t::process(server_session_t* session)
     }
 
     // sqlite_ret = SQLITE_ROW
-    segment_row_count = sqlite3_vector_row_count(stmt);
-    total_count += segment_row_count;
-    row_idx = 0;
+    m_segment_row_count = sqlite3_vector_row_count(m_stmt);
+    m_total_count += m_segment_row_count;
+    m_row_idx = 0;
 
     row_desc_opacket_t row_head_packet;
-    project_node_t* node = get_statement_root_node(stmt);
-    for (db_uint32 i = 0; i < node->column_count(); i++) {        
+    project_node_t* node = get_statement_root_node(m_stmt);
+    for (db_uint32 i = 0; i < node->column_count(); i++) {
         row_head_packet.add_row_desc(node->column_name(i), node->column_type(i), node->column_size(i));
-    }           
+    }
 
-    session->send_packet(row_head_packet, this);
+    return session->send_packet(row_head_packet, this);    
+}
+
+
+result_t simple_query_action_t::on_send_complete(server_session_t* session)
+{
+    if (m_row_idx == m_segment_row_count) {
+        db_int32 sqlite_ret = sqlite3_vector_step(m_stmt);
+        if (sqlite_ret == SQLITE_ERROR) {
+            error_opacket_t packet("sqlite3_vector_step failed");
+            session->send_packet_with_end(packet);
+            return RT_SUCCEEDED;
+        }
+
+        if (sqlite_ret == SQLITE_DONE) {
+            complete_opacket_t packet(m_total_count);
+            session->send_packet_with_end(packet);
+            return RT_SUCCEEDED;
+        }
+
+        // case SQLITE_ROW
+        m_segment_row_count = sqlite3_vector_row_count(m_stmt);
+        m_total_count += m_segment_row_count;
+        m_row_idx = 0;
+        assert(m_segment_row_count > 0);
+    }
+
+
+    data_row_opacket_t data_packet;
+    db_int32 col_num = sqlite3_vector_column_count(m_stmt);
+    for (db_int32 i = 0; i < col_num; i++) {
+        const variant_t& val = sqlite3_vector_column_variant(m_stmt, i, m_row_idx);
+        data_packet.add_row_data(val);
+    }
+    m_row_idx++;
+    session->send_packet(data_packet, this);
     return RT_SUCCEEDED;
 }
 
 
-void query_ipacket_t::on_send_complete(server_session_t* session)
+
+
+query_ipacket_t::query_ipacket_t()
 {
-    if (row_idx == segment_row_count) {
-        db_int32 sqlite_ret = sqlite3_vector_step(stmt);
-        if (sqlite_ret == SQLITE_ERROR) {
-            error_opacket_t packet("sqlite3_vector_step failed");
-            session->send_packet_with_end(packet);
-            return;
-        }
+    m_sql = NULL;
 
-        if (sqlite_ret == SQLITE_DONE) {
-            complete_opacket_t packet(total_count);
-            session->send_packet_with_end(packet);
-            return;
-        }
+}
 
-        // case SQLITE_ROW
-        segment_row_count = sqlite3_vector_row_count(stmt);
-        total_count += segment_row_count;
-        row_idx = 0;
-        assert(segment_row_count > 0);
-    }
 
-    
-    data_row_opacket_t data_packet;
-    db_int32 col_num = sqlite3_vector_column_count(stmt);
-    for (db_int32 i = 0; i < col_num; i++) {
-        const variant_t& val = sqlite3_vector_column_variant(stmt, i, row_idx);
-        data_packet.add_row_data(val);
-    }
-    row_idx++;
-    session->send_packet(data_packet, this);
+result_t query_ipacket_t::decode(packet_istream_t& stream)
+{
+    m_sql = stream.read_string();
+    return RT_SUCCEEDED;
+}
+
+
+
+result_t query_ipacket_t::process(server_session_t* session)
+{
+    command_action_t* command = command_action_t::create_command(m_sql);
+    IF_RETURN_FAILED(command == NULL);
+
+    return command->execute(session, m_sql);
 }
 
