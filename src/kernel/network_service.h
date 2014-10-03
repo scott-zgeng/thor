@@ -54,7 +54,7 @@ public:
 
 private:
     virtual result_t on_send_complete(server_session_t* session);
-    virtual result_t on_recv_complete(server_session_t* session, packet_istream_t& stream);
+    virtual result_t on_recv_complete(server_session_t* session, db_int8 type, packet_istream_t& stream);
 
     virtual void on_send();
     virtual void on_recv();

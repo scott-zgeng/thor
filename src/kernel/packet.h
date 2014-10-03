@@ -187,6 +187,29 @@ public:
     const db_char* error_message;
 };
 
+class param_status_opacket_t :public opacket_t
+{
+public:
+    param_status_opacket_t(const char* name, const char* value) {
+        // TODO(scott.zgeng): 字符串考虑后面统一改一下
+        strcpy(m_name, name);
+        strcpy(m_value, value);
+    }
+
+    virtual db_int8 type() {
+        return 'S';
+    }
+
+    virtual result_t encode(packet_ostream_t& stream) {
+        stream.write_string(m_name);
+        stream.write_string(m_value);
+        return RT_SUCCEEDED;
+    }
+
+    
+    char m_name[256];
+    char m_value[256];
+};
 
 class complete_opacket_t : public opacket_t
 {
@@ -377,20 +400,20 @@ class copy_in_opacket_t : public opacket_t
 {
 public:
     
-    copy_in_opacket_t() {
-        m_is_binary = 0;
+    copy_in_opacket_t(db_bool is_binary, db_int32 column_count) {
+        m_is_binary = is_binary ? 1 : 0;
+        m_column_count = (db_int16)column_count;
     }
     virtual db_int8 type() {
         return 'G';
     }
 
     virtual result_t encode(packet_ostream_t& stream) {
-        stream.write_int8(m_is_binary);
-        db_int16 colnum_count = m_column_types.size();
-        stream.write_int16(colnum_count);
+        stream.write_int8(m_is_binary);        
+        stream.write_int16(m_column_count);
 
-        for (db_int16 i = 0; i < colnum_count; i++) {
-            stream.write_int16(m_column_types[i]);
+        for (db_int16 i = 0; i < m_column_count; i++) {
+            stream.write_int16((db_int16)m_is_binary);
         }
 
         return RT_SUCCEEDED;
@@ -402,8 +425,10 @@ private:
     // 0 indicates the overall COPY format is textual(rows separated by newlines, columns separated by separator characters, etc). 
     // 1 indicates the overall copy format is binary(similar to DataRow format).
     db_int8 m_is_binary; 
-    pod_vector<db_int16> m_column_types;
+    db_int16 m_column_count;
+    
 };
+
 
 
 
@@ -451,7 +476,7 @@ class session_recv_action_t
 {
 public:
     virtual ~session_recv_action_t() {}
-    virtual result_t on_recv_complete(server_session_t* session, packet_istream_t& stream) = 0;
+    virtual result_t on_recv_complete(server_session_t* session, db_int8 type, packet_istream_t& stream) = 0;
 };
 
 
@@ -476,7 +501,10 @@ public:
 public:
     virtual result_t execute(server_session_t* session, const char* sql);
     virtual result_t on_send_complete(server_session_t* session);
-    virtual result_t on_recv_complete(server_session_t* session, packet_istream_t& stream);
+    virtual result_t on_recv_complete(server_session_t* session, db_int8 type, packet_istream_t& stream);
+
+private:
+    column_table_t* m_table;
 };
 
 
@@ -527,6 +555,13 @@ public:
 
 
 
+};
+
+class copy_done_ipacket_t : public ipacket_t
+{
+public:
+    virtual result_t decode(packet_istream_t& stream) { return RT_SUCCEEDED; }
+    virtual result_t process(server_session_t* session) { return RT_FAILED; }
 };
 
  

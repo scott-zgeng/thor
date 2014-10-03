@@ -90,6 +90,8 @@ result_t server_session_t::send_packet(opacket_t& packet)
 
 result_t server_session_t::send_packets(packet_vector_t& packets)
 {
+    m_send_action = this;
+
     db_char* pos = m_send_buff;
     db_uint32 capacity = MAX_SEND_BUF_SIZE;
 
@@ -127,7 +129,6 @@ result_t server_session_t::send_packet_with_end(opacket_t& packet)
     read_for_query_opacket_t<true> end_packet;
     packets.push_back(&end_packet);
 
-    m_send_action = this;
     return send_packets(packets);
 }
 
@@ -147,9 +148,10 @@ result_t server_session_t::on_send_complete(server_session_t* session)
 }
 
 
-result_t server_session_t::on_recv_complete(server_session_t* session, packet_istream_t& stream)
+result_t server_session_t::on_recv_complete(server_session_t* session, db_int8 type, packet_istream_t& stream)
 {
-    ipacket_t* packet = ipacket_t::create_packet(m_pack_type);
+    DB_TRACE("server_session_t::on_recv_complete");
+    ipacket_t* packet = ipacket_t::create_packet(type);
     IF_RETURN_FAILED(packet == NULL);
 
     result_t ret = packet->decode(stream);
@@ -178,8 +180,15 @@ result_t server_session_t::on_recv_head()
     IF_RETURN_FAILED(m_pack_len > MAX_RECV_BUF_SIZE);
     m_pack_len -= sizeof(db_int32);
     m_is_header = false;
-    m_channel.recv(m_recv_buff, m_pack_len);
-    return RT_SUCCEEDED;
+
+    if (m_pack_len > 0) {
+        m_channel.recv(m_recv_buff, m_pack_len);
+        return RT_SUCCEEDED;
+
+    } else { // 有些只有头没有后面内容
+        packet_istream_t stream(m_recv_buff, m_pack_len);
+        return m_recv_action->on_recv_complete(this, m_pack_type, stream);
+    }    
 }
 
 
@@ -194,7 +203,7 @@ void server_session_t::on_recv()
         ret = on_recv_head();        
     } else {
         packet_istream_t stream(m_recv_buff, m_pack_len);
-        ret = m_recv_action->on_recv_complete(this, stream);
+        ret = m_recv_action->on_recv_complete(this, m_pack_type, stream);
     }
     
     if (ret != RT_SUCCEEDED) {

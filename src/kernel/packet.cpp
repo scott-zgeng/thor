@@ -135,6 +135,11 @@ ipacket_t* ipacket_t::create_packet(db_int8 type)
         return new password_ipacket_t();
     case 'Q':
         return new query_ipacket_t();
+    case 'd':
+        return new copy_data_ipacket_t();
+    case 'c':
+        return new copy_done_ipacket_t();
+    
     default:
         return NULL;
     }
@@ -146,8 +151,9 @@ void copy_in_opacket_t::init_columns(column_table_t* table)
 {
     db_uint32 count = table->get_column_count();
     for (db_uint32 i = 0; i < count; i++) {
-        column_base_t* column = table->get_column(i);
-        db_int16 col_type = column->data_type();
+        //column_base_t* column = table->get_column(i);
+        //db_int16 col_type = column->data_type();
+        db_int16 col_type = 1;
         m_column_types.push_back(col_type);
     }    
 }
@@ -169,9 +175,9 @@ result_t startup_ipacket_t::decode(packet_istream_t& stream)
             m_database = stream.read_string();
         else {                        
             // application_name
-            // client_encoding
-            // ...
-            (void)stream.read_string();
+            // client_encoding            
+            db_char* option_val = stream.read_string();
+            DB_TRACE("%s = %s", param_name, option_val);
         }            
     }
 
@@ -181,7 +187,9 @@ result_t startup_ipacket_t::decode(packet_istream_t& stream)
 
 result_t startup_ipacket_t::process(server_session_t* session)
 {
+    // 80877103 means SSL startup
     IF_RETURN_FAILED(m_protocol_version != PROTOCOL_VERSION);
+    
     
     auth_md5_opacket_t packet;
     session->send_packet(packet);
@@ -201,14 +209,26 @@ result_t password_ipacket_t::process(server_session_t* session)
 {
     // TODO(scott.zgeng): 需要增加对密码的校验，目前先简化这个操作，直接返回成功
     
-    auth_opacket_t<AuthenticationOk> packet;    
-    return session->send_packet_with_end(packet);
+
+    auth_opacket_t<AuthenticationOk> packet1;    
+    param_status_opacket_t packet2("client_encoding", "LATIN1");
+    param_status_opacket_t packet3("DateStyle", "ISO");
+    read_for_query_opacket_t<true> end_packet;
+
+    packet_vector_t packets;
+    packets.push_back(&packet1);
+    packets.push_back(&packet2);
+    packets.push_back(&packet3);
+    packets.push_back(&end_packet);
+    
+    return session->send_packets(packets);    
 }
+
 
 
 command_action_t* command_action_t::create_command(const char* sql)
 {
-    if (strncmp(sql, "copy", 4) == 0)
+    if (strncasecmp(sql, "copy", 4) == 0)
         return new copy_in_action_t();
     else 
         return new simple_query_action_t();
@@ -217,7 +237,7 @@ command_action_t* command_action_t::create_command(const char* sql)
 
 copy_in_action_t::copy_in_action_t()
 {
-
+    m_table = NULL;
 }
 
 copy_in_action_t::~copy_in_action_t()
@@ -229,7 +249,7 @@ copy_in_action_t::~copy_in_action_t()
 result_t copy_in_action_t::execute(server_session_t* session, const char* sql)
 {
     char temp[1024];
-    strcpy(temp, sql);
+    strcpy(temp, sql); // TODO(scott.zgeng): 
     char delim[] = " ";
     char* saveptr = NULL;    
     char* token = strtok_r(temp, delim, &saveptr);
@@ -237,31 +257,44 @@ result_t copy_in_action_t::execute(server_session_t* session, const char* sql)
     token = strtok_r(NULL, delim, &saveptr);
     IF_RETURN_FAILED(token == NULL);
 
-    column_table_t* table = database_t::instance.find_table(token);
-    if (table == NULL) {
+    m_table = database_t::instance.find_table(token);
+    if (m_table == NULL) {
         error_opacket_t error_packet("can not find the table");
         session->send_packet_with_end(error_packet);
         return RT_SUCCEEDED;
     }
 
     copy_in_opacket_t copy_in_response;
-    copy_in_response.init_columns(table);
+    copy_in_response.init_columns(m_table);
     return session->send_packet(copy_in_response, this);
 }
 
 
 result_t copy_in_action_t::on_send_complete(server_session_t* session)
 {
+    DB_TRACE("copy_in_action_t::on_send_complete");
     session->recv_packet(this);
     return RT_SUCCEEDED;
 }
 
 
-result_t copy_in_action_t::on_recv_complete(server_session_t* session, packet_istream_t& stream)
+result_t copy_in_action_t::on_recv_complete(server_session_t* session, db_int8 type, packet_istream_t& stream)
 {
+    assert(type == 'd' || type == 'c');
+
+    
+    if (type == 'c') {  // it is copy done         
+        complete_opacket_t comp_packet(1);
+        return session->send_packet_with_end(comp_packet);    
+    }
+    
+    // type == 'd', it is copy data packet
     copy_data_ipacket_t copy_data;
     copy_data.decode(stream);
-    
+
+    //  m_table
+
+    session->recv_packet(this);
     return RT_SUCCEEDED;
 }
 
@@ -379,5 +412,23 @@ result_t query_ipacket_t::process(server_session_t* session)
     IF_RETURN_FAILED(command == NULL);
 
     return command->execute(session, m_sql);
+}
+
+copy_data_ipacket_t::copy_data_ipacket_t()
+{
+
+}
+
+
+result_t copy_data_ipacket_t::decode(packet_istream_t& stream)
+{
+
+    return RT_SUCCEEDED;
+}
+    
+
+result_t copy_data_ipacket_t::process(server_session_t* session)
+{
+    return RT_SUCCEEDED;
 }
 
