@@ -147,17 +147,6 @@ ipacket_t* ipacket_t::create_packet(db_int8 type)
 
 
 
-void copy_in_opacket_t::init_columns(column_table_t* table)
-{
-    db_uint32 count = table->get_column_count();
-    for (db_uint32 i = 0; i < count; i++) {
-        //column_base_t* column = table->get_column(i);
-        //db_int16 col_type = column->data_type();
-        db_int16 col_type = 1;
-        m_column_types.push_back(col_type);
-    }    
-}
-
 
 result_t startup_ipacket_t::decode(packet_istream_t& stream)
 {
@@ -240,6 +229,7 @@ copy_in_action_t::copy_in_action_t()
     m_table = NULL;
 }
 
+
 copy_in_action_t::~copy_in_action_t()
 {
 
@@ -264,8 +254,7 @@ result_t copy_in_action_t::execute(server_session_t* session, const char* sql)
         return RT_SUCCEEDED;
     }
 
-    copy_in_opacket_t copy_in_response;
-    copy_in_response.init_columns(m_table);
+    copy_in_opacket_t copy_in_response(false, m_table->get_column_count());        
     return session->send_packet(copy_in_response, this);
 }
 
@@ -279,20 +268,22 @@ result_t copy_in_action_t::on_send_complete(server_session_t* session)
 
 
 result_t copy_in_action_t::on_recv_complete(server_session_t* session, db_int8 type, packet_istream_t& stream)
-{
+{    
     assert(type == 'd' || type == 'c');
-
     
-    if (type == 'c') {  // it is copy done         
+    if (type == 'c') {  // it is copy done
         complete_opacket_t comp_packet(1);
         return session->send_packet_with_end(comp_packet);    
     }
-    
+
     // type == 'd', it is copy data packet
     copy_data_ipacket_t copy_data;
     copy_data.decode(stream);
+    row_data_t row_data;
+    copy_data.gen_row_data(row_data, m_table->get_column_count());
 
-    //  m_table
+    result_t ret = m_table->insert_row(row_data);
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
     session->recv_packet(this);
     return RT_SUCCEEDED;
@@ -416,13 +407,14 @@ result_t query_ipacket_t::process(server_session_t* session)
 
 copy_data_ipacket_t::copy_data_ipacket_t()
 {
-
+    m_row = NULL;
+    m_save_pos = NULL;
 }
 
 
 result_t copy_data_ipacket_t::decode(packet_istream_t& stream)
 {
-
+    m_row = stream.read_string();
     return RT_SUCCEEDED;
 }
     
@@ -432,3 +424,16 @@ result_t copy_data_ipacket_t::process(server_session_t* session)
     return RT_SUCCEEDED;
 }
 
+void copy_data_ipacket_t::gen_row_data(row_data_t& row_data, db_uint32 column_count)
+{   
+    assert(column_count > 0);
+
+    db_char* val = strtok_r(m_row, ",\n", &m_save_pos);
+    row_data.push_back(val);
+    
+    for (db_uint32 i = 1; i < column_count; i++) {
+        val = strtok_r(NULL, ",\n", &m_save_pos);
+        row_data.push_back(val);
+    }
+
+}

@@ -4,6 +4,8 @@
 #ifndef  __VARIANT_H__
 #define  __VARIANT_H__
 
+#include <assert.h>
+#include <stdlib.h>
 #include "define.h"
 
 
@@ -97,6 +99,147 @@ VARIANT_CAST_FORCE(db_int64, db_int32);
 VARIANT_CAST_FORCE(db_int64, db_int64);
 
 
+
+struct variant_t
+{
+    variant_t() {
+        type = DB_UNKNOWN;
+    }
+
+    explicit variant_t(db_int8 val) {
+        type = DB_INT8;
+        int8_val = val;
+    }
+
+    explicit variant_t(db_int16 val) {
+        type = DB_INT16;
+        int16_val = val;
+    }
+
+    explicit variant_t(db_int32 val) {
+        type = DB_INT32;
+        int32_val = val;
+    }
+
+    explicit variant_t(db_int64 val) {
+        type = DB_INT64;
+        int64_val = val;
+    }
+
+    explicit variant_t(db_float val) {
+        type = DB_FLOAT;
+        float_val = val;
+    }
+
+    explicit variant_t(db_double val) {
+        type = DB_DOUBLE;
+        double_val = val;
+    }
+
+    explicit variant_t(db_char* val) {
+        type = DB_STRING;
+        str_val = val;
+    }
+
+    data_type_t type;
+    union {
+        db_int8 int8_val;
+        db_int16 int16_val;
+        db_int32 int32_val;
+        db_int64 int64_val;
+        db_float float_val;
+        db_double double_val;
+        db_char* str_val;
+    };
+
+    void to_string(db_char* val) {
+        switch (type)
+        {
+        case DB_INT8:
+            sprintf(val, "%d", int8_val);
+            break;
+        case DB_INT16:
+            sprintf(val, "%d", int16_val);
+            break;
+        case DB_INT32:
+            sprintf(val, "%d", int32_val);
+            break;
+        case DB_INT64:
+            sprintf(val, "%lld", int64_val);
+            break;
+        case DB_FLOAT:
+            sprintf(val, "%f", float_val);
+            break;
+        case DB_DOUBLE:
+            sprintf(val, "%f", double_val);
+            break;
+        case DB_STRING:
+            strcpy(val, str_val);
+            break;
+        default:
+            assert(false);
+            break;
+        }
+    }
+};
+
+template<typename T>
+struct str2variant {
+    T operator() (const db_char* str);
+};
+
+template<>
+struct str2variant<db_int8> {
+    db_int8 operator() (const db_char* str) {
+        return (db_int8)atoi(str);
+    }
+};
+
+template<>
+struct str2variant<db_int16> {
+    db_int16 operator() (const db_char* str) {
+        return (db_int16)atoi(str);
+    }
+};
+
+
+template<>
+struct str2variant<db_int32> {
+    db_int32 operator() (const db_char* str) {
+        return atoi(str);
+    }
+};
+
+
+template<>
+struct str2variant<db_int64> {
+    db_int64 operator() (const db_char* str) {
+        return atoll(str);
+    }
+};
+
+template<>
+struct str2variant<db_float> {
+    db_float operator() (const db_char* str) {
+        return (db_float)atof(str);
+    }
+};
+
+
+template<>
+struct str2variant<db_double> {
+    db_double operator() (const db_char* str) {
+        return atof(str);
+    }
+};
+
+
+template<>
+struct str2variant<db_string> {
+    db_string operator() (const db_char* str) {
+        return NULL;
+    }
+};
 
 
 #endif //__VARIANT_H__

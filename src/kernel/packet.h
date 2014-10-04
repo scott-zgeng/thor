@@ -6,8 +6,11 @@
 
 #include <stdlib.h>
 #include "define.h"
+#include "variant.h"
 #include "pod_vector.h"
 
+#define INIT_COLUMN_SIZE (1024)
+typedef pod_vector<db_char*, INIT_COLUMN_SIZE> row_data_t;
 
 
 
@@ -61,9 +64,12 @@ private:
 
 class server_session_t;
 
+
 // TODO(scott.zgeng): ipacket， opacket名字不太好，后面考虑换个名字
 // ipacket_t => recv_msg_handle_t ?
 // opacket_t => send_msg_handle_t ?
+
+
 
 class ipacket_t
 {
@@ -187,6 +193,8 @@ public:
     const db_char* error_message;
 };
 
+
+
 class param_status_opacket_t :public opacket_t
 {
 public:
@@ -274,92 +282,8 @@ public:
         return m_rows_desc.push_back(item);
     }
 
+private:
     pod_vector<row_desc_item_t, 36> m_rows_desc;
-};
-
-
-// TODO(scott.zgeng): 先放在这里，后面挪走
-struct variant_t
-{
-    variant_t() {
-        type = DB_UNKNOWN;
-    }
-
-    explicit variant_t(db_int8 val) {
-        type = DB_INT8;
-        int8_val = val;
-    }
-
-    explicit variant_t(db_int16 val) {
-        type = DB_INT16;
-        int16_val = val;
-    }
-
-    explicit variant_t(db_int32 val) {
-        type = DB_INT32;
-        int32_val = val;
-    }
-
-    explicit variant_t(db_int64 val) {
-        type = DB_INT64;
-        int64_val = val;
-    }
-
-    explicit variant_t(db_float val) {
-        type = DB_FLOAT;
-        float_val = val;
-    }
-
-    explicit variant_t(db_double val) {
-        type = DB_DOUBLE;
-        double_val = val;
-    }
-
-    explicit variant_t(db_char* val) {
-        type = DB_STRING;
-        str_val = val;
-    }
-
-    data_type_t type;
-    union {
-        db_int8 int8_val;
-        db_int16 int16_val;
-        db_int32 int32_val;
-        db_int64 int64_val;
-        db_float float_val;
-        db_double double_val;
-        db_char* str_val;
-    };
-
-    void to_string(db_char* val) {
-        switch (type)
-        {        
-        case DB_INT8:
-            sprintf(val, "%d", int8_val);
-            break;
-        case DB_INT16:
-            sprintf(val, "%d", int16_val);
-            break;
-        case DB_INT32:
-            sprintf(val, "%d", int32_val);
-            break;
-        case DB_INT64:
-            sprintf(val, "%lld", int64_val);
-            break;
-        case DB_FLOAT:
-            sprintf(val, "%f", float_val);
-            break;
-        case DB_DOUBLE:
-            sprintf(val, "%f", double_val);
-            break;
-        case DB_STRING:
-            strcpy(val, str_val);
-            break;        
-        default:
-            assert(false);
-            break;
-        }
-    }
 };
 
 
@@ -419,8 +343,7 @@ public:
         return RT_SUCCEEDED;
     }
 
-    void init_columns(column_table_t* table);
-
+    
 private:
     // 0 indicates the overall COPY format is textual(rows separated by newlines, columns separated by separator characters, etc). 
     // 1 indicates the overall copy format is binary(similar to DataRow format).
@@ -551,17 +474,22 @@ public:
 
 public:
     virtual result_t decode(packet_istream_t& stream);
-    virtual result_t process(server_session_t* session);
+    virtual result_t process(server_session_t* session); 
 
+    void gen_row_data(row_data_t& row_data, db_uint32 column_count);    
 
-
+private:
+    db_char* m_row;
+    db_char* m_save_pos;
 };
+
+
 
 class copy_done_ipacket_t : public ipacket_t
 {
 public:
     virtual result_t decode(packet_istream_t& stream) { return RT_SUCCEEDED; }
-    virtual result_t process(server_session_t* session) { return RT_FAILED; }
+    virtual result_t process(server_session_t* session) { return RT_SUCCEEDED; }
 };
 
  

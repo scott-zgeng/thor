@@ -35,6 +35,9 @@ public:
     virtual void batch_get_rows_value(rowid_t* rows, db_int32 count, void* ptr) = 0;    
     virtual db_uint32 get_segment_count() = 0;
     virtual db_uint32 get_row_count() = 0;
+
+
+    virtual result_t insert_row(const db_char* val) = 0;
 };
 
 
@@ -51,7 +54,7 @@ public:
         m_row_count = 0;
         m_capacity = 0;
         m_segment_count = 0;
-        memset(m_address, 0, sizeof(m_address));      
+        memset(m_address, 0, sizeof(m_address));                      
     }
 
     virtual ~column_t() {
@@ -130,7 +133,6 @@ public:
         return type();
     }
 
-
     virtual void batch_get_rows_value(rowid_t* rows, db_int32 count, void* ptr) {
         assert(count <= SEGMENT_SIZE);
 
@@ -139,7 +141,12 @@ public:
             val[i] = get_row_value(rows[i]);
         }
     }
-
+    
+    virtual result_t insert_row(const db_char* val) {
+        str2variant<T> str2var;
+        T v = str2var(val);
+        return insert(&v, 1);        
+    }
 
 
 protected:
@@ -185,7 +192,7 @@ protected:
     db_uint32 m_capacity;
     db_uint32 m_segment_count;
     
-    T** m_address[ENTRY_SIZE];
+    T** m_address[ENTRY_SIZE];    
 };
 
 
@@ -243,6 +250,12 @@ public:
         m_row_count += num;
         return RT_SUCCEEDED;
     }
+
+    virtual result_t insert_row(const db_char* val) {                
+        return insert(&val, 1);
+    }
+
+
 
 protected:
     result_t insert_with_copy(db_string* dst, db_string* src, db_uint32 num) {

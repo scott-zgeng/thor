@@ -12,6 +12,7 @@
 
 
 
+
 class column_table_t;
 
 class cursor_t
@@ -88,10 +89,23 @@ public:
     }
 
 
+    result_t insert_row(row_data_t& row_data) {
+        assert(row_data.size() == m_columns.size());
+
+        result_t ret;
+        for (db_uint32 i = 0; i < m_columns.size(); i++) {
+            ret = m_columns[i]->insert_row(row_data[i]);
+            IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+        }
+
+        return RT_SUCCEEDED;
+    }
+
+
 private:
     db_int32 m_table_id;
     table_name_t m_table_name;
-    pod_vector<column_base_t*> m_columns;
+    pod_vector<column_base_t*, INIT_COLUMN_SIZE> m_columns;
     db_int32 m_row_count;
     database_t* m_database;
 };
