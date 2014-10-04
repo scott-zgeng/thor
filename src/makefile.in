@@ -6,6 +6,8 @@ LIBS=
 
 CFLAGS+=-fPIC -DPIC -pthread -Werror -Wall  -g 
 #CFLAGS+=-m64 
+CFLAGS+=-O2
+CFLAGS+=-DDB_OMIT_TRACE
 
 ifeq "$(suffix $(TARGET))" ".so"
 	LINK_OPTION=-shared

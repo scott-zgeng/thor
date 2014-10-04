@@ -167,6 +167,7 @@ result_t startup_ipacket_t::decode(packet_istream_t& stream)
             // client_encoding            
             db_char* option_val = stream.read_string();
             DB_TRACE("%s = %s", param_name, option_val);
+            option_val = option_val;
         }            
     }
 
