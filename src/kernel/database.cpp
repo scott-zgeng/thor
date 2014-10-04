@@ -5,19 +5,19 @@
 #include "database.h"
 #include "smart_pointer.h"
 #include "column_table.h"
+#include "service_config.h"
 
 //-----------------------------------------------------------------------------
 // database_t
 //-----------------------------------------------------------------------------
 database_t database_t::instance;
 
-result_t database_t::init()
+result_t database_t::init(service_config_t* config)
 {
     if (m_kernel_db != NULL) 
         return RT_SUCCEEDED;
-    
-    // TODO(scott.zgeng): 大小先随便写一个，后面动态根据配置，或SQL来配置
-    db_size mem_size = 1024 * 1024 * 100;    
+        
+    db_size mem_size = config->mem_pool_size * 1024 * 1024;        
     result_t ret = m_mem_pool.init(mem_size);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
     

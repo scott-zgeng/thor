@@ -275,15 +275,22 @@ network_service::~network_service()
 result_t network_service::init()
 {
     result_t ret;
-    db_uint16 server_port = 19992;  // TODO(scott.zgeng): 需要从配置中获取
+
+    char path_name[1024];
+    char* home = getenv("THOR_HOME");
+    IF_RETURN_FAILED(home == NULL);
+    snprintf(path_name, sizeof(path_name), "%s/cfg/system.cfg", home);
+
+    ret = m_config.init(path_name);
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
     
-    ret = database_t::instance.init();
+    ret = database_t::instance.init(&m_config);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
     ret = m_loop.init();
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
-    ret = m_listener.listen(&m_loop, server_port);
+    ret = m_listener.listen(&m_loop, m_config.service_port);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
     

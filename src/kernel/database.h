@@ -16,6 +16,7 @@ typedef fstring<MAX_TAB_NAME_LEN + 1> table_name_t;
 struct Table;
 class column_table_t;
 struct sqlite3;
+class service_config_t;
 
 class database_t
 {
@@ -33,7 +34,7 @@ public:
     }
 
 public:
-    result_t init();
+    result_t init(service_config_t* config);
     result_t build_table(Table* table);
     column_table_t* find_table(const char* table_name) const;
     column_table_t* get_table(db_int32 table_id) const;

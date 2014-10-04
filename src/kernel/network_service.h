@@ -9,6 +9,7 @@
 #include "fast_mutex.h"
 #include "channel.h"
 #include "packet.h"
+#include "service_config.h"
 
 /*
 1. start-up
@@ -172,7 +173,8 @@ private:
 
     worker_thread_t* m_workers[MAX_THREAD_NUM];
     mutex_t m_lock;
-   
+  
+    service_config_t m_config;
 };
 
 
