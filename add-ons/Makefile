@@ -17,13 +17,12 @@ ev.o:
 	
 
 $(LIBLFDS).a:
-	unzip liblfds*.zip
-	cd liblfds*/liblfds*; make -f makefile.linux arrel
-	cp liblfds*/liblfds*/bin/$(LIBLFDS).a ./
-	cp liblfds*/liblfds*/inc/* ./
+	gzip -dc $(LIBLFDS).tar.gz | tar -xvf -	
+	cd $(LIBLFDS); make arrel
+	cp $(LIBLFDS)/bin/$(LIBLFDS).a ./
+	cp $(LIBLFDS)/inc/* ./
 	
-
 
 .PHONY:
 clean:
-	rm -rf lemon ev.o $(LIBEV) liblfds6.1.1 $(LIBLFDS).a
+	rm -rf lemon ev.o $(LIBEV) $(LIBLFDS) $(LIBLFDS).a

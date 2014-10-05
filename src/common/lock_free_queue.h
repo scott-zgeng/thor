@@ -5,9 +5,9 @@
 #ifndef  __LOCK_FREE_QUEUE_H__
 #define  __LOCK_FREE_QUEUE_H__
 
-
+extern "C" {
 #include "liblfds611.h"
-
+}
 
 
 class lock_free_queue_t
