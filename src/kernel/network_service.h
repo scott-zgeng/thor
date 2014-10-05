@@ -5,10 +5,10 @@
 
 #include <netinet/in.h>
 
-#include "tinythread.h"
-#include "fast_mutex.h"
+
 #include "channel.h"
 #include "packet.h"
+#include "thread.h"
 #include "service_config.h"
 
 /*
@@ -83,49 +83,7 @@ private:
 
 
 
-
-typedef tthread::fast_mutex mutex_t;
-
-class executor_t
-{
-public:
-    virtual void run() = 0;
-};
-
-
-class thread_t
-{
-public:
-    thread_t() {
-        m_thread = NULL;
-    }
-
-    virtual ~thread_t() {
-        if (m_thread == NULL)
-            return;
-
-        delete m_thread;
-    }
-
-public:
-    result_t start(executor_t* executor) {
-        tthread::thread* m_thread = new tthread::thread(thread_entry, executor);
-        IF_RETURN_FAILED(m_thread == NULL);
-
-        return RT_SUCCEEDED;
-    }
-
-private:
-    static void thread_entry(void* arg) {
-        executor_t* executor = (executor_t*)arg;        
-        executor->run();
-    }
-
-    tthread::thread* m_thread;    
-};
-
-
-class worker_thread_t : private executor_t
+class worker_thread_t : private runnable_t
 {
 public:
     worker_thread_t();
@@ -134,7 +92,6 @@ public:
 public:
     result_t start(db_int32 fd, const sockaddr_in& addr);
     
-
 private:
     virtual void run();
 
@@ -143,7 +100,6 @@ private:
     channel_loop_t m_loop;
     thread_t m_thread;
     server_session_t m_session;
-
 };
 
 

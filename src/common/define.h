@@ -114,5 +114,11 @@ inline void strncpy_ex(char* dst, const char* src, size_t n)
 }
 
 
+struct object_t {
+    virtual ~object_t() {}
+};
+
+
+
 #endif //__DEFINE_H__
 
