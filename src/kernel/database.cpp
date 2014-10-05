@@ -24,6 +24,8 @@ result_t database_t::init(service_config_t* config)
     db_int32 ret2 = sqlite3_open(NULL, &m_kernel_db);
     IF_RETURN_FAILED(ret2 != SQLITE_OK);
 
+    ret = m_executor.init();
+
     return RT_SUCCEEDED;
 }
 

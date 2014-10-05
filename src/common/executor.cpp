@@ -39,8 +39,11 @@ public:
                 continue;
             }
 
+            assert(task != NULL);
             loop_count = 0;
-            task->run();
+            task->run();       
+
+            // TODO(scott.zgeng): task完成后何时删除？？
         }        
     }
 

@@ -9,6 +9,7 @@
 #include "fstring.h"
 #include "pod_hash_map.h"
 #include "mem_pool.h"
+#include "executor.h"
 
 
 typedef fstring<MAX_TAB_NAME_LEN + 1> table_name_t;
@@ -56,6 +57,8 @@ private:
 
     mem_pool_t m_mem_pool;
     sqlite3* m_kernel_db;
+
+    executor_t m_executor;
 };
 
 
