@@ -70,4 +70,3 @@ result_t project_node_t::next()
     return RT_SUCCEEDED;
 }
 
-

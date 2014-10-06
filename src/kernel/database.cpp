@@ -24,7 +24,11 @@ result_t database_t::init(service_config_t* config)
     db_int32 ret2 = sqlite3_open(NULL, &m_kernel_db);
     IF_RETURN_FAILED(ret2 != SQLITE_OK);
 
-    ret = m_executor.init();
+    // TODO(scott.zgeng): 以下配置目前先简单配置，后续可动态设置
+    db_uint32 thread_count = 64;     
+    db_uint32 max_task_queue = thread_count * 4;
+    ret = m_executor.init(thread_count, max_task_queue);
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
     return RT_SUCCEEDED;
 }

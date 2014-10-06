@@ -25,7 +25,7 @@ public:
     result_t init(db_uint32 thread_count, db_uint32 max_task_queue);
     void uninit();
 
-    bool push_task(runnable_t* task) {
+    bool execute(runnable_t* task) {
         return m_task_queue.enqueue(task);
     }
 

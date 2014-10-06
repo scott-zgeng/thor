@@ -51,7 +51,6 @@ public:
 
     db_uint32 column_size(db_int32 idx) {
         return 4; // TODO(scott.zgeng): for test
-
     }
 
 

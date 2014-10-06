@@ -39,7 +39,7 @@ result_t select_stmt_t::prepare(Parse *pParse, Select *pSelect)
     node_generator_t generator(this, pParse, pSelect);
         
     node_base_t* root = NULL;
-    result_t ret = generator.build(&root);
+    result_t ret = generator.create_tree(&root);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);        
 
     // NOTE(scott.zgeng): 查询的根节点一定是project节点

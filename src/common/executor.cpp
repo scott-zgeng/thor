@@ -16,26 +16,25 @@ public:
     }
 
 
-    result_t start(lock_free_queue_t* queue) {
+    result_t start(lock_free_queue_t* queue) {        
         m_queue = queue;
         m_start = true;
         return m_thread.start(this);
     }
 
     virtual void run() {
-        bool has_object;
-        db_uint32 loop_count = 0;
+        bool has_object;        
         runnable_t* task;
+        db_uint32 loop_count = 0;
         
         m_queue->start();
-
         while (m_start) {
             has_object = m_queue->dequeue((object_t**)&task);
-            if (!has_object) {                
-                if (loop_count >= 10000)
-                    usleep(4000);                    
-                else loop_count++;
+            if (!has_object) {                         
+                if (loop_count < 100000)
+                    loop_count += 1000;
 
+                usleep(loop_count);
                 continue;
             }
 
