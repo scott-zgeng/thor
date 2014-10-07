@@ -54,12 +54,6 @@ public:
     }
 
 
-    virtual xchg_type_t xchange_type() {
-        return XCHG_NONE;
-    }
-
-    virtual result_t transform(node_base_t* parent);
-
 private:
     statement_t* m_stmt;
     node_base_t* m_children;
