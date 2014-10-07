@@ -18,6 +18,15 @@ extern "C" {
 class node_base_t
 {
 public:
+    enum xchg_type_t {
+        XCHG_NONE = 0,      // don't use xchange
+        XCHG_SPSC = 1,      // single product single consumer
+        XCHG_SPMC = 2,      // single product multi consumer
+        XCHG_MPSC = 3,      // multi product single consumer
+        XCHG_MPMC = 4,      // multi product multi consumer
+        
+    };
+
     friend class node_generator_t;
     virtual ~node_base_t() {}
 public:
@@ -28,8 +37,13 @@ public:
     virtual rowset_mode_t rowset_mode() const = 0;
     virtual db_uint32 table_count() const = 0;
 
+    
+    virtual xchg_type_t xchange_type() = 0;
+    virtual result_t transform(node_base_t* parent) = 0;
+
+
     // for parallel execute plan generation
-    //virtual result_t transform() = 0;
+    
 
     //virtual result_t split() = 0;
     
@@ -45,10 +59,11 @@ public:
     // XCHANGE_1_TO_N   表示一个生产者，一到多个消费者，不随上层节点分裂而分裂
 
 
-    // 需要每个节点告诉下层节点是否需要支持重置，当前阶段的设计中，支持重置就无法使用并行（后续可考虑是否需要支持）
-    //   为什么有这样的设计？ 因为目前多线程的调用实际上是在XCHANGE内完成交换的，
-    //      需要判断XCHANGE节点的完成情况，当多对多的时候比较复杂，因此暂时先不支持
-
+    // 关于节点reset，在单线程的场景下，RESET很简单，但是在多线程执行的场景下，有很多限制，
+    // 首先，必须是基于xchange节点为单位来重置，不能直接支持xchange下的单个节点的RESET，
+    // 其次, 最好是全部子节点完成后RESET, 并发控制需要非常注意
+    // 因此当前阶段，如果需要使用reset功能的节点，就明确不支持多线程
+    
     // 典型场景，自底向上分析
     // CASE1: select xxx, yyy from table1 where xxx < nnn 
     //  先看SCAN节点，SCAN节点支持以上四种模式，以应对不同的场景下的需求，具体支持那种模式需要根据上层节点类型和模式来判断
@@ -62,8 +77,17 @@ public:
     //  最后看PROJECT节点，目前只支持XCHANGE_NONE即可
 
     // CASE3： select table1.xxx, table2.yyy from table1, table2 where table1.xxx < nnn and table1.xxx = table2.xxx;
-    //   先看SCAN节点，当如果是JOIN节点时，需要非常小心，需要看两个表的规模，
+    //   先看SCAN节点，当如果是JOIN节点时，则最好是直接选择XCHANGE_NONE
+    //   在看JOIN节点，如果是两表，则分几种场景，大小表走HASH方式，小表建HASH，大表拆分
+    //   大表对大表，就使用MC，一个表全量扫描，一个拆分
+    //   其他全部采用NEST LOOP，前期就不考虑多线程，后续可考虑类似MC;
+    //  多表暂时不考虑多线程，但可在顶层JOIN节点，增加一个XCHANGE_1_TO_1
+    //  多表连接如果是STAR JOIN, 主表大表，其他小标，类似于HASH JOIN，
+    //         如果多个大表，则 sort merge; SORT_MERGE，可增加一个XCHANGE_1_TO_1
 
+    // CASE4: select xxx, yyy from table1 where xxx < nnn order by xxx limit NNN;
+    //   ORDER BY的场景，目前限定在TOP N的范围，因为分析应用 TOP N有意义，而全数据的排序主要还是用在ETL上，
+    //   和定位有一定的差异，所以全数据（特别是分布式情况下）的排序暂不做支持；
 
 
 };

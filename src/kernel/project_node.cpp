@@ -70,3 +70,10 @@ result_t project_node_t::next()
     return RT_SUCCEEDED;
 }
 
+
+result_t project_node_t::transform(node_base_t* parent)
+{
+    xchg_type_t type = m_children->xchange_type();
+    
+    
+}
