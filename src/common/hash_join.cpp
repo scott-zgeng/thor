@@ -100,9 +100,7 @@ void current_hash_join_task::build_hash_table()
 }
 
 void current_hash_join_task::probe_table()
-{
-    
-
+{   
     hash_node_test_t** hash_table = m_join_handle->m_hash_table;
     db_uint32 hash_table_size = m_join_handle->m_hash_table_size;
     hash_node_test_t* entry;
@@ -154,7 +152,7 @@ void current_hash_join_t::task_start(db_int32 status)
         m_tasks[i]->m_status = status;
         bool is_succ = m_executor.execute(m_tasks[i]);
         if (!is_succ) {
-            DB_TRACE("current_hash_join_t::task_start i failed,", i);
+            DB_TRACE("current_hash_join_t::task_start %d failed,", i);
         }        
     }
 }
@@ -218,10 +216,10 @@ result_t current_hash_join_t::test()
 
 
 
-
-
 result_t current_hash_join_t::main()
 {
     current_hash_join_t obj;
     return obj.test();
 }
+
+
