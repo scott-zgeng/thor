@@ -38,8 +38,8 @@ public:
     virtual db_uint32 table_count() const = 0;
 
     
-    virtual xchg_type_t xchange_type() = 0;
-    virtual result_t transform(node_base_t* parent) = 0;
+    //virtual xchg_type_t xchange_type() = 0;
+    //virtual result_t transform(node_base_t* parent) = 0;
 
 
     // for parallel execute plan generation

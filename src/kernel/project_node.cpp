@@ -73,7 +73,7 @@ result_t project_node_t::next()
 
 result_t project_node_t::transform(node_base_t* parent)
 {
-    xchg_type_t type = m_children->xchange_type();
+    //xchg_type_t type = m_children->xchange_type();
     
-    
+    return RT_SUCCEEDED;
 }

@@ -489,6 +489,10 @@ public:
         return p;
     }
 
+    db_uint32 size() {
+        return m_count;
+    }
+
 private:
     mem_region_t m_region;    
     db_uint32 m_len;

@@ -64,7 +64,7 @@ result_t node_generator_t::create_tree(node_base_t** root)
 result_t node_generator_t::transform(node_base_t* root)
 {
     //db_uint32 parallel_count = 4; // 目前先简单设置一下
-    result_t ret = root->transform(NULL);
+    //result_t ret = root->transform(NULL);
 
     return RT_SUCCEEDED;
 }
