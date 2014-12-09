@@ -41,8 +41,8 @@ public:
     db_int64 m_right_row_count;
     db_int64 m_left_row_count;
 
-    mem_row_region_t m_row_region;
-    mem_pool_t m_mem_pool;
+    //mem_row_region_t m_row_region;
+    //mem_pool_t m_mem_pool;
     db_int64 m_status;
     db_int64 m_matched_count;
 
@@ -55,8 +55,7 @@ public:
 class current_hash_join_t
 {
 
-public:
-    static result_t main();
+public:    
     result_t test(int argc, char* argv[]);
 
     void set_task_completed();

@@ -54,9 +54,9 @@ public:
         int* left_buffer = buffer + VECTOR_SIZE;
         int* l_result;
         m_left->calc(left_buffer, l_result);
-
-        int* r_result;
+        
         int* right_buffer = left_buffer + VECTOR_SIZE;
+        int* r_result;
         m_right->calc(right_buffer, r_result);
 
         result = buffer;
@@ -92,9 +92,9 @@ public:
         int* left_buffer = buffer + VECTOR_SIZE;
         int* l_result;
         m_left->calc(left_buffer, l_result);
-
-        int* r_result;
+        
         int* right_buffer = left_buffer + VECTOR_SIZE;
+        int* r_result;
         m_right->calc(right_buffer, r_result);
 
         result = buffer;

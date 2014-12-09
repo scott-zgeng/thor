@@ -120,8 +120,6 @@ void current_hash_join_task::build_hash_table()
             hash_node->next = old_entry;
             succ = cas_ptr((volatile void**)hash_pos, old_entry, hash_node);
         } while (!succ);
-
-        if (hash_node == NULL) break;
     }
 }
 
