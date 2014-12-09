@@ -60,9 +60,16 @@ struct result_t
 const static result_t RT_SUCCEEDED      = { 0 };
 const static result_t RT_FAILED         = { 0xffffffff };
 
+#include <sys/time.h>
 
 #ifndef DB_OMIT_TRACE
-#define DB_TRACE(...)  do { printf(__VA_ARGS__); printf(" in %s() [%s:%d]\n", __FUNCTION__, __FILE__, __LINE__); } while (0)
+#define DB_TRACE(...) do { \
+    struct timeval tv; gettimeofday(&tv, NULL); \
+    printf("[%lu:%06lu]", tv.tv_sec, tv.tv_usec);  \
+    printf(__VA_ARGS__); \
+    printf(" in %s() [%s:%d]\n", __FUNCTION__, __FILE__, __LINE__); \
+} while (0)
+
 #else
 #define DB_TRACE(...)
 #endif

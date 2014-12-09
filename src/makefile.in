@@ -8,6 +8,9 @@ CFLAGS+=-fPIC -DPIC -pthread -Werror -Wall  -g
 #CFLAGS+=-m64 
 CFLAGS+=-O2
 CFLAGS+=-DDB_OMIT_TRACE
+CFLAGS+=-msse4.2
+CFLAGS+=-mavx
+
 
 ifeq "$(suffix $(TARGET))" ".so"
 	LINK_OPTION=-shared

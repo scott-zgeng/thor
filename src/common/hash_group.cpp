@@ -40,7 +40,7 @@ int current_hash_group_task::local_insert_update(hash_group_node_test_t* new_nod
     hash_group_node_test_t** pos = hash_table + (new_node->hash_val % hash_table_size);
     hash_group_node_test_t* curr_node;
     
-    curr_node = *pos;
+    curr_node = *pos;    
     while (curr_node != NULL) {
         if (curr_node->hash_val == new_node->hash_val && curr_node->key == new_node->key) {
             update_data(curr_node, new_node);
@@ -61,6 +61,7 @@ int current_hash_group_task::local_insert_update(hash_group_node_test_t* new_nod
     *pos = new_node;        
     return 1;
 }
+
 
 void current_hash_group_task::local_update_data(hash_group_node_test_t* curr_node, hash_group_node_test_t* new_node)
 {   
@@ -90,15 +91,18 @@ bool current_hash_group_task::insert_update(hash_group_node_test_t* new_node)
     hash_group_node_test_t** pos = hash_table + (new_node->hash_val % hash_table_size);
 
     hash_group_node_test_t* curr_node;
+    hash_group_node_test_t* temp_node;
+
     bool is_succ;
 LOOP:
     curr_node = *pos;
-    while (curr_node != NULL) {    
-        if (curr_node->hash_val == new_node->hash_val && curr_node->key == new_node->key) {
-            update_data(curr_node, new_node);
+    temp_node = curr_node;
+    while (temp_node != NULL) {
+        if (temp_node->hash_val == new_node->hash_val && temp_node->key == new_node->key) {
+            update_data(temp_node, new_node);
             return false;
         }
-        curr_node = curr_node->next;
+        temp_node = temp_node->next;
     }
 
     // insert new node
@@ -112,10 +116,10 @@ LOOP:
 void current_hash_group_task::build()
 {
     hash_group_node_test_t* new_node = NULL;
-    if UNLIKELY(new_node == NULL) {
-        DB_TRACE("alloc_node FAILED");
-        return;
-    }
+    //if UNLIKELY(new_node == NULL) {
+    //    DB_TRACE("alloc_node FAILED");
+    //    return;
+    //}
 
     hash_function<db_int64> hash_func;
     db_bool is_insert = true;
@@ -221,7 +225,7 @@ result_t current_hash_group_task::init(current_hash_group_t* group_handle)
     // node_pool;
     m_hash_node_pool_size = GROUP_NUM * 2;
     m_hash_node_pool = (hash_group_node_test_t*)malloc(m_hash_node_pool_size * sizeof(hash_group_node_test_t));
-    IF_RETURN_FAILED(m_hash_node_pool != NULL);
+    IF_RETURN_FAILED(m_hash_node_pool == NULL);
     m_hash_node_pool_idx = 0;
 
     // local hash table
@@ -249,7 +253,7 @@ void current_hash_group_t::set_task_completed()
 {
     m_lock.lock();
     m_running_task--;
-    m_lock.lock();
+    m_lock.unlock();
 }
 
 
@@ -258,7 +262,7 @@ void current_hash_group_t::wait()
     while (true) {
         m_lock.lock();
         volatile db_int32 running_task = m_running_task;
-        m_lock.lock();
+        m_lock.unlock();
 
         if (running_task == 0)
             return;
@@ -296,9 +300,11 @@ result_t current_hash_group_t::test(int argc, char* argv[])
 
     
     DB_TRACE("TABLE_MODE = %lld", TABLE_MODE);
-    DB_TRACE("THREAD_NUM = %lld", TABLE_MODE);
+    DB_TRACE("THREAD_NUM = %lld", THREAD_NUM);
     DB_TRACE("HASH_TABLE_SIZE = %lld", HASH_TABLE_SIZE);
     DB_TRACE("TABLE_SIZE = %lld", TABLE_SIZE);
+    DB_TRACE("GROUP_NUM = %lld", GROUP_NUM);
+    
 
     m_hash_table_size = HASH_TABLE_SIZE;
     m_hash_table = (hash_group_node_test_t**)malloc(m_hash_table_size * sizeof(void*));
@@ -328,14 +334,13 @@ result_t current_hash_group_t::test(int argc, char* argv[])
 
     db_int64 total_node_count = 0;
     db_int64 total_aggr_count = 0;
-    for (db_int64 i = 0; i < THREAD_NUM; i++) {
-        db_int64 node_num = m_tasks[i]->m_hash_node_pool_idx;
-        total_node_count += node_num;
-
-        hash_group_node_test_t* nodes = m_tasks[i]->m_hash_node_pool;
-        for (db_int64 n = 0; n < node_num; n++) {
-            total_aggr_count += nodes[n].value2;
-        }
+    for (db_int64 i = 0; i < m_hash_table_size; i++) {
+        hash_group_node_test_t* entry = m_hash_table[i];
+        while (entry != NULL) {
+            total_node_count++;
+            total_aggr_count += entry->value2;
+            entry = entry->next;
+        }        
     }
     DB_TRACE("group count %lld, count %lld", total_node_count, total_aggr_count);
 

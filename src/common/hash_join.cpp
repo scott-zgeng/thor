@@ -6,12 +6,18 @@
 #include "cas_wrapper.h"
 
 
-
-
+static db_int64 TABLE_MODE = 0;
+static db_int64 THREAD_NUM = 1;
+static db_int64 LEFT_TABLE_COUNT = 1024 * 1024 * 40;
+static db_int64 RIGHT_TABLE_COUNT = 1024 * 1024 * 40;
 
 
 current_hash_join_task::current_hash_join_task()
 {
+    static db_uint32 s_idx = 0;
+    m_idx = s_idx;
+    s_idx++;
+
     m_join_handle = NULL;
     m_status = 0;
     m_matched_count = 0;
@@ -24,18 +30,37 @@ current_hash_join_task::~current_hash_join_task()
 
 result_t current_hash_join_task::init(current_hash_join_t* join_handle) 
 {
-    result_t ret;
-
     m_join_handle = join_handle;    
     
-    db_size pool_size = 1024 * 1024 * 20; //MB
-    ret = m_mem_pool.init(pool_size);
-    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+    m_right_row_count = RIGHT_TABLE_COUNT / THREAD_NUM;
+    m_left_row_count = LEFT_TABLE_COUNT / THREAD_NUM;
 
-    m_right_row_count = 1024 * 1024 * 1; // 设计的最大容量
-    m_left_row_count = 1024 * 1024 * 2;
+    m_hash_nodes = (hash_node_test_t*)malloc(m_right_row_count * sizeof(hash_node_test_t));
+    for (db_uint32 i = 0; i < m_right_row_count; i++) {
+        if (TABLE_MODE == 0)
+            m_hash_nodes[i].key = i + m_idx * m_right_row_count;
+        else
+            m_hash_nodes[i].key = rand() % RIGHT_TABLE_COUNT;
 
-    m_row_region.init(&m_mem_pool, sizeof(hash_node_test_t));    
+        m_hash_nodes[i].value = i;
+    }
+
+    m_left_tables = (db_int64*)malloc(m_left_row_count * sizeof(db_int64));
+    for (db_uint32 i = 0; i < m_left_row_count; i++) {
+        if (TABLE_MODE == 0)
+            m_left_tables[i] = i + m_idx * m_left_row_count;
+        else
+            m_left_tables[i] = rand() % LEFT_TABLE_COUNT;
+    }
+
+    //db_size pool_size = 1024 * 1024 * 20; //MB
+    //ret = m_mem_pool.init(pool_size);
+    //IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+    //m_right_row_count = 1024 * 1024 * 1; // 设计的最大容量
+    //m_left_row_count = 1024 * 1024 * 2;
+
+    //m_row_region.init(&m_mem_pool, sizeof(hash_node_test_t));    
 
     return RT_SUCCEEDED;
 }
@@ -65,10 +90,9 @@ void current_hash_join_task::build_hash_node()
 {
     hash_function<int> int32_hash;
     for (db_uint32 i = 0; i < m_right_row_count; i++) {
-        hash_node_test_t* new_node = (hash_node_test_t*)m_row_region.alloc();
+        hash_node_test_t* new_node = m_hash_nodes + i;
 
-        new_node->key = rand() % m_right_row_count;
-        new_node->value = i;
+        
         new_node->hash_val = int32_hash(new_node->key);
         new_node->next = NULL;
     }
@@ -77,16 +101,18 @@ void current_hash_join_task::build_hash_node()
 
 void current_hash_join_task::build_hash_table()
 {
-    mem_row_region_t::iterator it(&m_row_region);
+    //mem_row_region_t::iterator it(&m_row_region);
 
     hash_node_test_t** hash_table = m_join_handle->m_hash_table;
     db_uint32 hash_table_size = m_join_handle->m_hash_table_size;
     hash_node_test_t** hash_pos;
     hash_node_test_t* hash_node;
     hash_node_test_t* old_entry;
+
     bool succ;
-    while (true) {
-        hash_node = (hash_node_test_t*)it.next();
+
+    for (db_uint32 i = 0; i < m_right_row_count; i++) {
+        hash_node = m_hash_nodes + i;
 
         hash_pos = hash_table + (hash_node->hash_val % hash_table_size);
         do {
@@ -108,12 +134,12 @@ void current_hash_join_task::probe_table()
     hash_function<int> int32_hash;
     db_uint32 hash_val;
     for (db_uint32 i = 0; i < m_left_row_count; i++) {
-        db_int32 key = rand() % m_left_row_count;
+        db_uint32 key = m_left_tables[i];
         hash_val = int32_hash(key);
 
         entry = hash_table[hash_val % hash_table_size];
         while (entry != NULL) {
-            if (entry->hash_val == hash_val && key == entry->key) {
+            if (entry->hash_val == hash_val && entry->key == key) {
                 m_matched_count++;
             }
 
@@ -127,7 +153,7 @@ void current_hash_join_t::set_task_completed()
 {
     m_lock.lock();
     m_running_task--;
-    m_lock.lock();
+    m_lock.unlock();
 }
 
 
@@ -136,7 +162,7 @@ void current_hash_join_t::wait()
     while (true) {
         m_lock.lock();
         volatile db_int32 running_task = m_running_task;
-        m_lock.lock();
+        m_lock.unlock();
         
         if (running_task == 0)
             return;
@@ -160,11 +186,27 @@ void current_hash_join_t::task_start(db_int32 status)
 
 
 
-result_t current_hash_join_t::test()
+result_t current_hash_join_t::test(int argc, char* argv[])
 {
+    if (argc != 5) {
+        DB_TRACE("invalid param");
+        return RT_SUCCEEDED;
+    }
+
+    TABLE_MODE = atoll(argv[1]);
+    THREAD_NUM = atoll(argv[2]);
+    LEFT_TABLE_COUNT = atoll(argv[3]);
+    RIGHT_TABLE_COUNT = atoll(argv[4]);
+
+    DB_TRACE("TABLE_MODE = %lld", TABLE_MODE);
+    DB_TRACE("THREAD_NUM = %lld", THREAD_NUM);
+    DB_TRACE("LEFT_TABLE_COUNT = %lld", LEFT_TABLE_COUNT);
+    DB_TRACE("RIGHT_TABLE_COUNT = %lld", RIGHT_TABLE_COUNT);
+
     result_t ret;
     
-    db_uint32 thread_count = 4;
+    DB_TRACE("start test");
+    db_uint32 thread_count = THREAD_NUM;
     db_uint32 task_queue_count = 1024;
 
     ret = m_executor.init(thread_count, task_queue_count);
@@ -186,15 +228,19 @@ result_t current_hash_join_t::test()
     wait();
     DB_TRACE("build hash node ok");
 
-    db_uint32 total_row_count = 0;
+    db_int64 total_row_count = 0;
     for (db_uint32 i = 0; i < thread_count; i++) {
-        total_row_count += m_tasks[i]->m_row_region.size();
+        total_row_count += m_tasks[i]->m_right_row_count;
     }
+    DB_TRACE("build hash num %lld", total_row_count);
 
-    m_hash_table_size = total_row_count * 2 + 1;
+    m_hash_table_size = total_row_count + total_row_count / 2 + 1;
+
     m_hash_table = (hash_node_test_t**)malloc(m_hash_table_size * sizeof(void*));
     IF_RETURN_FAILED(m_hash_table == NULL);
+    memset(m_hash_table, 0, m_hash_table_size * sizeof(void*));
 
+    DB_TRACE("hash table size %lld", m_hash_table_size);
     DB_TRACE("start build hash table");
     task_start(2);
     wait();
@@ -213,13 +259,4 @@ result_t current_hash_join_t::test()
 
     return RT_SUCCEEDED;
 }
-
-
-
-result_t current_hash_join_t::main()
-{
-    current_hash_join_t obj;
-    return obj.test();
-}
-
 

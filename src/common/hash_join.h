@@ -19,7 +19,7 @@ struct hash_join_node_t
     V value;
 };
 
-typedef hash_join_node_t<int, int> hash_node_test_t;
+typedef hash_join_node_t<db_int64, db_int64> hash_node_test_t;
 
 
 class current_hash_join_t;
@@ -38,13 +38,17 @@ public:
 
 public:
     current_hash_join_t* m_join_handle;
-    db_uint32 m_right_row_count;
-    db_uint32 m_left_row_count;
+    db_int64 m_right_row_count;
+    db_int64 m_left_row_count;
 
     mem_row_region_t m_row_region;
     mem_pool_t m_mem_pool;
-    db_int32 m_status;
-    db_int32 m_matched_count;
+    db_int64 m_status;
+    db_int64 m_matched_count;
+
+    hash_node_test_t* m_hash_nodes;
+    db_int64* m_left_tables;
+    db_uint32 m_idx;
 };
 
 
@@ -53,7 +57,7 @@ class current_hash_join_t
 
 public:
     static result_t main();
-    result_t test();
+    result_t test(int argc, char* argv[]);
 
     void set_task_completed();
 
@@ -67,7 +71,7 @@ private:
     executor_t m_executor;
 
 public:
-    db_uint32 m_hash_table_size;
+    db_int64 m_hash_table_size;
     hash_node_test_t** m_hash_table;
 };
 
