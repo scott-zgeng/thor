@@ -28,6 +28,11 @@ public:
         return 1;
     }
 
+public:
+    const db_char* table_name() const {
+        return m_table_name;
+    }
+
 private:
     db_int32 m_index;
     expr_base_t* m_where;  // where condition
@@ -39,6 +44,8 @@ private:
     db_uint32 m_odd_count;
 
     statement_t* m_stmt;
+
+    db_char m_table_name[MAX_TAB_NAME_LEN + 1];
 };
 
 

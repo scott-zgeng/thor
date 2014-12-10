@@ -93,7 +93,9 @@ public:
 };
 
 
+
 class expr_base_t;
+class scan_node_t;
 class node_generator_t
 {
 public:
@@ -105,16 +107,19 @@ public:
 
 private:
     result_t build(node_base_t** root);
-    result_t build_join(node_base_t** scan_nodes, db_int32 tab_num, node_base_t** root);
+    result_t build_scan_join(node_base_t** root);
     result_t transform(node_base_t* root);    
+
+    result_t gen_join_plan(db_int32 table_num, db_double* cost_matrix, db_int32* closest, db_int32* start_no);
+    db_double calc_mst(db_int32 table_num, db_double* cost_matrix, db_int32* closest, db_int32 start_no);
+    db_double calc_join_cost(scan_node_t* node1, scan_node_t* node2);
 
 private:
     Parse* m_parse;
     Select* m_select;
     statement_t* m_stmt;
+
 };
-
-
 
 
 

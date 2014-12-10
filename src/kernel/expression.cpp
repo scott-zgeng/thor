@@ -469,3 +469,155 @@ result_t expr_factory_t::build_list(ExprList* src, expr_list_t* dst)
 
 
 
+
+
+
+
+
+expr_factory_t::expr_type_t expr_factory_t::check_column(Expr* expr, const db_char* table_name)
+{
+    if (expr == NULL)
+        return EXPR_CONST;
+
+    if (expr->op == TK_COLUMN) {
+        return strcmp(expr->pTab->zName, table_name) == 0 ? EXPR_COLUMN : EXPR_OTHER;
+    }
+
+    db_int32 l_result = check_column(expr->pLeft, table_name);
+    db_int32 r_result = check_column(expr->pRight, table_name);
+
+    if (EXPR_OTHER == l_result || EXPR_OTHER == r_result)
+        return EXPR_OTHER;
+
+    if (EXPR_COLUMN == l_result || EXPR_COLUMN == r_result)
+        return EXPR_COLUMN;
+
+    return EXPR_CONST;    
+}
+
+
+db_bool expr_factory_t::check_or(Expr* expr)
+{
+    if (expr == NULL)
+        return false;
+
+    if (expr->op == TK_OR)
+        return true;
+
+    return check_or(expr->pLeft) || check_or(expr->pRight);
+}
+
+
+// 构建下沉到单表的过滤条件
+result_t expr_factory_t::build_scan_table(Expr* expr, expr_base_t** root, const db_char* table_name)
+{    
+    result_t ret;
+    if (expr->op == TK_OR || expr->op == TK_AND) {
+        expr_base_t* left = NULL;
+        ret = build_scan_table(expr->pLeft, &left, table_name);
+        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+        expr_base_t* right = NULL;
+        ret = build_scan_table(expr->pRight, &right, table_name);
+        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+        if (left == NULL || right == NULL) {
+            *root = (left != NULL) ? left : right;
+            return RT_SUCCEEDED;
+        }
+        
+        expr_base_t* new_root = create_instance(expr, left, right);
+        IF_RETURN_FAILED(new_root == NULL);
+
+        *root = new_root;
+        return RT_SUCCEEDED;
+    }
+
+    expr_type_t type = check_column(expr, table_name);
+    if (type != EXPR_COLUMN) {
+        *root = NULL;
+        return RT_SUCCEEDED;
+    }
+
+    expr_base_t* temp = NULL;
+    ret = build(expr, &temp);
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+
+    return RT_SUCCEEDED;
+}
+
+
+Expr* expr_factory_t::find_join_expr(Expr* expr, const db_char* table1, const db_char* table2)
+{
+    assert(expr->op != TK_OR);
+
+    if (expr->op == TK_AND) {
+        // TODO(scott.zgeng): 找到第一个连接条件就返回，目前不支持更复杂的连接条件
+        Expr* result = find_join_expr(expr->pLeft, table1, table2);
+        if (result != NULL)
+            return result;
+
+        return find_join_expr(expr->pRight, table1, table2);
+    }
+
+    if (expr->pLeft == NULL || expr->pRight == NULL)  // 如果不是二元表达式，肯定不是连接条件
+        return NULL;
+    
+    if (expr->op != TK_EQ)   // TODO(scott.zgeng): 连接的条件只支持等于操作
+        return NULL;
+
+
+    return NULL;
+}
+
+
+//
+//
+//result_t expr_factory_t::classify_expressions(Expr* expr,
+//    scan_expr_list_t* scan_conds, join_expr_list_t* join_conds, Expr_list_t* outer_conds)
+//{
+//    result_t ret;
+//    if (expr->op == TK_AND) {
+//        ret = classify_expressions(expr->pLeft, scan_conds, join_conds, outer_conds);
+//        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+//
+//        ret = classify_expressions(expr->pRight, scan_conds, join_conds, outer_conds);
+//        IF_RETURN_FAILED(ret != RT_SUCCEEDED);
+//
+//        return RT_SUCCEEDED;
+//    }
+//
+//    // 如果不是二元表达式，肯定不是关联条件
+//    if (expr->pLeft == NULL || expr->pRight == NULL)
+//        return RT_SUCCEEDED;
+//
+//    // 优化的关联条件只支持等于操作
+//    if (expr->op != TK_EQ)
+//        return RT_SUCCEEDED;
+//
+//    db_char* l_tab = NULL;
+//    db_char* r_tab = NULL;
+//    db_int32 l_result = check_column_expr(expr->pLeft, &l_tab);
+//    db_int32 r_result = check_column_expr(expr->pRight, &r_tab);
+//
+//    if (EXPR_MULTI_TABLE == l_result || EXPR_MULTI_TABLE == r_result) {
+//        outer_conds->push_back(expr);
+//        return RT_SUCCEEDED;
+//    }
+//
+//    if (EXPR_COLUMN == l_result && EXPR_COLUMN == r_result && strcmp(l_tab, r_tab) != 0) {
+//        join_expr_item_t join_item;
+//        join_item.expr = expr;
+//        join_item.name1 = l_tab;
+//        join_item.name2 = r_tab;
+//        join_conds->push_back(join_item);
+//        return RT_SUCCEEDED;
+//    }
+//
+//    scan_expr_item_t scan_item;
+//    scan_item.expr = expr;
+//    scan_item.name = l_tab;
+//    scan_conds->push_back(scan_item);
+//    return RT_SUCCEEDED;
+//}
+

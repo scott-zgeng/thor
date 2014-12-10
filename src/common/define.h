@@ -60,18 +60,18 @@ struct result_t
 const static result_t RT_SUCCEEDED      = { 0 };
 const static result_t RT_FAILED         = { 0xffffffff };
 
-#include <sys/time.h>
 
-#ifndef DB_OMIT_TRACE
+
+#ifndef DB_USE_TRACE
+#define DB_TRACE(...)
+#else
+#include <sys/time.h>
 #define DB_TRACE(...) do { \
     struct timeval tv; gettimeofday(&tv, NULL); \
     printf("[%lu:%06lu]", tv.tv_sec, tv.tv_usec);  \
     printf(__VA_ARGS__); \
     printf(" in %s() [%s:%d]\n", __FUNCTION__, __FILE__, __LINE__); \
 } while (0)
-
-#else
-#define DB_TRACE(...)
 #endif
 
 
@@ -125,6 +125,10 @@ struct object_t {
     virtual ~object_t() {}
 };
 
+
+
+#define DB_DBL_MAX         (1.7976931348623158e+308) /* max value */
+#define DB_DBL_MIN         (2.2250738585072014e-308) /* min positive value */
 
 
 #endif //__DEFINE_H__

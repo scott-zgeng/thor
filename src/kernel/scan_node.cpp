@@ -17,6 +17,7 @@ scan_node_t::scan_node_t(statement_t* stmt, int index)
 
     m_odd_rows = NULL;
     m_odd_count = 0;
+    m_table_name[0] = 0;
 }
 
 
@@ -30,14 +31,15 @@ result_t scan_node_t::init(Parse* parse, Select* select)
 {
     result_t ret;
 
-    expr_factory_t factory(m_stmt, this);
-
-    ret = factory.build(select->pWhere, &m_where);
-    IF_RETURN_FAILED(ret != RT_SUCCEEDED);
-
     SrcList::SrcList_item* src = &select->pSrc->a[m_index];
 
-    column_table_t* table = database_t::instance.find_table(src->zName);
+    strcpy(m_table_name, src->zName);
+
+    expr_factory_t factory(m_stmt, this);
+    ret = factory.build_scan_table(select->pWhere, &m_where, m_table_name);
+    IF_RETURN_FAILED(ret != RT_SUCCEEDED);   
+
+    column_table_t* table = database_t::instance.find_table(m_table_name);
     IF_RETURN_FAILED(table == NULL);
 
     ret = table->init_cursor(&m_cursor);
