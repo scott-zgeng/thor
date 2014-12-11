@@ -11,15 +11,15 @@
 #include "executor.h"
 
 template<typename K, typename V>
-struct hash_join_node_t
+struct hash_join_node_item_t
 {
     unsigned int hash_val;
-    hash_join_node_t* next;
+    hash_join_node_item_t* next;
     K key;
     V value;
 };
 
-typedef hash_join_node_t<db_int64, db_int64> hash_node_test_t;
+typedef hash_join_node_item_t<db_int64, db_int64> hash_node_test_t;
 
 
 class current_hash_join_t;

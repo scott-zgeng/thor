@@ -2,8 +2,9 @@ CC=gcc
 
 LIBEV=libev-4.15
 LIBLFDS=liblfds611
+LIBGTEST=gtest-1.7.0
 
-all:lemon ev.o $(LIBLFDS).a
+all:lemon ev.o $(LIBLFDS).a libgtest.a
 
 lemon:lemon.c 
 	$(CC) -O $< -o $@ 
@@ -22,7 +23,12 @@ $(LIBLFDS).a:
 	cp $(LIBLFDS)/bin/$(LIBLFDS).a ./
 	cp $(LIBLFDS)/inc/* ./
 	
+libgtest.a:
+	rm -rf $(LIBGTEST)
+	unzip  $(LIBGTEST).zip
+	cd $(LIBGTEST); ./configure; make
+	cp $(LIBGTEST)/lib/.libs/libgtest.a ./
 
 .PHONY:
 clean:
-	rm -rf lemon ev.o $(LIBEV) $(LIBLFDS) $(LIBLFDS).a
+	rm -rf lemon ev.o $(LIBEV) $(LIBLFDS) $(LIBLFDS).a $(LIBGTEST) libgtest.a 

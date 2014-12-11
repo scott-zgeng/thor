@@ -70,11 +70,10 @@ result_t node_generator_t::gen_join_plan(db_int32 table_num, db_double* cost_mat
 {
     db_int32 start = 0;
     db_int32 tmp_closest[MAX_JOIN_TABLE];    
-    db_double min_cost = DB_DBL_MAX;
-    db_double cost;    
+    db_double min_cost = DB_DBL_MAX;     
 
     for (db_int32 i = 0; i < table_num; i++) {
-        cost = calc_mst(table_num, cost_matrix, tmp_closest, i);
+        db_double cost = calc_mst(table_num, cost_matrix, tmp_closest, i);
 
         if (min_cost > cost) {
             min_cost = cost;
@@ -98,10 +97,7 @@ db_double node_generator_t::calc_join_cost(scan_node_t* node1, scan_node_t* node
     if (strcmp(table1, table2) == 0)
         return 0;
 
-
-
-
-    return 0;
+    return 10.0;
 }
 
 result_t node_generator_t::build_scan_join(node_base_t** root_node)
@@ -148,25 +144,30 @@ result_t node_generator_t::build_scan_join(node_base_t** root_node)
     // 获取最小的连接树顺序
     db_int32 start = 0;
     db_int32 closest[MAX_JOIN_TABLE];
+    
     ret = gen_join_plan(table_num, cost_matrix, closest, &start);
     IF_RETURN_FAILED(ret != RT_SUCCEEDED);
 
+
+    // 根据最小生成树常见执行连接的执行计划
+    db_bool has_add[MAX_JOIN_TABLE] = { false };
     node_base_t* curr_node = scan_nodes[start];
-    scan_nodes[start] = NULL;
+    has_add[start] = true;
+
+    
 
     for (db_int32 i = 1; i < table_num; i++) {
-        for (db_int32 n = 0; n < table_num; i++) {
-            db_int32 parent_idx = closest[n];
+        for (db_int32 n = 0; n < table_num; n++) {
+            db_int32 parent = closest[n];
 
             // 如果本节点已经加入，或者父节点还没加入，先跳过
-            if (scan_nodes[n] == NULL || scan_nodes[parent_idx] == NULL)
+            if (has_add[n] || !has_add[parent])
                 continue;
-
+            
+            has_add[n] = true;
             node_base_t* left_node = curr_node;
-            node_base_t* right_node = scan_nodes[n];
-            scan_nodes[n] = NULL;
-
-            curr_node = new join_node_t(left_node, right_node);
+            curr_node = new hash_join_node_t(m_stmt, left_node, scan_nodes[n],
+                scan_nodes[parent]->table_name(), scan_nodes[n]->table_name());
             IF_RETURN_FAILED(curr_node == NULL);
 
             ret = curr_node->init(m_parse, m_select);

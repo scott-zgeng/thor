@@ -511,6 +511,11 @@ db_bool expr_factory_t::check_or(Expr* expr)
 // 构建下沉到单表的过滤条件
 result_t expr_factory_t::build_scan_table(Expr* expr, expr_base_t** root, const db_char* table_name)
 {    
+    if (expr == NULL) {
+        *root = NULL;
+        return RT_SUCCEEDED;
+    }
+
     result_t ret;
     if (expr->op == TK_OR || expr->op == TK_AND) {
         expr_base_t* left = NULL;
@@ -547,17 +552,17 @@ result_t expr_factory_t::build_scan_table(Expr* expr, expr_base_t** root, const 
 }
 
 
-Expr* expr_factory_t::find_join_expr(Expr* expr, const db_char* table1, const db_char* table2)
+Expr* expr_factory_t::find_join_condition(Expr* expr, const db_char* table1, const db_char* table2)
 {
     assert(expr->op != TK_OR);
 
     if (expr->op == TK_AND) {
         // TODO(scott.zgeng): 找到第一个连接条件就返回，目前不支持更复杂的连接条件
-        Expr* result = find_join_expr(expr->pLeft, table1, table2);
+        Expr* result = find_join_condition(expr->pLeft, table1, table2);
         if (result != NULL)
             return result;
 
-        return find_join_expr(expr->pRight, table1, table2);
+        return find_join_condition(expr->pRight, table1, table2);
     }
 
     if (expr->pLeft == NULL || expr->pRight == NULL)  // 如果不是二元表达式，肯定不是连接条件
@@ -566,6 +571,12 @@ Expr* expr_factory_t::find_join_expr(Expr* expr, const db_char* table1, const db
     if (expr->op != TK_EQ)   // TODO(scott.zgeng): 连接的条件只支持等于操作
         return NULL;
 
+    if (check_column(expr->pLeft, table1) == EXPR_COLUMN && check_column(expr->pRight, table2))
+        return expr;
+    
+    // 反过来在检测一下
+    if (check_column(expr->pLeft, table2) == EXPR_COLUMN && check_column(expr->pRight, table1))
+        return expr;
 
     return NULL;
 }

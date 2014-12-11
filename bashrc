@@ -1,6 +1,6 @@
 export THOR_HOME=${HOME}/thor
 
-export PATH=${PATH}:${THOR_HOME}/bin
+export PATH=${PATH}:${THOR_HOME}/bin:./
 export LD_LIBRARY_PATH=${THOR_HOME}/lib
 
 export LANG=en_US

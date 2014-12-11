@@ -549,7 +549,15 @@ public:
     result_t build_scan_table(Expr* expr, expr_base_t** root, const db_char* table_name);
 
     static db_bool check_or(Expr* expr);
-    static Expr* find_join_expr(Expr* expr, const db_char* table1, const db_char* table2);
+    static Expr* find_join_condition(Expr* expr, const db_char* table1, const db_char* table2);
+    
+    enum expr_type_t {
+        EXPR_CONST = 1,
+        EXPR_COLUMN = 2,
+        EXPR_OTHER = 3,
+    };
+
+    static expr_type_t check_column(Expr* expr, const db_char* table_name);
 
 private:
     template<typename T> static expr_base_t* create_convert_expr_impl(data_type_t rt_type, expr_base_t* children);
@@ -590,13 +598,7 @@ private:
 
 
 
-    enum expr_type_t {
-        EXPR_CONST = 1,
-        EXPR_COLUMN = 2,
-        EXPR_OTHER = 3,
-    };
 
-    expr_type_t check_column(Expr* expr, const db_char* table_name);
     
 
 

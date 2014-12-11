@@ -1,6 +1,6 @@
 setenv THOR_HOME ${HOME}/thor
 
-setenv PATH ${PATH}:${THOR_HOME}/bin
+setenv PATH ${PATH}:${THOR_HOME}/bin:./
 setenv LD_LIBRARY_PATH ${THOR_HOME}/lib
 
 setenv LANG en_US

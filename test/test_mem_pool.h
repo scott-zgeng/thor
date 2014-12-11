@@ -3,7 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include "../src/kernel/mem_pool.h"
+#include "mem_pool.h"
 
 
 TEST(bitmap, case1)
