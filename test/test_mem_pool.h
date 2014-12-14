@@ -123,3 +123,91 @@ TEST(test_mem_pool, case1)
     DB_TRACE("POOL COMPLETE");
 }
 
+TEST(test_mem_row_region, case1)
+{
+	result_t ret;
+
+	mem_pool_t the_pool;
+
+	ret = the_pool.init(mem_pool_t::MAX_PAGE_SIZE*4);
+	EXPECT_TRUE(ret == RT_SUCCEEDED);
+
+	db_uint32 len = mem_region_t::MAX_ALLOC_SIZE;
+	mem_row_region_t row_region;
+	row_region.init(&the_pool, len);
+
+	void* p1 = row_region.alloc();
+	EXPECT_TRUE(p1 != NULL);
+
+	void* p2 = row_region.alloc();
+	EXPECT_TRUE(p2 != NULL);
+
+	void* p3 = row_region.alloc();
+	EXPECT_TRUE(p3 != NULL);
+	
+	void* p4 = row_region.alloc();
+	EXPECT_TRUE(p4 != NULL);
+
+	void* p5 = row_region.alloc();
+	EXPECT_TRUE(p5 == NULL);
+
+	mem_row_region_t::iterator it;
+	it.init(&row_region);
+
+	void* rp1 = it.next();
+	EXPECT_TRUE(rp1 == p4);
+	
+	void* rp2 = it.next();
+	EXPECT_TRUE(rp2 == p3);
+
+	void* rp3 = it.next();
+	EXPECT_TRUE(rp3 == p2);
+
+	void* rp4 = it.next();
+	EXPECT_TRUE(rp4 == p1);
+
+
+}
+
+
+
+
+TEST(test_mem_row_region, case2)
+{
+	result_t ret;
+
+	mem_pool_t the_pool;
+
+	ret = the_pool.init(mem_pool_t::MAX_PAGE_SIZE*4);
+	EXPECT_TRUE(ret == RT_SUCCEEDED);
+
+	db_uint32 len = mem_region_t::MAX_ALLOC_SIZE/3;
+	mem_row_region_t row_region;
+	row_region.init(&the_pool, len);
+
+	db_uint32 count = 0;
+	while (true) {
+		void* p = row_region.alloc();
+		if (p == NULL) break;
+
+		count++;
+	}
+
+	EXPECT_TRUE(count == 12);
+
+	mem_row_region_t::iterator it;
+	it.init(&row_region);
+
+	db_uint32 fetch_count = 0;
+	while (true) {
+		void* p = it.next();
+		if (p == NULL) break;
+
+		fetch_count++;
+	}
+
+	EXPECT_TRUE(count == fetch_count);
+	
+
+}
+

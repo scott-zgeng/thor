@@ -455,7 +455,7 @@ public:
             } else {
                 m_pos = (db_byte*)m_iterator.next();
                 assert(m_pos != NULL);
-                m_row_idx = 0;
+                m_row_idx = 1;  // 已经取了一条了，所以是1
             }
 
             return m_pos;

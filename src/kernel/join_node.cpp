@@ -80,6 +80,6 @@ result_t hash_join_node_t::build_hash_table(mem_stack_t* mem)
         if (m_rowset.count <= SEGMENT_SIZE) break;
     }
 
-    RETURN RT_SUCCEEDED;
+    return RT_SUCCEEDED;
 }
 
